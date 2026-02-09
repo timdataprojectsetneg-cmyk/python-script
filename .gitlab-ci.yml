@@ -1,0 +1,19 @@
+default:
+  interruptible: true
+  tags:
+    - setneg
+
+stages:
+  - build
+
+variables:
+  GIT_STRATEGY: clone
+  GIT_DEPTH: 1
+
+Build Development:
+  image: docker:19.03.12
+  stage: build
+  services:
+    - docker:19.03.12-dind
+  script:
+    - echo "Hello world"
