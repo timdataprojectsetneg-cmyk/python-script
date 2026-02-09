@@ -1,7 +1,7 @@
 default:
   interruptible: true
   tags:
-    - bigactoin
+    - bigaction
 
 stages:
   - build
