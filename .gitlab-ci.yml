@@ -1,7 +1,7 @@
 default:
   interruptible: true
   tags:
-    - setneg
+    - bigactoin
 
 stages:
   - build
@@ -16,4 +16,12 @@ Build Development:
   services:
     - docker:19.03.12-dind
   script:
-    - echo "Hello world"
+    - sudo rsync -av ./scripts/ /data/nifi-scripts/
+    - # Check if requirements.txt exists and is different from the existing one
+    - if [ ! -f /data/nifi-scripts/requirements.txt ] || ! cmp -s requirements.txt /data/nifi-scripts/requirements.txt; then
+    -   sudo rsync -av requirements.txt /data/nifi-scripts/requirements.txt
+    -   echo "Installing requirements..."
+    -   alias kubectl='kubectl --insecure-skip-tls-verify=true'
+    -   kubectl -n bigbox exec statefulset/bigaction-core  -- /opt/nifi/nifi-current/venv/bin/pip install -r /opt/nifi/nifi-current/scripts/requirements.txt
+    - fi
+    - sudo chown -R 1000:1000 /data/nifi-scripts/
