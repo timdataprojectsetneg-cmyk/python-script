@@ -207,11 +207,11 @@ WAJIB isi semua ID yang diberikan, dan jangan menambahkan field lain."""
 
 # ---------------- OpenAI client + categorization ----------------
 def get_client() -> OpenAI:
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY missing (set it in ExecuteStreamCommand Environment Variables)")
 
-    base_url = os.getenv("OPENAI_BASE_URL")
+    base_url = os.environ.get("OPENAI_BASE_URL")
     if base_url:
         return OpenAI(api_key=api_key, base_url=base_url)
     return OpenAI(api_key=api_key)
@@ -296,7 +296,7 @@ WHERE id_source = {sql_quote(id_source)};
 # ---------------- main ----------------
 def main() -> int:
     ap = argparse.ArgumentParser(description="LLM categorize -> output SQL UPDATE for NiFi PutSQL.")
-    ap.add_argument("--model", default=os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+    ap.add_argument("--model", default=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
     ap.add_argument("--batch-size", type=int, default=50)  # safer default
     ap.add_argument("--delay", type=float, default=2.0)
     ap.add_argument("--log-level", default=os.getenv("LOG_LEVEL", "INFO"))
