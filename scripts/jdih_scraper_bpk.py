@@ -13,7 +13,7 @@ from typing import List, Dict, Any, Optional
 import requests
 from bs4 import BeautifulSoup
 
-logger = logging.getLogger("jdih_scrape_to_sql")
+logger = logging.getLogger("jdih_scraper_bpk")
 
 DEFAULT_HEADERS = {
     "User-Agent": (
