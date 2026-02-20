@@ -414,7 +414,7 @@ def scrape_regulation_details(detail_url: str) -> Optional[Dict[str, Any]]:
         details: Dict[str, Any] = {
             "id_source": detail_url.split("/")[-2] if "/" in detail_url else "",
             "source_url": detail_url,
-            "source_url_download": source_download_url,
+            "source_download_url": source_download_url,
             "jenis": "",
             "instansi": "",
             "nomor": "",
@@ -553,7 +553,7 @@ def to_upsert_sql(d: Dict[str, Any]) -> str:
 INSERT INTO data_jdih.all_produk_hukum (
   id_source, jenis, instansi, nomor, tahun, tentang, description,
   status, tanggal_ditetapkan, tanggal_diundangkan, tanggal_berlaku,
-  nama_file, source_url, source_url_download, lampiran, peraturan_terkait, updated_at
+  nama_file, source_url, source_download_url, lampiran, peraturan_terkait, updated_at
 ) VALUES (
   {sql_quote(d.get("id_source"))},
   {sql_quote(d.get("jenis"))},
@@ -568,7 +568,7 @@ INSERT INTO data_jdih.all_produk_hukum (
   {sql_quote(d.get("tanggal_berlaku") or None)},
   {sql_quote(d.get("nama_file"))},
   {sql_quote(d.get("source_url"))},
-  {sql_quote(d.get("source_url_download"))},
+  {sql_quote(d.get("source_download_url"))},
   {sql_text_array(d.get("lampiran") or [])},
   {sql_jsonb(d.get("peraturan_terkait") or {})},
   now()
@@ -586,7 +586,7 @@ ON CONFLICT (id_source) DO UPDATE SET
   tanggal_berlaku = EXCLUDED.tanggal_berlaku,
   nama_file = EXCLUDED.nama_file,
   source_url = EXCLUDED.source_url,
-  source_url_download = EXCLUDED.source_url_download,
+  source_download_url = EXCLUDED.source_download_url,
   lampiran = EXCLUDED.lampiran,
   peraturan_terkait = EXCLUDED.peraturan_terkait,
   updated_at = now()
