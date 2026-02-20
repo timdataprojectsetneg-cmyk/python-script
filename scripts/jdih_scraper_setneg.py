@@ -6,7 +6,6 @@ import time
 import random
 import logging
 import argparse
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -41,7 +40,13 @@ def setup_logging(level: str = "INFO") -> None:
 
 
 # ---------------- HTTP helper (429 backoff) ----------------
-def http_get(url: str, headers: dict, timeout: int = 20, max_retries: int = 6, base_sleep: float = 2.5) -> requests.Response:
+def http_get(
+    url: str,
+    headers: dict,
+    timeout: int = 20,
+    max_retries: int = 6,
+    base_sleep: float = 2.5,
+) -> requests.Response:
     last_exc: Optional[Exception] = None
     for attempt in range(max_retries):
         try:
@@ -54,15 +59,28 @@ def http_get(url: str, headers: dict, timeout: int = 20, max_retries: int = 6, b
                 if retry_after and str(retry_after).strip().isdigit():
                     wait = int(retry_after)
                 else:
-                    wait = base_sleep * (2 ** attempt) + random.uniform(0.5, 2.5)
+                    wait = base_sleep * (2**attempt) + random.uniform(0.5, 2.5)
                 wait = min(wait, 120)
-                logger.warning("429 Too Many Requests. Sleep %.1fs then retry (%s/%s): %s", wait, attempt + 1, max_retries, url)
+                logger.warning(
+                    "429 Too Many Requests. Sleep %.1fs then retry (%s/%s): %s",
+                    wait,
+                    attempt + 1,
+                    max_retries,
+                    url,
+                )
                 time.sleep(wait)
                 continue
 
             if 500 <= r.status_code < 600:
-                wait = min(base_sleep * (2 ** attempt) + random.uniform(0.5, 2.5), 60)
-                logger.warning("%s server error. Sleep %.1fs then retry (%s/%s): %s", r.status_code, wait, attempt + 1, max_retries, url)
+                wait = min(base_sleep * (2**attempt) + random.uniform(0.5, 2.5), 60)
+                logger.warning(
+                    "%s server error. Sleep %.1fs then retry (%s/%s): %s",
+                    r.status_code,
+                    wait,
+                    attempt + 1,
+                    max_retries,
+                    url,
+                )
                 time.sleep(wait)
                 continue
 
@@ -71,8 +89,15 @@ def http_get(url: str, headers: dict, timeout: int = 20, max_retries: int = 6, b
 
         except requests.RequestException as e:
             last_exc = e
-            wait = min(base_sleep * (2 ** attempt) + random.uniform(0.5, 2.5), 60)
-            logger.warning("RequestException. Sleep %.1fs then retry (%s/%s): %s (%s)", wait, attempt + 1, max_retries, url, e)
+            wait = min(base_sleep * (2**attempt) + random.uniform(0.5, 2.5), 60)
+            logger.warning(
+                "RequestException. Sleep %.1fs then retry (%s/%s): %s (%s)",
+                wait,
+                attempt + 1,
+                max_retries,
+                url,
+                e,
+            )
             time.sleep(wait)
 
     if last_exc:
@@ -80,7 +105,14 @@ def http_get(url: str, headers: dict, timeout: int = 20, max_retries: int = 6, b
     raise RuntimeError(f"Failed to GET after retries: {url}")
 
 
-def http_post(url: str, headers: dict, data: Any, timeout: int = 20, max_retries: int = 6, base_sleep: float = 2.5) -> requests.Response:
+def http_post(
+    url: str,
+    headers: dict,
+    data: Any,
+    timeout: int = 20,
+    max_retries: int = 6,
+    base_sleep: float = 2.5,
+) -> requests.Response:
     last_exc: Optional[Exception] = None
     for attempt in range(max_retries):
         try:
@@ -93,15 +125,28 @@ def http_post(url: str, headers: dict, data: Any, timeout: int = 20, max_retries
                 if retry_after and str(retry_after).strip().isdigit():
                     wait = int(retry_after)
                 else:
-                    wait = base_sleep * (2 ** attempt) + random.uniform(0.5, 2.5)
+                    wait = base_sleep * (2**attempt) + random.uniform(0.5, 2.5)
                 wait = min(wait, 120)
-                logger.warning("429 Too Many Requests. Sleep %.1fs then retry (%s/%s): %s", wait, attempt + 1, max_retries, url)
+                logger.warning(
+                    "429 Too Many Requests. Sleep %.1fs then retry (%s/%s): %s",
+                    wait,
+                    attempt + 1,
+                    max_retries,
+                    url,
+                )
                 time.sleep(wait)
                 continue
 
             if 500 <= r.status_code < 600:
-                wait = min(base_sleep * (2 ** attempt) + random.uniform(0.5, 2.5), 60)
-                logger.warning("%s server error. Sleep %.1fs then retry (%s/%s): %s", r.status_code, wait, attempt + 1, max_retries, url)
+                wait = min(base_sleep * (2**attempt) + random.uniform(0.5, 2.5), 60)
+                logger.warning(
+                    "%s server error. Sleep %.1fs then retry (%s/%s): %s",
+                    r.status_code,
+                    wait,
+                    attempt + 1,
+                    max_retries,
+                    url,
+                )
                 time.sleep(wait)
                 continue
 
@@ -110,8 +155,15 @@ def http_post(url: str, headers: dict, data: Any, timeout: int = 20, max_retries
 
         except requests.RequestException as e:
             last_exc = e
-            wait = min(base_sleep * (2 ** attempt) + random.uniform(0.5, 2.5), 60)
-            logger.warning("RequestException. Sleep %.1fs then retry (%s/%s): %s (%s)", wait, attempt + 1, max_retries, url, e)
+            wait = min(base_sleep * (2**attempt) + random.uniform(0.5, 2.5), 60)
+            logger.warning(
+                "RequestException. Sleep %.1fs then retry (%s/%s): %s (%s)",
+                wait,
+                attempt + 1,
+                max_retries,
+                url,
+                e,
+            )
             time.sleep(wait)
 
     if last_exc:
@@ -142,6 +194,10 @@ def sql_jsonb(obj: Any) -> str:
 
 
 def sql_text_array(arr: Any) -> str:
+    """
+    Postgres text[] literal, with safe single-quote escaping.
+    Important: element must be single-quoted, not ARRAY["..."] (itu dianggap identifier).
+    """
     if not arr:
         return "ARRAY[]::text[]"
     if not isinstance(arr, list):
@@ -210,10 +266,43 @@ def extract_terk_x_ids(terk_x: Any) -> Optional[Dict[str, List[str]]]:
                         ids.append(item_id)
 
         if ids:
-            # dedup
-            result[jenis] = sorted(list(dict.fromkeys(ids)))
+            # dedup preserve order, then sort (biar stabil)
+            ids = list(dict.fromkeys(ids))
+            result[jenis] = sorted(ids)
 
     return result or None
+
+
+# ---------------- rules requested ----------------
+def jenis_titlecase_first_only(j: Optional[str]) -> Optional[str]:
+    """
+    Huruf pertama besar, sisanya kecil.
+    Contoh: 'PERPRES' -> 'Perpres'
+    """
+    if not j:
+        return None
+    j = str(j).strip()
+    if not j:
+        return None
+    return j[:1].upper() + j[1:].lower()
+
+
+def map_jenis_instansi_from_list_value(jenis_list_val: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Mapping khusus sesuai request kamu:
+    - kalau jenis dari list = 'PERMENSETNEG' -> jenis='PERMEN', instansi='Kementerian Sekretariat Negara'
+    - kalau jenis dari list = 'KEPMENSESNEG' -> jenis='KEPMEN', instansi='Kementerian Sekretariat Negara'
+    Selain itu: instansi default 'Pemerintah Pusat'
+    """
+    if not jenis_list_val:
+        return None, None
+
+    j = str(jenis_list_val).strip().upper()
+    if j == "PERMENSETNEG":
+        return "PERMEN", "Kementerian Sekretariat Negara"
+    if j == "KEPMENSESNEG":
+        return "KEPMEN", "Kementerian Sekretariat Negara"
+    return jenis_list_val, "Pemerintah Pusat"
 
 
 # ---------------- API calls ----------------
@@ -235,17 +324,32 @@ def fetch_page(
     start: int,
     length: int,
     years: Optional[List[int]],
-    jenis_list: List[str],
     headers: dict,
 ) -> Dict[str, Any]:
+    """
+    NOTE: kamu minta ambil SEMUA jenis.
+    Jadi kita TIDAK kirim idjenis[] sama sekali.
+    """
     payload = {
         "draw": "1",
-        "columns[0][data]": "0", "columns[0][searchable]": "true", "columns[0][orderable]": "false",
-        "columns[1][data]": "1", "columns[1][searchable]": "true", "columns[1][orderable]": "true",
-        "columns[2][data]": "2", "columns[2][searchable]": "true", "columns[2][orderable]": "true",
-        "columns[3][data]": "3", "columns[3][searchable]": "true", "columns[3][orderable]": "true",
-        "columns[4][data]": "4", "columns[4][searchable]": "true", "columns[4][orderable]": "false",
-        "columns[5][data]": "5", "columns[5][searchable]": "true", "columns[5][orderable]": "false",
+        "columns[0][data]": "0",
+        "columns[0][searchable]": "true",
+        "columns[0][orderable]": "false",
+        "columns[1][data]": "1",
+        "columns[1][searchable]": "true",
+        "columns[1][orderable]": "true",
+        "columns[2][data]": "2",
+        "columns[2][searchable]": "true",
+        "columns[2][orderable]": "true",
+        "columns[3][data]": "3",
+        "columns[3][searchable]": "true",
+        "columns[3][orderable]": "true",
+        "columns[4][data]": "4",
+        "columns[4][searchable]": "true",
+        "columns[4][orderable]": "false",
+        "columns[5][data]": "5",
+        "columns[5][searchable]": "true",
+        "columns[5][orderable]": "false",
         "start": str(start),
         "length": str(length),
         "search[value]": "",
@@ -254,10 +358,8 @@ def fetch_page(
         "Authorization": token,
     }
 
-    # list-of-tuples agar bisa idjenis[] & tahun[]
     payload_list = [(k, v) for k, v in payload.items()]
-    for j in jenis_list:
-        payload_list.append(("idjenis[]", j))
+
     if years:
         for y in years:
             payload_list.append(("tahun[]", str(y)))
@@ -283,67 +385,71 @@ def build_row_from_item_and_detail(
     item: List[Any],
     peraturan_id: str,
     detail_payload: Optional[Dict[str, Any]],
-    default_instansi: Optional[str] = "Pemerintah Pusat",
 ) -> Optional[Dict[str, Any]]:
     """
     item indexes (dari /ProdukHukum):
       0 No, 1 Jenis, 2 Nomor, 3 Tahun, 4 Judul(html), 5 ID(?)
     """
+
+    # dari list
     judul_html = item[4] if len(item) > 4 else ""
     tentang = clean_html(judul_html) if judul_html else None
-
-    jenis = item[1] if len(item) > 1 else None
+    jenis_list_val = item[1] if len(item) > 1 else None
     nomor = item[2] if len(item) > 2 else None
     tahun = item[3] if len(item) > 3 else None
 
+    # mapping jenis+instansi
+    mapped_jenis, mapped_instansi = map_jenis_instansi_from_list_value(jenis_list_val)
+    jenis = mapped_jenis
+    instansi = mapped_instansi or "Pemerintah Pusat"
+
+    # nama_file: "Perpres Nomor 63 Tahun 2017" (jenis title-case first letter only)
+    jenis_fmt = jenis_titlecase_first_only(jenis) or ""
+    nomor_str = str(nomor).strip() if nomor is not None else ""
+    tahun_str = str(tahun).strip() if tahun is not None else ""
+    nama_file_fmt = None
+    if jenis_fmt and nomor_str and tahun_str:
+        nama_file_fmt = f"{jenis_fmt} Nomor {nomor_str} Tahun {tahun_str}"
+
+    # defaults
     status_obj: Dict[str, Any] = {}
     tanggal_ditetapkan = None
     tanggal_diundangkan = None
     tanggal_berlaku = None
-    nama_file = None
     source_download_url = None
     peraturan_terkait = None
 
-    # kalau detail ada
+    # id_source: prefer detail.data.idperaturan
+    id_source = peraturan_id
+
+    # detail
     if detail_payload and isinstance(detail_payload, dict):
         d = detail_payload.get("data") or {}
         terk_x = detail_payload.get("terk_x")
 
-        # status (mengubah/mencabut/diubah/dicabut) kalau ada
         for k in ("mengubah", "mencabut", "diubah", "dicabut"):
             v = d.get(k)
             if v:
                 status_obj[k] = v
 
         tanggal_ditetapkan = clean_date(d.get("tgl_di"))
-        tanggal_diundangkan = clean_date(d.get("diundangkan"))
-
-        # di script lama kamu: tgl_sah = tanggal_dikeluarkan
-        # di tabel kita: pakai sebagai tanggal_berlaku (lebih relevan)
+        tanggal_diundangkan = clean_date(d.get("tgl_diun")) or clean_date(d.get("diundangkan"))
         tanggal_berlaku = clean_date(d.get("tgl_sah"))
 
-        # file metadata
+        # ambil download dari url2 (sesuai request)
         datafile = d.get("datafile")
         if isinstance(datafile, list) and datafile:
             f0 = datafile[0] if isinstance(datafile[0], dict) else {}
-            nama_file = f0.get("basename")
-            # url2 sering dipakai sebagai file url; simpan sebagai download
-            source_download_url = f0.get("url2") or f0.get("url") or None
+            source_download_url = f0.get("url2") or f0.get("url1") or f0.get("url") or None
 
         peraturan_terkait = extract_terk_x_ids(terk_x)
 
-        # id_source yang benar biasanya idperaturan
         id_source = d.get("idperaturan") or peraturan_id
-    else:
-        id_source = peraturan_id
-
-    # source_url: simpan halaman/endpoint detail (yang pasti valid)
-    source_url = f"{BASE}/front/Peraturan/ajaxview?id={peraturan_id}"
 
     row = {
         "id_source": str(id_source) if id_source is not None else None,
         "jenis": str(jenis) if jenis is not None else None,
-        "instansi": default_instansi,
+        "instansi": instansi,
         "nomor": str(nomor) if nomor is not None else None,
         "tahun": str(tahun) if tahun is not None else None,
         "tentang": tentang,
@@ -352,14 +458,13 @@ def build_row_from_item_and_detail(
         "tanggal_ditetapkan": tanggal_ditetapkan,
         "tanggal_diundangkan": tanggal_diundangkan,
         "tanggal_berlaku": tanggal_berlaku,
-        "nama_file": nama_file,
-        "source_url": source_url,
-        "source_download_url": source_download_url,
+        "nama_file": nama_file_fmt,  # sesuai request (bukan basename)
+        "source_url": "https://jdih.setneg.go.id",  # sesuai request: seragam
+        "source_download_url": source_download_url,  # sesuai request: dari url2
         "lampiran": [],
         "peraturan_terkait": peraturan_terkait or {},
     }
 
-    # minimal id_source harus ada
     if not row["id_source"]:
         return None
     return row
@@ -429,15 +534,43 @@ def to_upsert_sql_many(rows: List[Dict[str, Any]], table_name: str) -> str:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="JDIH Setneg scraper -> outputs ONE SQL UPSERT statement for NiFi PutSQL.")
-    ap.add_argument("--years", default="", help="Comma-separated years, e.g. 2024,2025. Empty = all years.")
-    ap.add_argument("--jenis", default="JNS.04,JNS.05,JNS.06", help="Comma-separated jenis IDs. Default: PERPRES,PP,UU")
-    ap.add_argument("--batch-size", type=int, default=100, help="Paging size for ProdukHukum endpoint.")
-    ap.add_argument("--limit", type=int, default=0, help="Limit total records (0 = no limit).")
-    ap.add_argument("--fetch-details", type=int, default=1, help="1 = fetch detail per id, 0 = only list page.")
-    ap.add_argument("--sleep", type=float, default=2.0, help="Base sleep between requests.")
-    ap.add_argument("--table", default="data_jdih.all_produk_hukum", help="Target table name.")
-    ap.add_argument("--instansi-default", default="Pemerintah Pusat", help="Default instansi value (use 'NULL' to store NULL).")
+    ap = argparse.ArgumentParser(
+        description="JDIH Setneg scraper -> outputs ONE SQL UPSERT statement for NiFi PutSQL."
+    )
+    ap.add_argument(
+        "--years",
+        default="",
+        help="Comma-separated years, e.g. 2024,2025. Empty = all years.",
+    )
+    ap.add_argument(
+        "--batch-size",
+        type=int,
+        default=100,
+        help="Paging size for ProdukHukum endpoint.",
+    )
+    ap.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Limit total records (0 = no limit).",
+    )
+    ap.add_argument(
+        "--fetch-details",
+        type=int,
+        default=1,
+        help="1 = fetch detail per id, 0 = only list page.",
+    )
+    ap.add_argument(
+        "--sleep",
+        type=float,
+        default=2.0,
+        help="Base sleep between requests.",
+    )
+    ap.add_argument(
+        "--table",
+        default="data_jdih.all_produk_hukum",
+        help="Target table name.",
+    )
     ap.add_argument("--log-level", default=os.getenv("LOG_LEVEL", "INFO"))
     args = ap.parse_args()
 
@@ -447,12 +580,6 @@ def main() -> int:
     if args.years.strip():
         years = [int(x.strip()) for x in args.years.split(",") if x.strip()]
 
-    jenis_list = [x.strip() for x in args.jenis.split(",") if x.strip()]
-    if not jenis_list:
-        jenis_list = ["JNS.04", "JNS.05", "JNS.06"]
-
-    default_instansi = None if str(args.instansi_default).strip().upper() == "NULL" else args.instansi_default
-
     logger.info("Getting CSRF + token...")
     csrf, token = get_csrf_and_token(DEFAULT_HEADERS, sleep=args.sleep)
     logger.info("CSRF/token OK")
@@ -461,7 +588,6 @@ def main() -> int:
     total_records = None
     collected_items: List[List[Any]] = []
 
-    # pagination
     while True:
         logger.info("Fetching page: start=%s length=%s", start, args.batch_size)
         data = fetch_page(
@@ -470,7 +596,6 @@ def main() -> int:
             start=start,
             length=args.batch_size,
             years=years,
-            jenis_list=jenis_list,
             headers=DEFAULT_HEADERS,
         )
 
@@ -497,9 +622,8 @@ def main() -> int:
 
     logger.info("Items collected=%s", len(collected_items))
 
-    # build rows
     rows: List[Dict[str, Any]] = []
-    fetch_details = bool(args.fetch_details)
+    fetch_details_flag = bool(args.fetch_details)
 
     for idx, item in enumerate(collected_items, 1):
         try:
@@ -509,7 +633,7 @@ def main() -> int:
                 continue
 
             detail_payload = None
-            if fetch_details:
+            if fetch_details_flag:
                 logger.info("[%s/%s] detail %s", idx, len(collected_items), peraturan_id)
                 detail_payload = fetch_detail(peraturan_id, DEFAULT_HEADERS)
 
@@ -517,7 +641,6 @@ def main() -> int:
                 item=item,
                 peraturan_id=peraturan_id,
                 detail_payload=detail_payload,
-                default_instansi=default_instansi,
             )
             if row:
                 rows.append(row)
@@ -530,14 +653,12 @@ def main() -> int:
 
     logger.info("Rows ready=%s", len(rows))
 
-    # output ONE SQL statement
     sql = to_upsert_sql_many(rows, table_name=args.table)
     if sql:
         sys.stdout.write(sql + "\n")
         sys.stdout.flush()
         return 0
 
-    # No data -> exit 0 but empty output (biar PutSQL tidak error)
     return 0
 
 
