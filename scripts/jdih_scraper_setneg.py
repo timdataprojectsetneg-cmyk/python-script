@@ -275,25 +275,21 @@ def extract_terk_x_ids(terk_x: Any) -> Optional[Dict[str, List[str]]]:
 
 # ---------------- rules requested ----------------
 def jenis_titlecase_first_only(j: Optional[str]) -> Optional[str]:
-    """
-    Huruf pertama besar, sisanya kecil.
-    Contoh: 'PERPRES' -> 'Perpres'
-    """
     if not j:
         return None
+
     j = str(j).strip()
     if not j:
         return None
-    return j[:1].upper() + j[1:].lower()
 
+    j_upper = j.upper()
+
+    if j_upper in ("UU", "PP"):
+        return j_upper
+
+    return j_upper[:1] + j_upper[1:].lower()
 
 def map_jenis_instansi_from_list_value(jenis_list_val: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Mapping khusus sesuai request kamu:
-    - kalau jenis dari list = 'PERMENSETNEG' -> jenis='PERMEN', instansi='Kementerian Sekretariat Negara'
-    - kalau jenis dari list = 'KEPMENSESNEG' -> jenis='KEPMEN', instansi='Kementerian Sekretariat Negara'
-    Selain itu: instansi default 'Pemerintah Pusat'
-    """
     if not jenis_list_val:
         return None, None
 
@@ -326,10 +322,6 @@ def fetch_page(
     years: Optional[List[int]],
     headers: dict,
 ) -> Dict[str, Any]:
-    """
-    NOTE: kamu minta ambil SEMUA jenis.
-    Jadi kita TIDAK kirim idjenis[] sama sekali.
-    """
     payload = {
         "draw": "1",
         "columns[0][data]": "0",
