@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import os
 import sys
 import re
@@ -8,6 +5,7 @@ import json
 import time
 import logging
 import argparse
+import random
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
@@ -23,6 +21,9 @@ DEFAULT_HEADERS = {
     )
 }
 
+# Reuse one session (slightly friendlier / faster)
+SESSION = requests.Session()
+
 
 def setup_logging(level: str = "INFO") -> None:
     lvl = getattr(logging, level.upper(), logging.INFO)
@@ -31,6 +32,73 @@ def setup_logging(level: str = "INFO") -> None:
     h.setLevel(lvl)
     h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s - %(message)s"))
     logger.handlers = [h]
+
+
+# ---------------- HTTP helper (429 backoff) ----------------
+def http_get(
+    url: str,
+    headers: dict,
+    timeout: int = 30,
+    max_retries: int = 6,
+    base_sleep: float = 3.0,
+) -> requests.Response:
+    """
+    GET with backoff for 429 (Too Many Requests) and transient 5xx.
+    - Retries 429 with exponential backoff + jitter (and obey Retry-After if provided)
+    - Retries 5xx
+    - Does NOT retry other 4xx
+    """
+    last_exc: Optional[Exception] = None
+
+    for attempt in range(max_retries):
+        try:
+            r = SESSION.get(url, headers=headers, timeout=timeout)
+
+            # OK
+            if r.status_code < 400:
+                return r
+
+            # Rate limited
+            if r.status_code == 429:
+                retry_after = r.headers.get("Retry-After")
+                if retry_after and str(retry_after).strip().isdigit():
+                    wait = int(retry_after)
+                else:
+                    wait = base_sleep * (2 ** attempt) + random.uniform(0.5, 2.5)
+                wait = min(wait, 120)
+                logger.warning(
+                    "429 Too Many Requests. Sleep %.1fs then retry (%s/%s): %s",
+                    wait, attempt + 1, max_retries, url
+                )
+                time.sleep(wait)
+                continue
+
+            # Transient server errors
+            if 500 <= r.status_code < 600:
+                wait = min(base_sleep * (2 ** attempt) + random.uniform(0.5, 2.5), 60)
+                logger.warning(
+                    "%s server error. Sleep %.1fs then retry (%s/%s): %s",
+                    r.status_code, wait, attempt + 1, max_retries, url
+                )
+                time.sleep(wait)
+                continue
+
+            # Other 4xx -> stop
+            r.raise_for_status()
+            return r
+
+        except requests.RequestException as e:
+            last_exc = e
+            wait = min(base_sleep * (2 ** attempt) + random.uniform(0.5, 2.5), 60)
+            logger.warning(
+                "RequestException. Sleep %.1fs then retry (%s/%s): %s (%s)",
+                wait, attempt + 1, max_retries, url, e
+            )
+            time.sleep(wait)
+
+    if last_exc:
+        raise last_exc
+    raise RuntimeError(f"Failed to GET after retries: {url}")
 
 
 # ---------------- SQL helpers ----------------
@@ -46,7 +114,6 @@ def sql_jsonb(obj: Any) -> str:
     """Return ::jsonb literal or '{}'::jsonb."""
     if obj is None:
         obj = {}
-    # compact JSON to reduce size
     j = json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
     return sql_quote(j) + "::jsonb"
 
@@ -61,7 +128,6 @@ def sql_text_array(arr: Any) -> str:
     for x in arr:
         if x is None:
             continue
-        # escape quotes/backslashes
         v = str(x).replace("\\", "\\\\").replace('"', '\\"')
         items.append(f'"{v}"')
     if not items:
@@ -270,8 +336,7 @@ def scrape_regulations_by_type(
                 url += f"&tahun={y}"
 
         try:
-            r = requests.get(url, headers=DEFAULT_HEADERS, timeout=30)
-            r.raise_for_status()
+            r = http_get(url, headers=DEFAULT_HEADERS, timeout=30)
             soup = BeautifulSoup(r.content, "html.parser")
 
             if max_pages is None:
@@ -325,7 +390,8 @@ def scrape_regulations_by_type(
             logger.info("Page %s: %s links", page, len(page_links))
 
             page += 1
-            time.sleep(sleep_seconds)
+            # jittered sleep
+            time.sleep(max(0.5, sleep_seconds) + random.uniform(0, 1.5))
 
         except Exception as e:
             logger.error("Error page %s: %s", page, e, exc_info=True)
@@ -336,8 +402,7 @@ def scrape_regulations_by_type(
 
 def scrape_regulation_details(detail_url: str) -> Optional[Dict[str, Any]]:
     try:
-        r = requests.get(detail_url, headers=DEFAULT_HEADERS, timeout=30)
-        r.raise_for_status()
+        r = http_get(detail_url, headers=DEFAULT_HEADERS, timeout=30)
         soup = BeautifulSoup(r.content, "html.parser")
 
         source_download_url = None
@@ -460,8 +525,9 @@ def scrape_regulation_details(detail_url: str) -> Optional[Dict[str, Any]]:
         else:
             details["jenis"] = jenis_bentuk_singkat or ""
 
-        if details["jenis"] and details["nomor"] and details["tahun"]:
+        if jenis_bentuk_singkat and details["nomor"] and details["tahun"]:
             details["nama_file"] = f"{details['jenis']} Nomor {details['nomor']} Tahun {details['tahun']}"
+            details['nama_file'] = f"{jenis_bentuk_singkat} Nomor {details['nomor']} Tahun {details['tahun']}"
 
         materi = parse_materi_pokok_from_soup(soup)
         if materi:
@@ -484,7 +550,7 @@ def to_upsert_sql(d: Dict[str, Any]) -> str:
     NOTE: uses now() on DB side for updated_at.
     """
     return f"""
-INSERT INTO data_jdih.produk_hukum (
+INSERT INTO data_jdih.all_produk_hukum (
   id_source, jenis, instansi, nomor, tahun, tentang, description,
   status, tanggal_ditetapkan, tanggal_diundangkan, tanggal_berlaku,
   nama_file, source_url, source_url_download, lampiran, peraturan_terkait, updated_at
@@ -558,7 +624,6 @@ def main() -> int:
 
     logger.info("Links to process: %s", len(links))
 
-    # Output: many SQL statements (PutSQL can execute content)
     out_sql_parts: List[str] = []
     ok = 0
 
@@ -568,9 +633,9 @@ def main() -> int:
         if d:
             out_sql_parts.append(to_upsert_sql(d))
             ok += 1
-        time.sleep(args.sleep)
+        # jittered sleep
+        time.sleep(max(0.5, args.sleep) + random.uniform(0, 1.5))
 
-    # Write SQL to stdout
     sys.stdout.write("\n".join(out_sql_parts) + ("\n" if out_sql_parts else ""))
     sys.stdout.flush()
 
