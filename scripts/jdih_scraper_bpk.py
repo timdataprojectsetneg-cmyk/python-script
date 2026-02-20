@@ -548,10 +548,6 @@ def scrape_regulation_details(detail_url: str) -> Optional[Dict[str, Any]]:
         return None
 
 def to_upsert_sql_many(rows: List[Dict[str, Any]]) -> str:
-    """
-    Build ONE INSERT statement with MANY VALUES rows + ON CONFLICT DO UPDATE.
-    IMPORTANT: no trailing semicolon for JDBC/NiFi PutSQL.
-    """
     if not rows:
         return ""
 
