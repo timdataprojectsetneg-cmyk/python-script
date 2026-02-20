@@ -123,15 +123,19 @@ def sql_text_array(arr: Any) -> str:
     if not arr:
         return "ARRAY[]::text[]"
     if not isinstance(arr, list):
-        arr = [str(arr)]
+        arr = [arr]
+
     items = []
     for x in arr:
         if x is None:
             continue
-        v = str(x).replace("\\", "\\\\").replace('"', '\\"')
-        items.append(f'"{v}"')
+        # escape single quotes for SQL literal
+        v = str(x).replace("'", "''")
+        items.append(f"'{v}'")
+
     if not items:
         return "ARRAY[]::text[]"
+
     return "ARRAY[" + ",".join(items) + "]::text[]"
 
 
