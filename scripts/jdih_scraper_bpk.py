@@ -543,56 +543,48 @@ def scrape_regulation_details(detail_url: str) -> Optional[Dict[str, Any]]:
         logger.error("Error detail %s: %s", detail_url, e, exc_info=True)
         return None
 
-
 def to_upsert_sql(d: Dict[str, Any]) -> str:
-    """
-    Build ONE UPSERT statement.
-    NOTE: uses now() on DB side for updated_at.
-    """
-    return f"""
-INSERT INTO data_jdih.all_produk_hukum (
-  id_source, jenis, instansi, nomor, tahun, tentang, description,
-  status, tanggal_ditetapkan, tanggal_diundangkan, tanggal_berlaku,
-  nama_file, source_url, source_download_url, lampiran, peraturan_terkait, updated_at
-) VALUES (
-  {sql_quote(d.get("id_source"))},
-  {sql_quote(d.get("jenis"))},
-  {sql_quote(d.get("instansi"))},
-  {sql_quote(d.get("nomor"))},
-  {sql_quote(d.get("tahun"))},
-  {sql_quote(d.get("tentang"))},
-  {sql_quote(d.get("description"))},
-  {sql_jsonb(d.get("status") or {})},
-  {sql_quote(d.get("tanggal_ditetapkan") or None)},
-  {sql_quote(d.get("tanggal_diundangkan") or None)},
-  {sql_quote(d.get("tanggal_berlaku") or None)},
-  {sql_quote(d.get("nama_file"))},
-  {sql_quote(d.get("source_url"))},
-  {sql_quote(d.get("source_download_url"))},
-  {sql_text_array(d.get("lampiran") or [])},
-  {sql_jsonb(d.get("peraturan_terkait") or {})},
-  now()
-)
-ON CONFLICT (id_source) DO UPDATE SET
-  jenis = EXCLUDED.jenis,
-  instansi = EXCLUDED.instansi,
-  nomor = EXCLUDED.nomor,
-  tahun = EXCLUDED.tahun,
-  tentang = EXCLUDED.tentang,
-  description = EXCLUDED.description,
-  status = EXCLUDED.status,
-  tanggal_ditetapkan = EXCLUDED.tanggal_ditetapkan,
-  tanggal_diundangkan = EXCLUDED.tanggal_diundangkan,
-  tanggal_berlaku = EXCLUDED.tanggal_berlaku,
-  nama_file = EXCLUDED.nama_file,
-  source_url = EXCLUDED.source_url,
-  source_download_url = EXCLUDED.source_download_url,
-  lampiran = EXCLUDED.lampiran,
-  peraturan_terkait = EXCLUDED.peraturan_terkait,
-  updated_at = now()
-;
-""".strip()
-
+    return (
+        "INSERT INTO data_jdih.all_produk_hukum ("
+        "id_source, jenis, instansi, nomor, tahun, tentang, description, "
+        "status, tanggal_ditetapkan, tanggal_diundangkan, tanggal_berlaku, "
+        "nama_file, source_url, source_download_url, lampiran, peraturan_terkait, updated_at"
+        ") VALUES ("
+        f"{sql_quote(d.get('id_source'))},"
+        f"{sql_quote(d.get('jenis'))},"
+        f"{sql_quote(d.get('instansi'))},"
+        f"{sql_quote(d.get('nomor'))},"
+        f"{sql_quote(d.get('tahun'))},"
+        f"{sql_quote(d.get('tentang'))},"
+        f"{sql_quote(d.get('description'))},"
+        f"{sql_jsonb(d.get('status') or {})},"
+        f"{sql_quote(d.get('tanggal_ditetapkan') or None)},"
+        f"{sql_quote(d.get('tanggal_diundangkan') or None)},"
+        f"{sql_quote(d.get('tanggal_berlaku') or None)},"
+        f"{sql_quote(d.get('nama_file'))},"
+        f"{sql_quote(d.get('source_url'))},"
+        f"{sql_quote(d.get('source_download_url'))},"
+        f"{sql_text_array(d.get('lampiran') or [])},"
+        f"{sql_jsonb(d.get('peraturan_terkait') or {})},"
+        "now()"
+        ") ON CONFLICT (id_source) DO UPDATE SET "
+        "jenis=EXCLUDED.jenis,"
+        "instansi=EXCLUDED.instansi,"
+        "nomor=EXCLUDED.nomor,"
+        "tahun=EXCLUDED.tahun,"
+        "tentang=EXCLUDED.tentang,"
+        "description=EXCLUDED.description,"
+        "status=EXCLUDED.status,"
+        "tanggal_ditetapkan=EXCLUDED.tanggal_ditetapkan,"
+        "tanggal_diundangkan=EXCLUDED.tanggal_diundangkan,"
+        "tanggal_berlaku=EXCLUDED.tanggal_berlaku,"
+        "nama_file=EXCLUDED.nama_file,"
+        "source_url=EXCLUDED.source_url,"
+        "source_download_url=EXCLUDED.source_download_url,"
+        "lampiran=EXCLUDED.lampiran,"
+        "peraturan_terkait=EXCLUDED.peraturan_terkait,"
+        "updated_at=now();"
+    )
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="JDIH Scraper -> outputs SQL UPSERT statements for NiFi PutSQL.")
