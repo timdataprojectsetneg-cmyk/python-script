@@ -427,15 +427,7 @@ def build_row_from_item_and_detail(
         tanggal_ditetapkan = clean_date(d.get("tgl_di"))
         tanggal_diundangkan = clean_date(d.get("tgl_diun")) or clean_date(d.get("diundangkan"))
         tanggal_berlaku = clean_date(d.get("tgl_sah"))
-
-        # ambil download dari url2 (sesuai request)
-        datafile = d.get("datafile")
-        if isinstance(datafile, list) and datafile:
-            f0 = datafile[0] if isinstance(datafile[0], dict) else {}
-            source_download_url = f0.get("url2") or f0.get("url1") or f0.get("url") or None
-
         peraturan_terkait = extract_terk_x_ids(terk_x)
-
         id_source = d.get("idperaturan") or peraturan_id
 
     row = {
@@ -450,9 +442,9 @@ def build_row_from_item_and_detail(
         "tanggal_ditetapkan": tanggal_ditetapkan,
         "tanggal_diundangkan": tanggal_diundangkan,
         "tanggal_berlaku": tanggal_berlaku,
-        "nama_file": nama_file_fmt,  # sesuai request (bukan basename)
-        "source_url": "https://jdih.setneg.go.id",  # sesuai request: seragam
-        "source_download_url": source_download_url,  # sesuai request: dari url2
+        "nama_file": nama_file_fmt,
+        "source_url": "https://jdih.setneg.go.id",
+        "source_download_url": "https://jdih.setneg.go.id",
         "lampiran": [],
         "peraturan_terkait": peraturan_terkait or {},
     }
