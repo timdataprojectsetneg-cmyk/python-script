@@ -88,7 +88,7 @@ def build_row(doc: Dict[str, Any]) -> Dict[str, Any]:
         "tanggal_diundangkan": doc.get("establishment_date"),
         "tanggal_berlaku": None,
         "nama_file": doc.get("title_short"),
-        "source_url": f"https://jdih.bkpm.go.id/id/search?document_type=Peraturan&regulation_type=Keputusan&regulation_year={doc.get("publication_year")}",
+        "source_url": f"https://jdih.bkpm.go.id/id/search?document_type=Peraturan&regulation_type=Keputusan&regulation_year={doc.get('publication_year')}",
         "source_download_url": doc.get("document_file_url"),
         "lampiran": [],
         "peraturan_terkait": {},
