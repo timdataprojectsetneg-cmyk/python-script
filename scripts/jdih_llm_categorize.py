@@ -171,6 +171,8 @@ TUGAS A - SEKTOR KEBIJAKAN (WAJIB, pilih dari daftar ini saja):
 {kebijakan_list}
 
 ATURAN sektor_kebijakan:
+- WAJIB minimal 1 kategori (tidak boleh kosong / null)
+- Jika ragu, tetap pilih kategori paling mendekati (best-effort) berdasarkan metadata
 - Utamakan 1 kategori jika fokusnya jelas
 - Maksimal 3 kategori jika lintas sektor
 - Jika lebih dari 1, pisahkan dengan koma
@@ -223,8 +225,10 @@ def llm_enrich_batch(
     """
     Returns mapping:
       id_source -> (kebijakan_list, investasi_list_or_None, description_text_or_None)
-    investasi_list_or_None:
-      - None means NOT investment -> will be set to NULL in DB
+
+    Rules:
+      - sektor_kebijakan MUST contain >= 1 valid category;
+      - sektor_investasi: None means NOT investment -> will be set to NULL in DB
     """
     prompt = create_prompt(regs)
 
@@ -259,17 +263,23 @@ def llm_enrich_batch(
             continue
         id_source = str(id_source)
 
-        # sektor_kebijakan
-        keb = item.get("sektor_kebijakan", "")
+        # sektor_kebijakan (STRICT, no fallback)
+        keb = item.get("sektor_kebijakan", None)
         if isinstance(keb, str):
             keb_list = [x.strip() for x in keb.split(",") if x.strip()]
         elif isinstance(keb, list):
             keb_list = [str(x).strip() for x in keb if str(x).strip()]
         else:
             keb_list = []
+
         keb_list = [x for x in keb_list if x in valid_k]
+
         if not keb_list:
-            keb_list = ["Tidak Terkategorisasi"]
+            logger.warning(
+                "Skip id_source=%s: invalid/empty sektor_kebijakan from LLM. raw=%r",
+                id_source, keb
+            )
+            continue
 
         # sektor_investasi -> None means NULL in DB
         inv = item.get("sektor_investasi")
