@@ -112,7 +112,6 @@ def read_input_rows() -> List[Dict[str, Any]]:
     try:
         data = json.loads(raw)
     except Exception:
-        # if NiFi wraps or adds BOM, attempt a cleanup
         cleaned = raw.strip().lstrip("\ufeff")
         data = json.loads(cleaned)
 
@@ -136,13 +135,15 @@ def create_prompt(regulations: List[Dict[str, Any]]) -> str:
         if isinstance(tentang, str) and len(tentang) > 220:
             tentang = tentang[:220] + "..."
 
-        desc = reg.get("description")
-        if desc is None:
-            desc = "NULL"
-        elif isinstance(desc, str):
-            desc = desc.strip() or "NULL"
-            if len(desc) > 220:
-                desc = desc[:220] + "..."
+        existing_desc = reg.get("description")
+        if existing_desc is None:
+            existing_desc_txt = "NULL"
+        elif isinstance(existing_desc, str):
+            existing_desc_txt = existing_desc.strip() or "NULL"
+            if len(existing_desc_txt) > 220:
+                existing_desc_txt = existing_desc_txt[:220] + "..."
+        else:
+            existing_desc_txt = "NULL"
 
         reg_list.append(
             f"""
@@ -150,7 +151,7 @@ def create_prompt(regulations: List[Dict[str, Any]]) -> str:
    Jenis: {reg.get('jenis','N/A')}
    Nomor: {reg.get('nomor','N/A')} Tahun {reg.get('tahun','N/A')}
    Tentang: {tentang}
-   Description existing: {desc}"""
+   Description existing: {existing_desc_txt}"""
         )
 
     kebijakan_list = "\n".join([f"- {k}" for k in SEKTOR_KEBIJAKAN.keys()])
@@ -161,7 +162,7 @@ def create_prompt(regulations: List[Dict[str, Any]]) -> str:
 Kamu harus memproses SEMUA {len(regulations)} peraturan berikut dan mengembalikan:
 1) sektor_kebijakan (WAJIB)
 2) sektor_investasi (OPSIONAL)
-3) description (WAJIB: selalu isi deskripsi singkat 1-2 kalimat Bahasa Indonesia)
+3) description (WAJIB: buat deskripsi singkat 1-2 kalimat Bahasa Indonesia)
 
 PERATURAN:
 {chr(10).join(reg_list)}
@@ -202,7 +203,7 @@ Format:
 WAJIB isi semua ID yang diberikan, dan jangan menambahkan field lain."""
 
 
-# ---------------- OpenAI client + categorization ----------------
+# ---------------- OpenAI client + enrichment ----------------
 def get_client() -> OpenAI:
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
@@ -221,8 +222,9 @@ def llm_enrich_batch(
 ) -> Dict[str, Tuple[List[str], Optional[List[str]], Optional[str]]]:
     """
     Returns mapping:
-      id_source -> (kebijakan_list, investasi_list, description_text_or_none)
-    investasi_list uses ["0"] if null/empty/invalid
+      id_source -> (kebijakan_list, investasi_list_or_None, description_text_or_None)
+    investasi_list_or_None:
+      - None means NOT investment -> will be set to NULL in DB
     """
     prompt = create_prompt(regs)
 
@@ -249,7 +251,7 @@ def llm_enrich_batch(
     valid_k = set(SEKTOR_KEBIJAKAN.keys())
     valid_i = set(SEKTOR_INVESTASI.keys())
 
-    out: Dict[str, Tuple[List[str], List[str], Optional[str]]] = {}
+    out: Dict[str, Tuple[List[str], Optional[List[str]], Optional[str]]] = {}
 
     for item in hasil:
         id_source = item.get("id_source")
@@ -269,7 +271,7 @@ def llm_enrich_batch(
         if not keb_list:
             keb_list = ["Tidak Terkategorisasi"]
 
-        # sektor_investasi
+        # sektor_investasi -> None means NULL in DB
         inv = item.get("sektor_investasi")
         if inv is None or inv == "" or inv == "null":
             inv_list = None
@@ -280,11 +282,12 @@ def llm_enrich_batch(
                 inv_list = [str(x).strip() for x in inv if str(x).strip()]
             else:
                 inv_list = []
+
             inv_list = [x for x in inv_list if x in valid_i]
             if not inv_list:
                 inv_list = None
 
-        # description (always attempted, but keep safe)
+        # description
         desc = item.get("description")
         if isinstance(desc, str):
             desc = desc.strip()
@@ -300,41 +303,42 @@ def llm_enrich_batch(
     return out
 
 
-def to_update_sql(
-    id_source: str,
-    kebijakan: List[str],
-    investasi: Optional[List[str]],
-    generated_description: Optional[str] = None
-) -> str:
+def build_bulk_update_sql(rows: List[Tuple[str, List[str], Optional[List[str]], Optional[str]]]) -> str:
+    """
+    Output: ONE Postgres UPDATE statement using UPDATE ... FROM (VALUES ...)
+    - sektor_investasi: NULL if not investment
+    - description: filled only if current DB value is NULL/empty
+    """
+    if not rows:
+        return ""
 
-    set_clauses = [
-        f"sektor_kebijakan = {sql_text_array(kebijakan)}",
-        "updated_at = now()",
-    ]
+    values_sql_parts: List[str] = []
+    for (id_source, keb, inv, desc) in rows:
+        keb_sql = sql_text_array(keb)
+        inv_sql = "NULL::text[]" if not inv else sql_text_array(inv)
+        desc_sql = "NULL::text" if (desc is None or not str(desc).strip()) else f"{sql_quote(desc)}::text"
+        values_sql_parts.append(f"({sql_quote(id_source)}::text, {keb_sql}, {inv_sql}, {desc_sql})")
 
-    if not investasi:
-        set_clauses.append("sektor_investasi = NULL")
-    else:
-        set_clauses.append(f"sektor_investasi = {sql_text_array(investasi)}")
+    values_sql = ",\n    ".join(values_sql_parts)
 
-    if generated_description and generated_description.strip():
-        set_clauses.insert(
-            0,
-            f"description = COALESCE(NULLIF(description, ''), {sql_quote(generated_description)})"
-        )
-
-    return (
-        "UPDATE data_jdih.all_produk_hukum\n"
-        "SET " + ",\n    ".join(set_clauses) + "\n"
-        f"WHERE id_source = {sql_quote(id_source)};"
-    )
+    return f"""UPDATE data_jdih.all_produk_hukum AS p
+SET
+    sektor_kebijakan = v.sektor_kebijakan,
+    sektor_investasi = v.sektor_investasi,
+    description = COALESCE(NULLIF(p.description, ''), v.description),
+    updated_at = now()
+FROM (
+    VALUES
+    {values_sql}
+) AS v(id_source, sektor_kebijakan, sektor_investasi, description)
+WHERE p.id_source = v.id_source;"""
 
 
 # ---------------- main ----------------
 def main() -> int:
-    ap = argparse.ArgumentParser(description="LLM enrich (description + categories) -> output SQL UPDATE for NiFi PutSQL.")
+    ap = argparse.ArgumentParser(description="LLM enrich -> output ONE bulk SQL UPDATE for NiFi PutSQL.")
     ap.add_argument("--model", default=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
-    ap.add_argument("--batch-size", type=int, default=50)  # safer default
+    ap.add_argument("--batch-size", type=int, default=50)  # LLM batching (not SQL count)
     ap.add_argument("--delay", type=float, default=2.0)
     ap.add_argument("--log-level", default=os.getenv("LOG_LEVEL", "INFO"))
     args = ap.parse_args()
@@ -356,7 +360,8 @@ def main() -> int:
     total = len(regs)
     logger.info("Rows to enrich: %s (batch_size=%s)", total, args.batch_size)
 
-    sql_out: List[str] = []
+    bulk_rows: List[Tuple[str, List[str], Optional[List[str]], Optional[str]]] = []
+
     for i in range(0, total, args.batch_size):
         batch = regs[i : i + args.batch_size]
         logger.info("Batch %s-%s / %s", i + 1, min(i + args.batch_size, total), total)
@@ -365,17 +370,19 @@ def main() -> int:
         if not enriched:
             raise RuntimeError("LLM returned empty enrichment result")
 
+        # keep order by input batch order
         for r in batch:
             id_source = str(r["id_source"])
             if id_source not in enriched:
                 continue
             keb, inv, desc = enriched[id_source]
-            sql_out.append(to_update_sql(id_source, keb, inv, desc))
+            bulk_rows.append((id_source, keb, inv, desc))
 
         if i + args.batch_size < total:
             time.sleep(args.delay)
 
-    sys.stdout.write("\n".join(sql_out) + ("\n" if sql_out else ""))
+    sql_one = build_bulk_update_sql(bulk_rows)
+    sys.stdout.write(sql_one + ("\n" if sql_one else ""))
     sys.stdout.flush()
     return 0
 
