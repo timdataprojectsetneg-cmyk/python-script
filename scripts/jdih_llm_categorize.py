@@ -1,22 +1,3 @@
-"""
-LLM categorization -> outputs SQL UPDATE statements for NiFi PutSQL.
-
-Input  (STDIN): JSON array of regulations, OR object containing a list at one of these keys:
-  results | result | records | rows | data
-
-Each item should have:
-  - id_source (required)
-  - jenis, nomor, tahun, tentang, description (optional but helpful)
-
-Output (STDOUT): multiple SQL UPDATE statements (Postgres)
-Logs  (STDERR): logging
-
-Environment (set in NiFi ExecuteStreamCommand -> Environment Variables):
-  OPENAI_API_KEY   (required, sensitive)
-  OPENAI_MODEL     (optional, default: gpt-4o-mini)
-  OPENAI_BASE_URL  (optional)
-"""
-
 from __future__ import annotations
 
 import os
@@ -70,24 +51,27 @@ SEKTOR_INVESTASI = {
 
 # ---------------- SQL helpers ----------------
 def sql_quote(s: Optional[str]) -> str:
+    """Postgres SQL string literal (or NULL)."""
     if s is None:
         return "NULL"
     return "'" + str(s).replace("'", "''") + "'"
 
 
 def sql_text_array(arr: Optional[List[str]]) -> str:
-    """Postgres text[] literal, safe for quotes/backslashes."""
+    """Postgres text[] literal using ARRAY[...] with properly quoted string elements."""
     if not arr:
         return "ARRAY[]::text[]"
-    items = []
+
+    items: List[str] = []
     for x in arr:
         if x is None:
             continue
-        v = str(x).replace("\\", "\\\\").replace('"', '\\"')
-        items.append(f'"{v}"')
+        items.append(sql_quote(str(x)))
+
     if not items:
         return "ARRAY[]::text[]"
-    return "ARRAY[" + ",".join(items) + "]::text[]"
+
+    return "ARRAY[" + ", ".join(items) + "]::text[]"
 
 
 # ---------------- Input parsing ----------------
@@ -144,17 +128,21 @@ def read_input_rows() -> List[Dict[str, Any]]:
     return []
 
 
-# ---------------- Prompt ----------------
+# ---------------- Prompt (ONE CALL: description + categories) ----------------
 def create_prompt(regulations: List[Dict[str, Any]]) -> str:
     reg_list = []
     for i, reg in enumerate(regulations, 1):
         tentang = reg.get("tentang") or "N/A"
-        if isinstance(tentang, str) and len(tentang) > 200:
-            tentang = tentang[:200] + "..."
+        if isinstance(tentang, str) and len(tentang) > 220:
+            tentang = tentang[:220] + "..."
 
-        desc = reg.get("description") or "N/A"
-        if isinstance(desc, str) and len(desc) > 200:
-            desc = desc[:200] + "..."
+        desc = reg.get("description")
+        if desc is None:
+            desc = "NULL"
+        elif isinstance(desc, str):
+            desc = desc.strip() or "NULL"
+            if len(desc) > 220:
+                desc = desc[:220] + "..."
 
         reg_list.append(
             f"""
@@ -162,7 +150,7 @@ def create_prompt(regulations: List[Dict[str, Any]]) -> str:
    Jenis: {reg.get('jenis','N/A')}
    Nomor: {reg.get('nomor','N/A')} Tahun {reg.get('tahun','N/A')}
    Tentang: {tentang}
-   Deskripsi: {desc}"""
+   Description existing: {desc}"""
         )
 
     kebijakan_list = "\n".join([f"- {k}" for k in SEKTOR_KEBIJAKAN.keys()])
@@ -170,12 +158,15 @@ def create_prompt(regulations: List[Dict[str, Any]]) -> str:
 
     return f"""Kamu adalah ahli hukum Indonesia yang bertugas mengkategorisasi peraturan perundang-undangan.
 
-Kategorikan SEMUA {len(regulations)} peraturan berikut:
+Kamu harus memproses SEMUA {len(regulations)} peraturan berikut dan mengembalikan:
+1) sektor_kebijakan (WAJIB)
+2) sektor_investasi (OPSIONAL)
+3) description (WAJIB: selalu isi deskripsi singkat 1-2 kalimat Bahasa Indonesia)
 
 PERATURAN:
 {chr(10).join(reg_list)}
 
-TUGAS 1 - SEKTOR KEBIJAKAN (WAJIB, pilih dari daftar ini saja):
+TUGAS A - SEKTOR KEBIJAKAN (WAJIB, pilih dari daftar ini saja):
 {kebijakan_list}
 
 ATURAN sektor_kebijakan:
@@ -183,12 +174,17 @@ ATURAN sektor_kebijakan:
 - Maksimal 3 kategori jika lintas sektor
 - Jika lebih dari 1, pisahkan dengan koma
 
-TUGAS 2 - SEKTOR INVESTASI (OPSIONAL, pilih dari daftar ini saja):
+TUGAS B - SEKTOR INVESTASI (OPSIONAL, pilih dari daftar ini saja):
 {investasi_list}
 
 ATURAN sektor_investasi:
 - Isi HANYA jika jelas terkait investasi/penanaman modal
 - Jika bukan investasi: gunakan null (literal null, bukan string)
+
+TUGAS C - DESCRIPTION (WAJIB):
+- Buat 1-2 kalimat, ringkas, informatif, Bahasa Indonesia
+- Jangan bullet/daftar
+- Jangan mengarang detail yang tidak ada; kalau info minim, deskripsikan secara umum berdasarkan "tentang" dan metadata
 
 OUTPUT WAJIB JSON VALID (RFC 8259), TANPA TEKS TAMBAHAN, TANPA TRAILING COMMA.
 Format:
@@ -197,7 +193,8 @@ Format:
     {{
       "id_source": "ID",
       "sektor_kebijakan": "Kategori" atau "Kategori1, Kategori2",
-      "sektor_investasi": "Kategori" atau "Kategori1, Kategori2" atau null
+      "sektor_investasi": "Kategori" atau "Kategori1, Kategori2" atau null,
+      "description": "teks deskripsi"
     }}
   ]
 }}
@@ -217,7 +214,16 @@ def get_client() -> OpenAI:
     return OpenAI(api_key=api_key)
 
 
-def categorize_batch(client: OpenAI, regs: List[Dict[str, Any]], model: str) -> Dict[str, Tuple[List[str], List[str]]]:
+def llm_enrich_batch(
+    client: OpenAI,
+    regs: List[Dict[str, Any]],
+    model: str
+) -> Dict[str, Tuple[List[str], List[str], Optional[str]]]:
+    """
+    Returns mapping:
+      id_source -> (kebijakan_list, investasi_list, description_text_or_none)
+    investasi_list uses ["0"] if null/empty/invalid
+    """
     prompt = create_prompt(regs)
 
     resp = client.chat.completions.create(
@@ -226,8 +232,8 @@ def categorize_batch(client: OpenAI, regs: List[Dict[str, Any]], model: str) -> 
             {"role": "system", "content": "Ahli kategorisasi peraturan Indonesia. Jawab hanya JSON valid."},
             {"role": "user", "content": prompt},
         ],
-        temperature=0.3,
-        max_tokens=min(len(regs) * 80 + 1200, 16000),
+        temperature=0.25,
+        max_tokens=min(len(regs) * 95 + 1400, 16000),
     )
 
     text = (resp.choices[0].message.content or "").strip()
@@ -235,7 +241,7 @@ def categorize_batch(client: OpenAI, regs: List[Dict[str, Any]], model: str) -> 
 
     try:
         data = json.loads(text)
-    except Exception as e:
+    except Exception:
         logger.error("Failed to parse LLM JSON. Head=%r", text[:400])
         raise
 
@@ -243,7 +249,7 @@ def categorize_batch(client: OpenAI, regs: List[Dict[str, Any]], model: str) -> 
     valid_k = set(SEKTOR_KEBIJAKAN.keys())
     valid_i = set(SEKTOR_INVESTASI.keys())
 
-    out: Dict[str, Tuple[List[str], List[str]]] = {}
+    out: Dict[str, Tuple[List[str], List[str], Optional[str]]] = {}
 
     for item in hasil:
         id_source = item.get("id_source")
@@ -278,24 +284,51 @@ def categorize_batch(client: OpenAI, regs: List[Dict[str, Any]], model: str) -> 
             if not inv_list:
                 inv_list = ["0"]
 
-        out[id_source] = (keb_list, inv_list)
+        # description (always attempted, but keep safe)
+        desc = item.get("description")
+        if isinstance(desc, str):
+            desc = desc.strip()
+            if not desc:
+                desc = None
+            elif len(desc) > 1200:
+                desc = desc[:1200].rstrip() + "..."
+        else:
+            desc = None
+
+        out[id_source] = (keb_list, inv_list, desc)
 
     return out
 
 
-def to_update_sql(id_source: str, kebijakan: List[str], investasi: List[str]) -> str:
-    return f"""
-UPDATE data_jdih.produk_hukum
-SET sektor_kebijakan = {sql_text_array(kebijakan)},
-    sektor_investasi = {sql_text_array(investasi)},
-    updated_at = now()
-WHERE id_source = {sql_quote(id_source)};
-""".strip()
+def to_update_sql(
+    id_source: str,
+    kebijakan: List[str],
+    investasi: List[str],
+    generated_description: Optional[str] = None
+) -> str:
+    set_clauses = [
+        f"sektor_kebijakan = {sql_text_array(kebijakan)}",
+        f"sektor_investasi = {sql_text_array(investasi)}",
+        "updated_at = now()",
+    ]
+
+    # IMPORTANT: only fill description if DB description is NULL/empty
+    if generated_description is not None and str(generated_description).strip():
+        set_clauses.insert(
+            0,
+            f"description = COALESCE(NULLIF(description, ''), {sql_quote(generated_description)})"
+        )
+
+    return (
+        "UPDATE data_jdih.produk_hukum\n"
+        "SET " + ",\n    ".join(set_clauses) + "\n"
+        f"WHERE id_source = {sql_quote(id_source)};"
+    )
 
 
 # ---------------- main ----------------
 def main() -> int:
-    ap = argparse.ArgumentParser(description="LLM categorize -> output SQL UPDATE for NiFi PutSQL.")
+    ap = argparse.ArgumentParser(description="LLM enrich (description + categories) -> output SQL UPDATE for NiFi PutSQL.")
     ap.add_argument("--model", default=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
     ap.add_argument("--batch-size", type=int, default=50)  # safer default
     ap.add_argument("--delay", type=float, default=2.0)
@@ -317,23 +350,23 @@ def main() -> int:
     client = get_client()
 
     total = len(regs)
-    logger.info("Rows to categorize: %s (batch_size=%s)", total, args.batch_size)
+    logger.info("Rows to enrich: %s (batch_size=%s)", total, args.batch_size)
 
     sql_out: List[str] = []
     for i in range(0, total, args.batch_size):
         batch = regs[i : i + args.batch_size]
         logger.info("Batch %s-%s / %s", i + 1, min(i + args.batch_size, total), total)
 
-        categorized = categorize_batch(client, batch, args.model)
-        if not categorized:
-            raise RuntimeError("LLM returned empty categorization")
+        enriched = llm_enrich_batch(client, batch, args.model)
+        if not enriched:
+            raise RuntimeError("LLM returned empty enrichment result")
 
         for r in batch:
             id_source = str(r["id_source"])
-            if id_source not in categorized:
+            if id_source not in enriched:
                 continue
-            keb, inv = categorized[id_source]
-            sql_out.append(to_update_sql(id_source, keb, inv))
+            keb, inv, desc = enriched[id_source]
+            sql_out.append(to_update_sql(id_source, keb, inv, desc))
 
         if i + args.batch_size < total:
             time.sleep(args.delay)
