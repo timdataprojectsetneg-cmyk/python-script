@@ -218,7 +218,7 @@ def llm_enrich_batch(
     client: OpenAI,
     regs: List[Dict[str, Any]],
     model: str
-) -> Dict[str, Tuple[List[str], List[str], Optional[str]]]:
+) -> Dict[str, Tuple[List[str], Optional[List[str]], Optional[str]]]:
     """
     Returns mapping:
       id_source -> (kebijakan_list, investasi_list, description_text_or_none)
@@ -272,7 +272,7 @@ def llm_enrich_batch(
         # sektor_investasi
         inv = item.get("sektor_investasi")
         if inv is None or inv == "" or inv == "null":
-            inv_list = ["0"]
+            inv_list = None
         else:
             if isinstance(inv, str):
                 inv_list = [x.strip() for x in inv.split(",") if x.strip()]
@@ -282,7 +282,7 @@ def llm_enrich_batch(
                 inv_list = []
             inv_list = [x for x in inv_list if x in valid_i]
             if not inv_list:
-                inv_list = ["0"]
+                inv_list = None
 
         # description (always attempted, but keep safe)
         desc = item.get("description")
@@ -303,24 +303,28 @@ def llm_enrich_batch(
 def to_update_sql(
     id_source: str,
     kebijakan: List[str],
-    investasi: List[str],
+    investasi: Optional[List[str]],
     generated_description: Optional[str] = None
 ) -> str:
+
     set_clauses = [
         f"sektor_kebijakan = {sql_text_array(kebijakan)}",
-        f"sektor_investasi = {sql_text_array(investasi)}",
         "updated_at = now()",
     ]
 
-    # IMPORTANT: only fill description if DB description is NULL/empty
-    if generated_description is not None and str(generated_description).strip():
+    if not investasi:
+        set_clauses.append("sektor_investasi = NULL")
+    else:
+        set_clauses.append(f"sektor_investasi = {sql_text_array(investasi)}")
+
+    if generated_description and generated_description.strip():
         set_clauses.insert(
             0,
             f"description = COALESCE(NULLIF(description, ''), {sql_quote(generated_description)})"
         )
 
     return (
-        "UPDATE data_jdih.produk_hukum\n"
+        "UPDATE data_jdih.all_produk_hukum\n"
         "SET " + ",\n    ".join(set_clauses) + "\n"
         f"WHERE id_source = {sql_quote(id_source)};"
     )
