@@ -21,10 +21,10 @@ Build Development:
     - sudo rsync -av ./scripts/ /data/nifi-scripts/
     # SCP the /data/nifi-scripts and /data/nifi-venv to 192.168.15.24 an .25 as admin user
     - |
-      rsync -av /data/nifi-scripts/ admin@192.168.15.24:/data/
-      rsync -av /data/nifi-scripts/ admin@192.168.15.25:/data/
-      rsync -av /data/nifi-venv/ admin@192.168.15.24:/data/
-      rsync -av /data/nifi-venv/ admin@192.168.15.25:/data/
+      sudo rsync -av /data/nifi-scripts/ admin@192.168.15.24:/data/
+      sudo rsync -av /data/nifi-scripts/ admin@192.168.15.25:/data/
+      sudo rsync -av /data/nifi-venv/ admin@192.168.15.24:/data/
+      sudo rsync -av /data/nifi-venv/ admin@192.168.15.25:/data/
 
     - |
       kubectl config set-cluster k8s-cluster --server=$KUBE_URL --insecure-skip-tls-verify=true
