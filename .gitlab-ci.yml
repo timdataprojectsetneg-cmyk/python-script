@@ -17,6 +17,7 @@ Build Development:
   services:
     - docker:19.03.12-dind
   script:
+    # TODO: We need to rsync then scp to all nodes, but for now we just do it on one node (bigaction-core-0)
     - sudo rsync -av ./scripts/ /data/nifi-scripts/
     - |
       kubectl config set-cluster k8s-cluster --server=$KUBE_URL --insecure-skip-tls-verify=true
@@ -24,7 +25,7 @@ Build Development:
       kubectl config set-context bigaction-cicd --cluster=k8s-cluster --user=gitlab-user --namespace=$KUBE_NAMESPACE
       kubectl config use-context bigaction-cicd
 
-      ls -al /data/nifi-scripts/
+      kubectl -n bigbox get po -o wide
 
       # if [ ! -f /data/nifi-scripts/requirements.txt ] || ! cmp -s requirements.txt /data/nifi-scripts/requirements.txt; then
       #   echo "Changes detected or file missing. Updating requirements..."
