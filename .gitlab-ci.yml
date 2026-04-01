@@ -19,6 +19,10 @@ Build Development:
   script:
     # TODO: We need to rsync then scp to all nodes, but for now we just do it on one node (bigaction-core-0)
     - sudo rsync -av ./scripts/ /data/nifi-scripts/
+    # SCP the /data/nifi-scripts to 192.168.15.24 an .25 as admin user
+    - |
+      scp -o StrictHostKeyChecking=no -r /data/nifi-scripts/ admin@192.168.15.24:/data/nifi-scripts/
+      scp -o StrictHostKeyChecking=no -r /data/nifi-scripts/ admin@192.168.15.25:/data/nifi-scripts/
     - |
       kubectl config set-cluster k8s-cluster --server=$KUBE_URL --insecure-skip-tls-verify=true
       kubectl config set-credentials gitlab-user --token=$KUBE_TOKEN
