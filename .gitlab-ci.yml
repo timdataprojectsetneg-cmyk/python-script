@@ -21,8 +21,8 @@ Build Development:
     - sudo rsync -av ./scripts/ /data/nifi-scripts/
     # SCP the /data/nifi-scripts to 192.168.15.24 an .25 as admin user
     - |
-      scp -o StrictHostKeyChecking=no -r /data/nifi-scripts/ admin@192.168.15.24:/data/nifi-scripts/
-      scp -o StrictHostKeyChecking=no -r /data/nifi-scripts/ admin@192.168.15.25:/data/nifi-scripts/
+      scp -o StrictHostKeyChecking=no -r /data/nifi-scripts/ admin@192.168.15.24:/data/
+      scp -o StrictHostKeyChecking=no -r /data/nifi-scripts/ admin@192.168.15.25:/data/
     - |
       kubectl config set-cluster k8s-cluster --server=$KUBE_URL --insecure-skip-tls-verify=true
       kubectl config set-credentials gitlab-user --token=$KUBE_TOKEN
