@@ -9,6 +9,7 @@ stages:
 variables:
   GIT_STRATEGY: clone
   GIT_DEPTH: 1
+  KUBE_NAMESPACE: "bigbox"
 
 Build Development:
   image: docker:19.03.12
@@ -18,13 +19,25 @@ Build Development:
   script:
     - sudo rsync -av ./scripts/ /data/nifi-scripts/
     - |
-      if [ ! -f /data/nifi-scripts/requirements.txt ] || ! cmp -s requirements.txt /data/nifi-scripts/requirements.txt; then
-        echo "Changes detected or file missing. Updating requirements..."
-        sudo rsync -av requirements.txt /data/nifi-scripts/requirements.txt
+      kubectl config set-cluster k8s-cluster --server=$KUBE_URL --insecure-skip-tls-verify=true
+      kubectl config set-credentials gitlab-user --token=$KUBE_TOKEN
+      kubectl config set-context bigaction-cicd --cluster=k8s-cluster --user=gitlab-user --namespace=$KUBE_NAMESPACE
+      kubectl config use-context bigaction-cicd
 
-        KUBE_CMD="kubectl --insecure-skip-tls-verify=true"        
-        $KUBE_CMD -n bigbox exec statefulset/bigaction-core -- /opt/nifi/nifi-current/venv/bin/pip install -r /opt/nifi/nifi-current/scripts/requirements.txt
-      else
-        echo "requirements.txt is up to date. Skipping install."
-      fi
+      ls -al /data/nifi-scripts/
+
+      # if [ ! -f /data/nifi-scripts/requirements.txt ] || ! cmp -s requirements.txt /data/nifi-scripts/requirements.txt; then
+      #   echo "Changes detected or file missing. Updating requirements..."
+      #   sudo rsync -av requirements.txt /data/nifi-scripts/requirements.txt
+
+      #   KUBE_CMD="kubectl --insecure-skip-tls-verify=true"
+
+      #   # Re-Install on all nodes (Please add more nodes if you have more than 3)      
+      #   for i in {0..0}; do
+      #     echo "Installing on pod bigaction-core-$i..."
+      #     $KUBE_CMD -n bigbox exec bigaction-core-$i -- /opt/nifi/nifi-current/venv/bin/pip install -r /opt/nifi/nifi-current/scripts/requirements.txt
+      #   done
+      # else
+      #   echo "requirements.txt is up to date. Skipping install."
+      # fi
     - sudo chown -R 1000:1000 /data/nifi-scripts/
