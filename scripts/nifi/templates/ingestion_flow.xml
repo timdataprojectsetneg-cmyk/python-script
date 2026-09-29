@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  ingestion_flow.xml — NiFi template placeholder (Milestone M4).
+
+  Build the processor chain documented in ../README.md inside the NiFi UI, then
+  export it here via "Download flow definition" (or the REST API /templates
+  endpoint). Do not hand-edit live templates.
+
+  Expected processors:
+    GenerateFlowFile -> UpdateAttribute -> ExecuteStreamCommand
+      -> RouteOnAttribute -> ConvertRecord -> PutDatabaseRecord
+-->
+<template xmlns="http://www.w3.org/1999/XSL/Transform">
+  <!-- TODO(M4): replace with the exported NiFi flow definition. -->
+</template>

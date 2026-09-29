@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  error_handler_flow.xml — NiFi template placeholder (Milestone M4).
+
+  Failure path:
+    RouteOnAttribute (retry/alert) -> RetryFlowFile -> LogAttribute
+                                   -> PutFile / Bulletin alert -> Error Log
+
+  Export from the NiFi UI once built.
+-->
+<template xmlns="http://www.w3.org/1999/XSL/Transform">
+  <!-- TODO(M4): replace with the exported NiFi flow definition. -->
+</template>
