@@ -4,6 +4,12 @@ The NiFi flow is the sole scheduling/orchestration entry point in production.
 It invokes the Python CLI via `ExecuteStreamCommand`, captures NDJSON on stdout,
 and loads it with `PutDatabaseRecord`.
 
+`--mode prod` does not connect to PostgreSQL or create database objects. The
+destination schema and table must exist before the flow runs; provision them
+through the deployment migration/bootstrap process and grant the NiFi DBCP user
+the required schema and table permissions. The Python completion log reports
+NDJSON emission, not a completed database insert.
+
 ## Processor chain
 
 | Step | Processor | Purpose |

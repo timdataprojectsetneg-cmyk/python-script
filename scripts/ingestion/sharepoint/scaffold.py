@@ -7,6 +7,7 @@ overwritten — they are reported as skipped.
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 from typing import Any, Dict, List, Tuple
 
 from .metadata_parser import derive_access, derive_module_name, publisher_slug, source_slug, to_pydantic_source
@@ -113,3 +114,23 @@ def scaffold_usecase(
             created.append(str(path))
 
     return created, skipped
+
+
+def remove_ineligible_sources(root: str, usecase: str, eligible_sources: List[Dict[str, Any]]) -> List[str]:
+    """Remove generated source structures no longer marked eligible."""
+    usecase_dir = Path(root) / derive_module_name(usecase)
+    allowed = {(publisher_slug(source), source_slug(source)) for source in eligible_sources}
+    removed: List[str] = []
+    if not usecase_dir.is_dir():
+        return removed
+    for publisher_dir in usecase_dir.iterdir():
+        if not publisher_dir.is_dir() or publisher_dir.name.startswith("__"):
+            continue
+        for source_dir in publisher_dir.iterdir():
+            if source_dir.is_dir() and (publisher_dir.name, source_dir.name) not in allowed:
+                shutil.rmtree(source_dir)
+                removed.append(str(source_dir))
+        if not any(publisher_dir.iterdir()):
+            publisher_dir.rmdir()
+            removed.append(str(publisher_dir))
+    return removed

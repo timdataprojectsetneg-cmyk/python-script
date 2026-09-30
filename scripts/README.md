@@ -81,8 +81,8 @@ python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisiha
 python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan \
     --access scraper,excel --mode prod
 
-# DEV: dlt direct-write to local DB
-python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --access excel --mode dev
+# DEV: load directly to local PostgreSQL/Elastic (the profile enables loading)
+python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --access excel --env dev
 
 # Equivalent flat wrapper (NiFi style)
 python run_ingestion.py run --usecase ... --source ... --access pdf --mode prod
@@ -166,7 +166,7 @@ omit it to emit dictionaries for eligible sources in the use case.
 ```bash
 # Load secrets from .env.dev
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev
-python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --access excel --mode dev --env dev
+python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --access excel --env dev
 
 # --env also works on the group
 python -m ingestion.cli --env dev docs --usecase ketenagakerjaan

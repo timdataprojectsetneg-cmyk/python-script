@@ -83,16 +83,19 @@ def _emit_ndjson(records: Iterable[Dict[str, Any]]) -> int:
     return count
 
 
-def _dev_load(records: Iterator[Dict[str, Any]], config: Dict[str, Any], target: str) -> int:
+def _dev_load(
+    records: Iterator[Dict[str, Any]], config: Dict[str, Any], target: str, use_dlt: bool = False
+) -> int:
     if target == "none":
         return _emit_ndjson(records)
     if target == "elastic":
         from .core.loaders.elastic_loader import ElasticLoader
 
         return ElasticLoader(config).load(records)
-    from .core.loaders.postgres_loader import PostgresLoader
+    from .core.loaders.postgres_loader import DltPostgresLoader, PostgresLoader
 
-    return PostgresLoader(config).load(records)
+    loader = DltPostgresLoader if use_dlt else PostgresLoader
+    return loader(config).load(records)
 
 
 URL_FORWARD_KEYS = ("download_url", "excel_url", "pdf_url", "url", "href")
@@ -175,6 +178,7 @@ def execute_run(
     mode: str = "prod",
     target: Optional[str] = None,
     limit: int = 0,
+    use_dlt: bool = False,
 ) -> int:
     accesses = _parse_accesses(access, usecase, publisher, source)
     if not accesses:
@@ -194,6 +198,13 @@ def execute_run(
     logger.info("Source: %s", config["source"])
     logger.info("Access: %s", " -> ".join(accesses))
     logger.info("Mode: %s (target=%s)", mode, effective_target)
+    if mode == "prod" and effective_target != "none":
+        # Production deliberately has no database credentials. The NDJSON
+        # stream is consumed by NiFi, which owns the PostgreSQL connection.
+        logger.info(
+            "Production target '%s' is downstream-only; emitting NDJSON for NiFi (no PostgreSQL connection)",
+            effective_target,
+        )
 
     normalizer = resolve_normalizer(config["usecase"], config["publisher"], config["source"], config)
     records = normalizer.normalize(
@@ -203,11 +214,30 @@ def execute_run(
         records = (rec for i, rec in enumerate(records) if i < limit)
 
     if mode == "dev":
-        count = _dev_load(records, config, effective_target)
+        count = _dev_load(records, config, effective_target, use_dlt=use_dlt)
     else:
         count = _emit_ndjson(records)
 
-    logger.info("Ingestion completed (records=%s, mode=%s, target=%s)", count, mode, effective_target)
+    output = "ndjson" if mode == "prod" else effective_target
+    destination = ""
+    if effective_target == "postgres":
+        from .config import get_raw
+        from .core.loaders.postgres_loader import _split_schema_table
+
+        default_schema = get_raw("DEV__POSTGRES_DATASET", "ingestion_dev")
+        schema, table_name = _split_schema_table(
+            config.get("postgre_table") or config.get("table"),
+            config.get("postgre_schema") or default_schema,
+        )
+        destination = f", schema={schema}, table={table_name or config.get('source')}"
+    logger.info(
+        "Ingestion completed (records=%s, mode=%s, target=%s, output=%s%s)",
+        count,
+        mode,
+        effective_target,
+        output,
+        destination,
+    )
     return ExitCode.SUCCESS
 
 
@@ -260,6 +290,7 @@ def cli(env_profile: Optional[str]) -> None:
 @click.option("--mode", default="prod", type=click.Choice(MODE_CHOICES), show_default=True)
 @click.option("--target", default=None, type=click.Choice(TARGET_CHOICES), help="DEV load target override")
 @click.option("--limit", default=0, type=int, help="Limit records (debug)")
+@click.option("--use-dlt", is_flag=True, default=False, help="Use dlt for DEV PostgreSQL loading")
 @click.option("--env", "env_profile", default=None, help=ENV_OPTION_HELP)
 @click.option("--log-level", default="INFO", show_default=True)
 def run(
@@ -270,6 +301,7 @@ def run(
     mode: str,
     target: str,
     limit: int,
+    use_dlt: bool,
     env_profile: Optional[str],
     log_level: str,
 ) -> None:
@@ -282,12 +314,24 @@ def run(
     setup_logging(log_level)
     try:
         _apply_env(env_profile)
+        # The environment profile is the deployment boundary: only the
+        # development profile carries local database credentials. Production
+        # and the default profile are extract/normalize-only and emit NDJSON.
+        from .config import get_env_profile
+
+        active_profile = (get_env_profile() or "").strip().lower()
+        if active_profile == "dev":
+            if mode == "prod":
+                logger.info("--env dev selected; enabling DEV loader")
+            mode = "dev"
+        elif mode == "dev":
+            raise ConfigError("Database loading requires --env dev")
         pairs = _resolve_run_targets(usecase, publisher, source)
         logger.info("Targets: %s", ", ".join(f"{pub}/{src}" for pub, src in pairs))
         code = ExitCode.SUCCESS
         for pub, src in pairs:
             try:
-                execute_run(usecase, pub, src, accesses, mode, target, limit)
+                execute_run(usecase, pub, src, accesses, mode, target, limit, use_dlt)
             except Exception as exc:  # noqa: BLE001 - continue the remaining sources
                 code = exit_code_for(exc)
                 logger.error(
@@ -440,6 +484,16 @@ def _generate_docs(
     env_path.write_text("\n".join(env_lines(usecase, sources)) + "\n", encoding="utf-8")
     logger.info("Wrote %s (env vars for eligible sources)", env_path)
 
+    # Dictionary markdown is generated per source; remove stale ineligible
+    # dictionaries so the docs directory reflects the current catalog.
+    eligible_slugs = {source_slug(source) for source in eligible}
+    usecase_slug = usecase_filename(usecase)[len("usecase_") : -len(".md")]
+    for stale in Path(output).glob(f"dictionary_{usecase_slug}_*.md"):
+        slug = stale.stem.removeprefix(f"dictionary_{usecase_slug}_")
+        if slug not in eligible_slugs:
+            stale.unlink()
+            logger.info("Removed ineligible documentation: %s", stale)
+
     if source_name:
         wanted = normalize_name(source_name)
         targets = [s for s in sources if normalize_name(s["source_name"]) == wanted]
@@ -447,6 +501,14 @@ def _generate_docs(
             targets = [s for s in sources if wanted in normalize_name(s["source_name"])]
         if not targets:
             raise ConfigError(f"Source '{source_name}' not found in sheet '{sheet}'")
+        if not include_ineligible:
+            ineligible_targets = [s for s in targets if not is_eligible(s)]
+            targets = [s for s in targets if is_eligible(s)]
+            for source in ineligible_targets:
+                logger.info(
+                    "Skipping ineligible source '%s'; use --include-ineligible to generate its dictionary",
+                    source.get("source_name"),
+                )
     elif publisher:
         wanted = normalize_name(publisher)
         targets = [s for s in sources if normalize_name(s.get("publisher")) == wanted]
@@ -499,8 +561,11 @@ def _generate_docs(
         logger.info("Wrote %s (%s fields)", path, len(schema))
 
     if scaffold:
-        from .sharepoint.scaffold import scaffold_usecase
+        from .sharepoint.scaffold import remove_ineligible_sources, scaffold_usecase
 
+        removed = remove_ineligible_sources(scaffold_root, usecase, eligible)
+        for path in removed:
+            logger.info("Removed ineligible scaffold: %s", path)
         created, skipped = scaffold_usecase(scaffold_root, usecase, eligible, schemas)
         for path in created:
             logger.info("  created %s", path)
