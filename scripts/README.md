@@ -120,8 +120,11 @@ ignored.
 # docs only (usecase md + dictionaries for eligible sources)
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev
 
-# also create module folders/files for Eligible sources (never overwrites existing files)
+# also create module folders/files for Eligible sources (existing files are skipped)
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --scaffold
+
+# explicitly regenerate/overwrite existing scaffold files
+python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --scaffold --scaffold-overwrite
 ```
 
 `--scaffold` writes `ingestion/usecases/<usecase>/<source>/{__init__.py,models.py,normalizer.py}`

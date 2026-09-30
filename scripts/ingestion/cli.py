@@ -361,13 +361,19 @@ def run(
 @click.option("--publisher", default=None, help="Only generate dictionaries for sources under this publisher")
 @click.option("--source", "source_name", default=None, help="Only generate the dictionary for this source")
 @click.option("--output", default="./docs", show_default=True, help="Output directory for Markdown docs")
-@click.option("--catalog", default=None, help="Catalog reference: item id or path (overrides env)")
+@click.option(
+    "--catalog",
+    default=None,
+    help=(
+        "SharePoint catalog workbook reference (item ID or drive-relative path). "
+        "Selects a different workbook than the one configured by the environment."
+    ),
+)
 @click.option("--scaffold", is_flag=True, help="Create module folders/files for eligible sources")
 @click.option(
-    "--scaffold-root",
-    default="ingestion/usecases",
-    show_default=True,
-    help="Root directory for scaffolding",
+    "--scaffold-overwrite",
+    is_flag=True,
+    help="Overwrite existing scaffold files (default: skip them)",
 )
 @click.option("--include-ineligible", is_flag=True, help="Also emit dictionaries for ineligible sources")
 @click.option("--env", "env_profile", default=None, help=ENV_OPTION_HELP)
@@ -379,7 +385,7 @@ def docs(
     output: str,
     catalog: str,
     scaffold: bool,
-    scaffold_root: str,
+    scaffold_overwrite: bool,
     include_ineligible: bool,
     env_profile: Optional[str],
     log_level: str,
@@ -399,7 +405,7 @@ def docs(
             output,
             catalog,
             scaffold,
-            scaffold_root,
+            scaffold_overwrite,
             include_ineligible,
             publisher,
         )
@@ -423,7 +429,7 @@ def _generate_docs(
     output: str,
     catalog: Optional[str],
     scaffold: bool = False,
-    scaffold_root: str = "ingestion/usecases",
+    scaffold_overwrite: bool = False,
     include_ineligible: bool = False,
     publisher: Optional[str] = None,
 ) -> None:
@@ -563,10 +569,13 @@ def _generate_docs(
     if scaffold:
         from .sharepoint.scaffold import remove_ineligible_sources, scaffold_usecase
 
+        scaffold_root = "ingestion/usecases"
         removed = remove_ineligible_sources(scaffold_root, usecase, eligible)
         for path in removed:
             logger.info("Removed ineligible scaffold: %s", path)
-        created, skipped = scaffold_usecase(scaffold_root, usecase, eligible, schemas)
+        created, skipped = scaffold_usecase(
+            scaffold_root, usecase, eligible, schemas, overwrite=scaffold_overwrite
+        )
         for path in created:
             logger.info("  created %s", path)
         logger.info(

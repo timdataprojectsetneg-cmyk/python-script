@@ -49,3 +49,17 @@ def test_scaffold_does_not_overwrite(tmp_path):
     assert (base / "models.py").read_text() == "# custom\n"
     assert str(base / "models.py") in skipped
     assert str(base / "normalizer.py") in created
+
+
+def test_scaffold_can_overwrite(tmp_path):
+    base = tmp_path / "ketenagakerjaan" / "kasus_perselisihan"
+    base.mkdir(parents=True)
+    (base / "models.py").write_text("# custom\n")
+
+    created, skipped = scaffold_usecase(
+        str(tmp_path), "ketenagakerjaan", SOURCES, {}, overwrite=True
+    )
+
+    assert "# custom" not in (base / "models.py").read_text()
+    assert str(base / "models.py") in created
+    assert skipped == []

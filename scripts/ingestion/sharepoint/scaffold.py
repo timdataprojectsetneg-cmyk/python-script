@@ -1,7 +1,7 @@
 """Scaffold use case module folders/files from the SharePoint catalog.
 
-Only sources with ``Eligible = true`` are scaffolded. Existing files are never
-overwritten — they are reported as skipped.
+Only sources with ``Eligible = true`` are scaffolded. Existing files are skipped
+by default; callers can explicitly opt into overwriting them.
 """
 
 from __future__ import annotations
@@ -80,8 +80,13 @@ def scaffold_usecase(
     usecase: str,
     sources: List[Dict[str, Any]],
     schemas: Dict[str, List[Dict[str, Any]]] | None = None,
+    overwrite: bool = False,
 ) -> Tuple[List[str], List[str]]:
-    """Create folders/files for eligible sources. Returns (created, skipped)."""
+    """Create folders/files for eligible sources.
+
+    Returns ``(created_or_overwritten, skipped)``. Existing files are only
+    overwritten when ``overwrite`` is explicitly enabled.
+    """
     schemas = schemas or {}
     usecase_dir = Path(root) / derive_module_name(usecase)
     created: List[str] = []
@@ -106,7 +111,7 @@ def scaffold_usecase(
         }
 
         for path, content in files.items():
-            if path.exists():
+            if path.exists() and not overwrite:
                 skipped.append(str(path))
                 continue
             path.parent.mkdir(parents=True, exist_ok=True)
