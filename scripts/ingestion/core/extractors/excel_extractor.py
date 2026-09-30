@@ -19,7 +19,6 @@ from bs4 import BeautifulSoup
 
 from ...exceptions import ConfigError, SourceUnavailable
 from ..base.extractor import BaseExtractor
-from .dynamic import is_dynamic, render_html
 from .utils import parse_fields
 
 
@@ -35,8 +34,6 @@ class ExcelExtractor(BaseExtractor):
 
     def _fetch_page_html(self) -> str:
         selector = self._selector()
-        if is_dynamic(self.config.get("dynamic")):
-            return render_html(self.url, wait_for_selector=f".{selector}")
         resp = self.http.get(self.url, timeout=30)
         return resp.text
 
@@ -63,8 +60,7 @@ class ExcelExtractor(BaseExtractor):
         if 'id="root"' in html:
             raise SourceUnavailable(
                 f"Download container '{selector}' not found and no download link was found; "
-                "the page looks like a JavaScript SPA. Set DYNAMIC=true (requires Playwright), "
-                "or set {USECASE}__{SOURCE}__EXCEL__DOWNLOAD_URL."
+                "the page looks like a JavaScript SPA. Set {USECASE}__{SOURCE}__EXCEL__DOWNLOAD_URL."
             )
         raise SourceUnavailable(f"Download container not found for selector: {selector}")
 

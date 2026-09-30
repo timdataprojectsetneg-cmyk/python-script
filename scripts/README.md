@@ -29,12 +29,8 @@ declares it (e.g. `usecases/ketenagakerjaan/kasus_perselisihan/excel/extractor.p
 sets `DOWNLOAD_SELECTOR = "bg-satudata-800"`), overridable via the
 `{USECASE}__{PUBLISHER}__{SOURCE}__EXCEL__DOWNLOAD_SELECTOR` env var.
 
-JS-rendered pages (e.g. satudata.kemnaker.go.id, a React SPA): those sources set
-`DYNAMIC = True`, so the page is rendered with Playwright before the link is
-extracted. Requires `pip install playwright && playwright install chromium`
-(Playwright is an optional dependency). Override per source with
-`{USECASE}__{PUBLISHER}__{SOURCE}__EXCEL__DYNAMIC=false`. When a page looks like an SPA but
-`DYNAMIC` is off, the error message says so.
+JS-rendered pages require a direct download URL; the ingestion runtime performs
+static HTTP extraction only.
 
 Each Excel has its own layout, so source-specific parsing overrides
 `_parse_excel` in the source's `<access>/extractor.py` (see
@@ -48,18 +44,6 @@ Downloads try the URL as-is first and fall back to the URL-decoded form, so both
 Some sites are behind bot protection (Cloudflare). For those, sources can accept
 a saved page via `{USECASE}__{PUBLISHER}__{SOURCE}__SCRAPER__SOURCE_FILE` (local HTML) and parse
 it offline; see `usecases/ketenagakerjaan/umk_sumut/scraper/extractor.py`.
-
-To avoid a manual "Save as", use the capture helper (run where a real browser can
-pass the challenge):
-
-```bash
-python tools/capture_page.py --url <page-url> --output ./data/page.html --headed
-KETENAGAKERJAAN__UMK_SUMUT__SCRAPER__SOURCE_FILE=./data/page.html \
-  python -m ingestion run --usecase ketenagakerjaan --source umk_sumut
-```
-
-Use this instead of the browser's "View page source" for client-rendered pages:
-`view source` shows pre-JavaScript HTML, whereas the capture saves the rendered DOM.
 
 ## Usage
 

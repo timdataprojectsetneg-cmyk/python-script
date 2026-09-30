@@ -1,8 +1,4 @@
-"""Generic web scraper.
-
-Static parsing uses BeautifulSoup. Dynamic (JS-rendered) pages can opt in to
-Playwright via ``DYNAMIC=true``; Playwright is a soft dependency.
-"""
+"""Generic static web scraper."""
 
 from __future__ import annotations
 
@@ -11,19 +7,13 @@ from typing import Any, Dict, Iterator, List
 from bs4 import BeautifulSoup
 
 from ..base.extractor import BaseExtractor
-from .dynamic import is_dynamic, render_html
 from .utils import parse_fields
 
 
 class WebScraper(BaseExtractor):
     def _fetch_html(self) -> str:
-        if is_dynamic(self.config.get("dynamic")):
-            return self._fetch_dynamic()
         resp = self.http.get(self.url, timeout=60)
         return resp.text
-
-    def _fetch_dynamic(self) -> str:  # pragma: no cover - requires playwright
-        return render_html(self.url)
 
     def _extract_fields(self, node: Any) -> Dict[str, Any]:
         record: Dict[str, Any] = {}
