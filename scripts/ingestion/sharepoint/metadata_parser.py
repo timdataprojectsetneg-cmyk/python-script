@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 CATALOG_COLUMNS = {
     "source_name": ["Source Name", "nama sumber", "nama source", "source"],
@@ -21,22 +21,35 @@ CATALOG_COLUMNS = {
     "data_engineer": ["Data Engineer"],
     "raw_minio_bucket": ["Raw Minio", "minio bucket"],
     "raw_es_index": ["Raw ES"],
-    "raw_postgre_schema": ["Raw Postgre", "raw postgres"],
+    "raw_postgre_table": ["Raw Postgre", "raw postgres"],
     "raw_scheduler": ["Raw Scheduler"],
     "cleaned_es_index": ["Cleaned ES"],
-    "cleaned_postgre_schema": ["Cleaned Postgre", "cleaned postgres"],
+    "cleaned_postgre_table": ["Cleaned Postgre", "cleaned postgres"],
     "cleaned_scheduler": ["Cleaned Scheduler"],
 }
 
 TARGET_FIELDS = (
     ("raw_minio_bucket", "Raw MinIO bucket"),
     ("raw_es_index", "Raw ES index"),
-    ("raw_postgre_schema", "Raw PostgreSQL schema"),
+    ("raw_postgre_table", "Raw PostgreSQL schema"),
     ("raw_scheduler", "Raw scheduler"),
     ("cleaned_es_index", "Cleaned ES index"),
-    ("cleaned_postgre_schema", "Cleaned PostgreSQL schema"),
+    ("cleaned_postgre_table", "Cleaned PostgreSQL schema"),
     ("cleaned_scheduler", "Cleaned scheduler"),
 )
+
+
+def split_postgre(value: Any) -> tuple[Optional[str], Optional[str]]:
+    """Split ``schema.table`` into (schema, "schema.table"). Table-only -> (None, value)."""
+    text = str(value or "").strip()
+    if not text:
+        return None, None
+    if "." in text:
+        schema, table = text.split(".", 1)
+        schema = schema.strip()
+        table = table.strip()
+        return (schema or None), (f"{schema}.{table}" if schema else table)
+    return None, text
 
 
 def _normalize_key(key: Any) -> str:
@@ -65,6 +78,13 @@ def parse_catalog_row(row: Dict[str, Any]) -> Dict[str, Any]:
     links = row.get("_links") or {}
     source["data_dictionary_link"] = _pick_link(links, ["Data Dictionary", "kamus data"])
     source["source_link"] = source.get("source_link") or _pick_link(links, ["Source Link", "link sumber"])
+
+    # Normalized load targets.
+    source["minio_bucket"] = source.get("raw_minio_bucket")
+    source["es_index"] = source.get("raw_es_index")
+    schema, table = split_postgre(source.get("raw_postgre_table"))
+    source["postgre_schema"] = schema
+    source["postgre_table"] = table
     return source
 
 
@@ -98,6 +118,11 @@ def source_slug(source: Dict[str, Any]) -> str:
     if override:
         return derive_module_name(str(override))
     return derive_module_name(str(source.get("source_name") or ""))
+
+
+def publisher_slug(source: Dict[str, Any]) -> str:
+    """Folder slug for a publisher (e.g. ``Kemnaker`` -> ``kemnaker``)."""
+    return derive_module_name(str(source.get("publisher") or "")) or "unknown"
 
 
 def to_snake_case(value: Any) -> str:

@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from .metadata_parser import derive_access, derive_module_name, source_slug, to_pydantic_source
+from .metadata_parser import derive_access, derive_module_name, publisher_slug, source_slug, to_pydantic_source
 
 EXTRACTOR_BASES = {
     "excel": ("ExcelExtractor", "core.extractors.excel_extractor"),
@@ -44,7 +44,7 @@ from typing import Any, Dict, Iterator
 
 from pydantic import ValidationError
 
-from ....core.base.normalizer import BaseNormalizer
+from .....core.base.normalizer import BaseNormalizer
 from .models import Record
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ def _extractor_source(source_name: str, access: str) -> str:
 
 from __future__ import annotations
 
-from .....{module} import {base}
+from ......{module} import {base}
 
 
 class Extractor({base}):
@@ -90,11 +90,13 @@ def scaffold_usecase(
         slug = source_slug(source)
         if not slug:
             continue
-        source_dir = usecase_dir / slug
+        publisher = publisher_slug(source)
+        source_dir = usecase_dir / publisher / slug
         access = derive_access(source.get("data_access"))
         source_name = str(source.get("source_name") or slug)
 
         files: Dict[Path, str] = {
+            usecase_dir / publisher / "__init__.py": EMPTY,
             source_dir / "__init__.py": EMPTY,
             source_dir / "models.py": _models_source(source_name, schemas.get(slug, [])),
             source_dir / "normalizer.py": _normalizer_source(source_name),

@@ -14,6 +14,7 @@ import logging
 import os
 import sys
 import traceback
+from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
 import click
@@ -97,7 +98,7 @@ def _dev_load(records: Iterator[Dict[str, Any]], config: Dict[str, Any], target:
 URL_FORWARD_KEYS = ("download_url", "excel_url", "pdf_url", "url", "href")
 
 
-def _parse_accesses(access: Any, usecase: str, source: str) -> List[str]:
+def _parse_accesses(access: Any, usecase: str, publisher: str, source: str) -> List[str]:
     """Resolve the access chain: explicit values (list/comma string) or source default."""
     from .usecases.registry import default_accesses, normalize_access
 
@@ -109,7 +110,7 @@ def _parse_accesses(access: Any, usecase: str, source: str) -> List[str]:
         items = [part for value in access for part in str(value).split(",") if part.strip()]
 
     if not items:
-        resolved = default_accesses(usecase, source)
+        resolved = default_accesses(usecase, publisher, source)
         logger.info("Access not specified; using default: %s", ", ".join(resolved))
         return resolved
 
@@ -133,18 +134,24 @@ def _first_url(records: List[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
-def _extract(usecase: str, source: str, accesses: List[str], configs: List[Dict[str, Any]]) -> Iterator[Dict[str, Any]]:
+def _extract(
+    usecase: str,
+    publisher: str,
+    source: str,
+    accesses: List[str],
+    configs: List[Dict[str, Any]],
+) -> Iterator[Dict[str, Any]]:
     """Run the extractor chain. Later steps receive the URL discovered by earlier ones."""
     from .usecases.registry import resolve_extractor_class
 
     if len(accesses) == 1:
-        extractor = resolve_extractor_class(usecase, source, accesses[0])(configs[0])
+        extractor = resolve_extractor_class(usecase, publisher, source, accesses[0])(configs[0])
         return extractor.extract()
 
     records: List[Dict[str, Any]] = []
     step_config = dict(configs[0])
     for index, access in enumerate(accesses):
-        extractor = resolve_extractor_class(usecase, source, access)(step_config)
+        extractor = resolve_extractor_class(usecase, publisher, source, access)(step_config)
         if index < len(accesses) - 1:
             produced = list(extractor.extract())
             discovered = _first_url(produced)
@@ -162,19 +169,20 @@ def _extract(usecase: str, source: str, accesses: List[str], configs: List[Dict[
 
 def execute_run(
     usecase: str,
+    publisher: str,
     source: str,
     access: Any = None,
     mode: str = "prod",
     target: Optional[str] = None,
     limit: int = 0,
 ) -> int:
-    accesses = _parse_accesses(access, usecase, source)
+    accesses = _parse_accesses(access, usecase, publisher, source)
     if not accesses:
         raise ConfigError("No data access resolved")
 
     # Build per-step configs; only the first step must have a URL of its own.
     configs = [
-        load_config(usecase, source, step, require_url=(index == 0))
+        load_config(usecase, publisher, source, step, require_url=(index == 0))
         for index, step in enumerate(accesses)
     ]
     config = configs[-1]
@@ -182,12 +190,15 @@ def execute_run(
 
     logger.info("Starting ingestion")
     logger.info("Usecase: %s", config["usecase"])
+    logger.info("Publisher: %s", config["publisher"])
     logger.info("Source: %s", config["source"])
     logger.info("Access: %s", " -> ".join(accesses))
     logger.info("Mode: %s (target=%s)", mode, effective_target)
 
-    normalizer = resolve_normalizer(config["usecase"], config["source"], config)
-    records = normalizer.normalize(_extract(config["usecase"], config["source"], accesses, configs))
+    normalizer = resolve_normalizer(config["usecase"], config["publisher"], config["source"], config)
+    records = normalizer.normalize(
+        _extract(config["usecase"], config["publisher"], config["source"], accesses, configs)
+    )
     if limit and limit > 0:
         records = (rec for i, rec in enumerate(records) if i < limit)
 
@@ -198,6 +209,29 @@ def execute_run(
 
     logger.info("Ingestion completed (records=%s, mode=%s, target=%s)", count, mode, effective_target)
     return ExitCode.SUCCESS
+
+
+def _resolve_run_targets(
+    usecase: str, publisher: Optional[str], source: Optional[str]
+) -> List[tuple]:
+    """Return (publisher, source) pairs to run, from --publisher and/or --source."""
+    from .usecases.registry import find_publisher, list_sources
+
+    pairs: List[tuple] = []
+    if publisher and source:
+        pairs.append((publisher, source))
+        return pairs
+    if publisher:
+        sources = list_sources(usecase, publisher)
+        if not sources:
+            raise ConfigError(f"Publisher '{publisher}' has no sources")
+        return [(publisher, item) for item in sources]
+    if source:
+        found = find_publisher(usecase, source)
+        if not found:
+            raise ConfigError(f"Source '{source}' not found under use case '{usecase}'")
+        return [(found, source)]
+    raise ConfigError("Provide --publisher and/or --source")
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -213,7 +247,8 @@ def cli(env_profile: Optional[str]) -> None:
 
 @cli.command()
 @click.option("--usecase", required=True, help="Use case name, e.g. ketenagakerjaan")
-@click.option("--source", required=True, help="Source name, e.g. kasus_perselisihan")
+@click.option("--publisher", default=None, help="Run all sources under this publisher")
+@click.option("--source", default=None, help="Source name, e.g. kasus_perselisihan")
 @click.option(
     "--access",
     "accesses",
@@ -229,6 +264,7 @@ def cli(env_profile: Optional[str]) -> None:
 @click.option("--log-level", default="INFO", show_default=True)
 def run(
     usecase: str,
+    publisher: str,
     source: str,
     accesses: tuple,
     mode: str,
@@ -237,16 +273,32 @@ def run(
     env_profile: Optional[str],
     log_level: str,
 ) -> None:
-    """Run data ingestion for a usecase/source.
+    """Run data ingestion for a usecase by --publisher and/or --source.
 
-    ``--access`` is optional. Omit it to use the source default; pass one or more
-    steps (in order) to chain extractors, e.g. a scraper that discovers an Excel
-    link followed by the Excel extractor.
+    ``--publisher`` runs every source under that publisher. ``--access`` is
+    optional; omit it to use each source's default, or pass one/more steps (in
+    order) to chain extractors.
     """
     setup_logging(log_level)
     try:
         _apply_env(env_profile)
-        code = execute_run(usecase, source, accesses, mode, target, limit)
+        pairs = _resolve_run_targets(usecase, publisher, source)
+        logger.info("Targets: %s", ", ".join(f"{pub}/{src}" for pub, src in pairs))
+        code = ExitCode.SUCCESS
+        for pub, src in pairs:
+            try:
+                execute_run(usecase, pub, src, accesses, mode, target, limit)
+            except Exception as exc:  # noqa: BLE001 - continue the remaining sources
+                code = exit_code_for(exc)
+                logger.error(
+                    "Ingestion failed for %s/%s (%s) at %s: %s",
+                    pub,
+                    src,
+                    type(exc).__name__,
+                    error_location(exc),
+                    exc,
+                    exc_info=not isinstance(exc, IngestionError),
+                )
     except Exception as exc:  # noqa: BLE001 - mapped to exit codes by design
         code = exit_code_for(exc)
         logger.debug("Ingestion traceback", exc_info=True)
@@ -262,6 +314,7 @@ def run(
 
 @cli.command()
 @click.option("--usecase", required=True, help="Use case name, e.g. ketenagakerjaan")
+@click.option("--publisher", default=None, help="Only generate dictionaries for sources under this publisher")
 @click.option("--source", "source_name", default=None, help="Only generate the dictionary for this source")
 @click.option("--output", default="./docs", show_default=True, help="Output directory for Markdown docs")
 @click.option("--catalog", default=None, help="Catalog reference: item id or path (overrides env)")
@@ -277,6 +330,7 @@ def run(
 @click.option("--log-level", default="INFO", show_default=True)
 def docs(
     usecase: str,
+    publisher: str,
     source_name: str,
     output: str,
     catalog: str,
@@ -289,13 +343,22 @@ def docs(
     """Generate Markdown docs from the SharePoint catalog and Data Dictionary.
 
     Always writes ``usecase_<usecase>.md``. Writes ``dictionary_<usecase>_<source>.md``
-    for eligible sources (or only the one given by ``--source``). With
-    ``--scaffold``, creates the module folders/files for eligible sources.
+    for eligible sources, or only those under ``--publisher`` / the one given by
+    ``--source``. With ``--scaffold``, creates the module folders/files.
     """
     setup_logging(log_level)
     try:
         _apply_env(env_profile)
-        _generate_docs(usecase, source_name, output, catalog, scaffold, scaffold_root, include_ineligible)
+        _generate_docs(
+            usecase,
+            source_name,
+            output,
+            catalog,
+            scaffold,
+            scaffold_root,
+            include_ineligible,
+            publisher,
+        )
     except Exception as exc:  # noqa: BLE001
         code = exit_code_for(exc)
         logger.debug("Doc generation traceback", exc_info=True)
@@ -318,10 +381,12 @@ def _generate_docs(
     scaffold: bool = False,
     scaffold_root: str = "ingestion/usecases",
     include_ineligible: bool = False,
+    publisher: Optional[str] = None,
 ) -> None:
     from .sharepoint.client import SharePointClient
     from .sharepoint.markdown_docs import (
         dictionary_filename,
+        env_lines,
         render_dictionary_markdown,
         render_usecase_markdown,
         usecase_filename,
@@ -334,6 +399,7 @@ def _generate_docs(
         normalize_name,
         parse_catalog_row,
         parse_dictionary_matrix,
+        publisher_slug,
         resolve_sheet_name,
         source_slug,
     )
@@ -369,6 +435,11 @@ def _generate_docs(
     )
     logger.info("Wrote %s (%s sources)", usecase_path, len(sources))
 
+    env_path = Path(output) / f"{usecase_filename(usecase)[:-3]}.env"
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    env_path.write_text("\n".join(env_lines(usecase, sources)) + "\n", encoding="utf-8")
+    logger.info("Wrote %s (env vars for eligible sources)", env_path)
+
     if source_name:
         wanted = normalize_name(source_name)
         targets = [s for s in sources if normalize_name(s["source_name"]) == wanted]
@@ -376,6 +447,15 @@ def _generate_docs(
             targets = [s for s in sources if wanted in normalize_name(s["source_name"])]
         if not targets:
             raise ConfigError(f"Source '{source_name}' not found in sheet '{sheet}'")
+    elif publisher:
+        wanted = normalize_name(publisher)
+        targets = [s for s in sources if normalize_name(s.get("publisher")) == wanted]
+        if not targets:
+            targets = [s for s in sources if wanted in normalize_name(s.get("publisher"))]
+        if not targets:
+            raise ConfigError(f"Publisher '{publisher}' not found in sheet '{sheet}'")
+        if not include_ineligible:
+            targets = [s for s in targets if is_eligible(s)]
     else:
         targets = sources if include_ineligible else eligible
 
@@ -407,7 +487,10 @@ def _generate_docs(
             logger.warning("Could not read dictionary for %s (%s): %s", sname, dict_ref, exc)
             continue
 
-        module_path = f"ingestion/usecases/{derive_module_name(usecase)}/{slug}/models.py"
+        module_path = (
+            f"ingestion/usecases/{derive_module_name(usecase)}/"
+            f"{publisher_slug(source)}/{slug}/models.py"
+        )
         path = write_markdown(
             render_dictionary_markdown(usecase, sname, schema, source, module_path),
             output,

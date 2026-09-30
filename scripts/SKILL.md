@@ -1,0 +1,141 @@
+---
+name: nifi-python-ingestion
+description: Use when working on the NiFi + Python generic ingestion framework (bigaction/python-script/scripts) — adding or editing use cases, publishers, sources or extractors (excel/api/scraper/pdf), configuring env vars, generating SharePoint/module docs, scaffolding modules, or wiring NiFi ExecuteStreamCommand. Covers the folder conventions, {USECASE}__{PUBLISHER}__{SOURCE}__{ACCESS}__{KEY} env format, the run/docs/capture CLIs, and common source-specific quirks (satudata SPA, %2520 download URLs, Cloudflare/SOURCE_FILE, PDF→MinIO).
+---
+
+# NiFi + Python Generic Ingestion
+
+Framework: **NiFi orchestrates & loads; Python extracts & normalizes.** Python
+outputs NDJSON to stdout in production; NiFi `PutDatabaseRecord` writes to
+PostgreSQL/Elasticsearch. DEV can write directly via dlt.
+
+Location: `bigaction/python-script/scripts/` (package `ingestion/`, entrypoints
+`run_ingestion.py`, `capture_page.py`).
+
+## Golden rules
+
+1. **Never edit `core/` or `cli.py` to add a use case/source** — only add files
+   under `ingestion/usecases/`.
+2. **Convention over configuration**: a source is discovered by folder + class
+   names (below).
+3. **Secrets never in code/logs.** `.env` is published (non-secret only);
+   `.env.<profile>` (e.g. `.env.dev`) is gitignored and loaded with `--env dev`.
+   PROD Python holds no DB credentials.
+4. **Unit tests are not required** for this project.
+
+## Folder convention
+
+```
+ingestion/usecases/<usecase>/<publisher>/<source>/<access>/extractor.py   # class Extractor
+ingestion/usecases/<usecase>/<publisher>/<source>/models.py               # class Record (optional)
+ingestion/usecases/<usecase>/<publisher>/<source>/normalizer.py           # class Normalizer (optional)
+```
+
+- Slugs are lower snake_case derived from names: `Kemnaker → kemnaker`,
+  `Kasus Perselisihan → kasus_perselisihan`, `The Signal → the_signal`.
+- Access folders: `excel/`, `api/`, `scraper/`, `pdf/` (aliases: web→scraper).
+- Missing `extractor.py` → generic extractor for that access is used.
+- Missing `normalizer.py` → generic normalizer validates against `models.Record`.
+- Template to copy: `ingestion/usecases/example_usecase/example_publisher/example_source/`.
+
+Relative imports: from `<source>/normalizer.py` use **`.....core...`**; from
+`<source>/<access>/extractor.py` use **`......core...`** (publisher adds one level).
+
+## Environment variables
+
+Format: `{USECASE}__{PUBLISHER}__{SOURCE}__{ACCESS}__{KEY}` (upper snake).
+
+```
+KETENAGAKERJAAN__KEMNAKER__KASUS_PERSELISIHAN__EXCEL__URL=...
+KETENAGAKERJAAN__BPS__BPS_INFLASI_MOM__API__PAGINATION_TYPE=page
+KETENAGAKERJAAN__GOODSTATS__UMK_SUMUT__SCRAPER__SOURCE_FILE=./data/umk_sumut.html
+```
+
+Common keys: `URL`, `TABLE`, `SCHEMA`, `POSTGRE_SCHEMA`, `POSTGRE_TABLE`,
+`ES_INDEX`, `MINIO_BUCKET`, `API_KEY`, `TOKEN`, `PAGINATION_TYPE`,
+`PAGINATION_PARAM`, `DATA_PATH`, `ITEM_SELECTOR`, `FIELDS`, `DOWNLOAD_SELECTOR`,
+`DOWNLOAD_URL`, `DYNAMIC`, `SOURCE_FILE`, `SHEET`, `HEADER_ROW`.
+
+## CLI
+
+```bash
+# Run one source (access optional -> source default)
+python -m ingestion run --usecase ketenagakerjaan --source kasus_perselisihan
+# Run every source under a publisher
+python -m ingestion run --usecase ketenagakerjaan --publisher kemnaker
+# Chain extractors (order matters, e.g. scrape then excel)
+python -m ingestion run --usecase ketenagakerjaan --source kasus_perselisihan --access scraper,excel
+# DEV direct-write vs PROD NDJSON
+python -m ingestion run --usecase ... --source ... --mode dev --env dev
+
+# Docs from SharePoint catalog + Data Dictionary; optional scaffolding
+python -m ingestion docs --usecase ketenagakerjaan --env dev
+python -m ingestion docs --usecase ketenagakerjaan --publisher kemnaker
+python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
+python -m ingestion docs --usecase ketenagakerjaan --env dev --scaffold
+```
+
+- `--access` optional; omit to use the source default (single discovered
+  extractor or `config.py` `EXTRACTORS`/`ACCESS`).
+- Exit codes: `0` ok, `1` ingestion error, `2` config, `3` auth, `4` source
+  unavailable. Errors log `file:line (function)`.
+
+## Adding a source — checklist
+
+1. `python -m ingestion docs --usecase <uc> --scaffold --env dev` (creates
+   folders for **Eligible = true** sources), or copy the example source.
+2. Fill `models.py` (`class Record`) from the generated
+   `docs/dictionary_<usecase>_<source>.md`; map source column names to canonical
+   fields with Pydantic `validation_alias=AliasChoices(...)`; add
+   `@model_validator(mode="before")` for value transforms (e.g. period→year).
+3. Implement `<access>/extractor.py` (`class Extractor`) only if the generic one
+   is insufficient. For a different sheet layout, override `_parse_excel`.
+4. Choose the access; source-specific parsing/selector stays in the source module
+   (never in `core/`).
+5. Verify: `python -m ingestion run --usecase <uc> --source <src> --limit 5`.
+
+## Extractor patterns & gotchas
+
+- **Excel (satudata SPA)**: source sets `DOWNLOAD_SELECTOR` and `DYNAMIC=True`.
+  Needs `pip install playwright && playwright install chromium`. The page is
+  client-rendered, so the selector is only visible after JS runs.
+- **Download URLs with `%2520`**: keep the href **as-is** (raw); `_download()`
+  tries raw first then URL-decoded (`%20`). Decoding up-front returns 404.
+- **Multi-row / merged headers**: override `_parse_excel` in the source and
+  forward-fill merged header cells (see `kemnaker/kasus_perselisihan`,
+  `kemnaker/data_mogok_kerja`).
+- **Cloudflare-protected sites (e.g. goodstats.id)**: server-side fetch is
+  blocked. Support `SOURCE_FILE` (saved HTML) and/or `DYNAMIC=true`; parse a
+  scoped container (e.g. `div.statistic-content ol li`). Capture a page with
+  `python tools/capture_page.py --url <url> --output ./data/page.html --headed`, or
+  attach to your own Chrome via `--cdp http://127.0.0.1:9222`.
+- **PDF**: `pdf/extractor.py` downloads and uploads to MinIO/S3, emitting a
+  metadata record (bucket, object_key, etag, size, sha256).
+
+## `docs` command behavior
+
+- Writes `docs/usecase_<usecase>.md` (Sources table + Targets table + proposed
+  `usecases/<uc>/<publisher>/<source>/<access>` tree + env block) and
+  `docs/dictionary_<usecase>_<source>.md` per source.
+- Dictionary reading **starts** at the header row containing
+  `Label, Tipe Data, Satuan, Deskripsi` and **ends** at the first fully-empty
+  row; column names are normalized to lower snake_case (`name`).
+- Also writes `docs/usecase_<usecase>.env` with
+  `POSTGRE_SCHEMA`, `POSTGRE_TABLE` (`schema.table`), `ES_INDEX`, `MINIO_BUCKET`.
+- Only `Eligible = true` sources are structured/scaffolded/env-emitted;
+  `--include-ineligible` overrides for dictionaries.
+
+## SharePoint
+
+Read-only via Microsoft Graph. `SHAREPOINT__FILE_ID` (or `CATALOG_PATH`) for the
+catalog; Data Dictionary files resolve as
+`{SHAREPOINT__DICTIONARY_BASE_PATH}/Data Dictionary - {sheet}/{name}`. Secrets
+(`TENANT_ID`, `CLIENT_ID`, `CLIENT_SECRET`) go in `.env.dev`.
+
+## NiFi wiring
+
+`ExecuteStreamCommand`: command path the venv python, args
+`run_ingestion.py run --usecase ${USECASE} --source ${SOURCE} --access ${ACCESS} --mode prod`,
+`Ignore STDIN=false`; stdout NDJSON → `ConvertRecord`/`JsonTreeReader` →
+`PutDatabaseRecord` + `DBCPConnectionPool`. Route on `exit.code` (0 ok,
+1/4 retry, 2/3 alert). See `scripts/nifi/README.md`.

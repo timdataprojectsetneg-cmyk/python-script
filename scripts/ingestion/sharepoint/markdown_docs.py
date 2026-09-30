@@ -19,7 +19,9 @@ from .metadata_parser import (
     derive_access,
     derive_module_name,
     is_eligible,
+    publisher_slug,
     source_slug,
+    split_postgre,
     to_pydantic_source,
     to_snake_case,
 )
@@ -51,14 +53,16 @@ def _link_cell(value: Any, url: Any) -> str:
     return text
 
 
-def _group_sources(sources: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-    grouped: Dict[str, Dict[str, Any]] = {}
+def _group_sources(sources: List[Dict[str, Any]]) -> Dict[tuple, Dict[str, Any]]:
+    grouped: Dict[tuple, Dict[str, Any]] = {}
     for source in sources:
         name = source.get("source_name")
         if not name:
             continue
-        slug = source_slug(source)
-        entry = grouped.setdefault(slug, {"name": name, "accesses": [], "eligible": False})
+        key = (publisher_slug(source), source_slug(source))
+        entry = grouped.setdefault(
+            key, {"name": name, "accesses": [], "eligible": False}
+        )
         access = derive_access(source.get("data_access"))
         if access not in entry["accesses"]:
             entry["accesses"].append(access)
@@ -66,25 +70,59 @@ def _group_sources(sources: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     return grouped
 
 
-def _structure_tree(usecase: str, grouped: Dict[str, Dict[str, Any]]) -> str:
+def _structure_tree(usecase: str, grouped: Dict[tuple, Dict[str, Any]]) -> str:
+    """Nested tree: usecases/<usecase>/<publisher>/<source>/<access>."""
     usecase_slug = derive_module_name(usecase)
     lines = [f"usecases/{usecase_slug}/"]
-    slugs = list(grouped.keys())
-    for index, slug in enumerate(slugs):
-        last = index == len(slugs) - 1
-        branch = "└── " if last else "├── "
-        lines.append(f"{branch}{slug}/")
-        stem = "    " if last else "│   "
-        lines.append(f"{stem}├── models.py            # from docs/dictionary_{usecase_slug}_{slug}.md")
-        lines.append(f"{stem}├── normalizer.py")
-        accesses = grouped[slug]["accesses"] or ["excel"]
-        for acc_index, access in enumerate(accesses):
-            acc_last = acc_index == len(accesses) - 1
-            acc_branch = "└── " if acc_last else "├── "
-            lines.append(f"{stem}{acc_branch}{access}/")
-            acc_stem = stem + ("    " if acc_last else "│   ")
-            lines.append(f"{acc_stem}└── extractor.py")
+
+    by_publisher: Dict[str, List[str]] = {}
+    for publisher, source in grouped:
+        by_publisher.setdefault(publisher, []).append(source)
+
+    publishers = list(by_publisher.keys())
+    for p_index, publisher in enumerate(publishers):
+        p_last = p_index == len(publishers) - 1
+        lines.append(f"{'└── ' if p_last else '├── '}{publisher}/")
+        p_stem = "    " if p_last else "│   "
+        sources = by_publisher[publisher]
+        for s_index, source in enumerate(sources):
+            s_last = s_index == len(sources) - 1
+            lines.append(f"{p_stem}{'└── ' if s_last else '├── '}{source}/")
+            s_stem = p_stem + ("    " if s_last else "│   ")
+            lines.append(f"{s_stem}├── models.py            # from docs/dictionary_{usecase_slug}_{source}.md")
+            lines.append(f"{s_stem}├── normalizer.py")
+            accesses = grouped[(publisher, source)]["accesses"] or ["excel"]
+            for a_index, access in enumerate(accesses):
+                a_last = a_index == len(accesses) - 1
+                lines.append(f"{s_stem}{'└── ' if a_last else '├── '}{access}/")
+                a_stem = s_stem + ("    " if a_last else "│   ")
+                lines.append(f"{a_stem}└── extractor.py")
     return "\n".join(lines)
+
+
+def env_lines(usecase: str, sources: List[Dict[str, Any]]) -> List[str]:
+    """Env var lines for eligible sources: {UC}__{PUBLISHER}__{SOURCE}__{ACCESS}__{KEY}."""
+    usecase_slug = derive_module_name(usecase)
+    lines: List[str] = []
+    for source in sources:
+        if not is_eligible(source):
+            continue
+        publisher = publisher_slug(source)
+        slug = source_slug(source)
+        access = derive_access(source.get("data_access"))
+        prefix = f"{usecase_slug}__{publisher}__{slug}__{access}".upper()
+        lines.append(f"{prefix}__URL={source.get('source_link') or ''}")
+        schema, postgre_table = split_postgre(source.get("raw_postgre_table"))
+        targets = (
+            ("POSTGRE_SCHEMA", schema),
+            ("POSTGRE_TABLE", postgre_table),
+            ("ES_INDEX", source.get("raw_es_index")),
+            ("MINIO_BUCKET", source.get("raw_minio_bucket")),
+        )
+        for key, value in targets:
+            if value:
+                lines.append(f"{prefix}__{key}={value}")
+    return lines
 
 
 def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog_path: str = "") -> str:
@@ -123,8 +161,7 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
             )
         )
 
-    targets_present = any(source.get(field) for source in sources for field, _ in TARGET_FIELDS)
-    if targets_present:
+    if any(source.get(field) for source in sources for field, _ in TARGET_FIELDS):
         out += [
             "",
             "## Targets",
@@ -154,11 +191,7 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
         out += [""]
 
     out += ["## Environment variables", "", "```bash"]
-    for slug, entry in eligible_grouped.items():
-        for access in entry["accesses"] or ["excel"]:
-            prefix = f"{usecase_slug}__{slug}__{access}".upper()
-            out.append(f"{prefix}__URL=")
-            out.append(f"{prefix}__TABLE={slug}")
+    out += env_lines(usecase, sources)
     out += ["```", ""]
 
     out += [

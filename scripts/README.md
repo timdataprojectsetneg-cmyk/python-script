@@ -27,13 +27,13 @@ steps receive the URL discovered by earlier ones.
 The Excel download-link CSS selector is **not hardcoded in core**: each source
 declares it (e.g. `usecases/ketenagakerjaan/kasus_perselisihan/excel/extractor.py`
 sets `DOWNLOAD_SELECTOR = "bg-satudata-800"`), overridable via the
-`{USECASE}__{SOURCE}__EXCEL__DOWNLOAD_SELECTOR` env var.
+`{USECASE}__{PUBLISHER}__{SOURCE}__EXCEL__DOWNLOAD_SELECTOR` env var.
 
 JS-rendered pages (e.g. satudata.kemnaker.go.id, a React SPA): those sources set
 `DYNAMIC = True`, so the page is rendered with Playwright before the link is
 extracted. Requires `pip install playwright && playwright install chromium`
 (Playwright is an optional dependency). Override per source with
-`{USECASE}__{SOURCE}__EXCEL__DYNAMIC=false`. When a page looks like an SPA but
+`{USECASE}__{PUBLISHER}__{SOURCE}__EXCEL__DYNAMIC=false`. When a page looks like an SPA but
 `DYNAMIC` is off, the error message says so.
 
 Each Excel has its own layout, so source-specific parsing overrides
@@ -45,6 +45,22 @@ Each Excel has its own layout, so source-specific parsing overrides
 Downloads try the URL as-is first and fall back to the URL-decoded form, so both
 `%20`-literal (double-encoded `%2520`) and normally-encoded paths work.
 
+Some sites are behind bot protection (Cloudflare). For those, sources can accept
+a saved page via `{USECASE}__{PUBLISHER}__{SOURCE}__SCRAPER__SOURCE_FILE` (local HTML) and parse
+it offline; see `usecases/ketenagakerjaan/umk_sumut/scraper/extractor.py`.
+
+To avoid a manual "Save as", use the capture helper (run where a real browser can
+pass the challenge):
+
+```bash
+python tools/capture_page.py --url <page-url> --output ./data/page.html --headed
+KETENAGAKERJAAN__UMK_SUMUT__SCRAPER__SOURCE_FILE=./data/page.html \
+  python -m ingestion run --usecase ketenagakerjaan --source umk_sumut
+```
+
+Use this instead of the browser's "View page source" for client-rendered pages:
+`view source` shows pre-JavaScript HTML, whereas the capture saves the rendered DOM.
+
 ## Usage
 
 ```bash
@@ -55,6 +71,9 @@ python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --scaffold
 
 # `--access` is optional: omit it to use the source default
 python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --mode prod
+
+# Run every source under a publisher
+python -m ingestion.cli run --usecase ketenagakerjaan --publisher kemnaker --mode prod
 
 # Chained extractors (order matters)
 python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan \
@@ -74,7 +93,7 @@ python run_ingestion.py run --usecase ... --source ... --access pdf --mode prod
 ```
 ingestion/
 ├── cli.py              # click CLI: run / sharepoint
-├── config.py           # {USECASE}__{SOURCE}__{ACCESS}__{KEY} env loader
+├── config.py           # {USECASE}__{PUBLISHER}__{SOURCE}__{ACCESS}__{KEY} env loader
 ├── exceptions.py       # exceptions + exit codes 0..4
 ├── core/
 │   ├── base/           # Extractor / Normalizer / Loader / Storage ABCs + HttpClient
@@ -170,9 +189,3 @@ The client accepts either a **Graph item id** or a **drive-relative path**:
   an item id or a full path is used as-is.
 - A catalog Data Dictionary cell may also contain a bare item id.
 - Force the interpretation with an `id:` prefix, e.g. `--catalog id:01ABCDEF...`.
-
-## Tests
-
-```bash
-python -m pytest tests/unit -q
-```
