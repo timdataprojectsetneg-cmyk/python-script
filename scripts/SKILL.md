@@ -54,7 +54,14 @@ KETENAGAKERJAAN__GOODSTATS__UMK_SUMUT__SCRAPER__SOURCE_FILE=./data/umk_sumut.htm
 Common keys: `URL`, `TABLE`, `SCHEMA`, `POSTGRE_SCHEMA`, `POSTGRE_TABLE`,
 `ES_INDEX`, `MINIO_BUCKET`, `API_KEY`, `TOKEN`, `PAGINATION_TYPE`,
 `PAGINATION_PARAM`, `DATA_PATH`, `ITEM_SELECTOR`, `FIELDS`, `DOWNLOAD_SELECTOR`,
-`DOWNLOAD_URL`, `DYNAMIC`, `SOURCE_FILE`, `SHEET`, `HEADER_ROW`.
+`DOWNLOAD_URL`, `DYNAMIC`, `SOURCE_FILE`, `SHEET`, `HEADER_ROW`, `METHOD`,
+`UNIQUE_KEY`, `HTTP_METHOD`.
+
+Load method (DEV `postgres`/`elastic` target): `METHOD` is `replace` (default)
+or `upsert`; `upsert` requires `UNIQUE_KEY` (comma/semicolon-separated, one or
+more columns, default empty). `replace` truncates/recreates the target before
+writing. For API sources the HTTP verb is `HTTP_METHOD` (legacy: `METHOD` is
+still honored when it is a verb like `GET`/`POST`).
 
 ## CLI
 

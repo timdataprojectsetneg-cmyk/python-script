@@ -423,6 +423,26 @@ def docs(
     sys.exit(ExitCode.SUCCESS)
 
 
+def _preserve_env_values(path: Path, keys: tuple) -> Dict[str, str]:
+    """Read ``KEY=VALUE`` lines from an existing ``.env`` whose names end with ``__<key>``.
+
+    Used so regenerating docs keeps hand-edited values (e.g. ``__METHOD``,
+    ``__UNIQUE_KEY``) instead of resetting them to defaults.
+    """
+    preserved: Dict[str, str] = {}
+    if not path.exists():
+        return preserved
+    suffixes = tuple(f"__{key}" for key in keys)
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        name, value = stripped.split("=", 1)
+        if name.endswith(suffixes):
+            preserved[name] = value
+    return preserved
+
+
 def _generate_docs(
     usecase: str,
     source_name: Optional[str],
@@ -487,7 +507,10 @@ def _generate_docs(
 
     env_path = Path(output) / f"{usecase_filename(usecase)[:-3]}.env"
     env_path.parent.mkdir(parents=True, exist_ok=True)
-    env_path.write_text("\n".join(env_lines(usecase, sources)) + "\n", encoding="utf-8")
+    preserved = _preserve_env_values(env_path, ("METHOD", "UNIQUE_KEY"))
+    env_path.write_text(
+        "\n".join(env_lines(usecase, sources, preserved=preserved)) + "\n", encoding="utf-8"
+    )
     logger.info("Wrote %s (env vars for eligible sources)", env_path)
 
     # Dictionary markdown is generated per source; remove stale ineligible

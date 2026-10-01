@@ -11,7 +11,7 @@ from uuid import uuid4
 import importlib
 from datetime import datetime, date
 
-from ...config import get_raw
+from ...config import HTTP_METHODS, get_raw
 from ...exceptions import ConfigError
 from ..base.loader import BaseLoader
 
@@ -65,11 +65,32 @@ def _ensure_schema(schema: str) -> None:
         conn.close()
 
 
-def _primary_keys(config: Dict[str, Any]) -> list[str]:
-    value = config.get("primary_key")
+def _unique_keys(config: Dict[str, Any]) -> list[str]:
+    """Parse ``UNIQUE_KEY`` into a list of columns.
+
+    Accepts comma/semicolon-separated values and supports more than two keys.
+    """
+    value = config.get("unique_key")
     if isinstance(value, (list, tuple)):
         return [str(item).strip() for item in value if str(item).strip()]
     return [item.strip() for item in str(value or "").replace(";", ",").split(",") if item.strip()]
+
+
+def _load_method(config: Dict[str, Any]) -> str:
+    """Resolve the load method: ``replace`` (default) or ``upsert``.
+
+    ``METHOD`` may still carry a legacy HTTP verb for API sources; those are
+    ignored here and fall back to the default ``replace``.
+    """
+    method = str(config.get("method") or "").strip().lower()
+    if not method:
+        legacy = str(config.get("write_disposition") or "").strip().lower()
+        method = {"merge": "upsert", "truncate_insert": "replace"}.get(legacy, "replace")
+    if method.upper() in HTTP_METHODS:
+        method = "replace"
+    if method not in ("replace", "upsert"):
+        raise ConfigError("METHOD must be 'replace' or 'upsert'")
+    return method
 
 
 def _column_type(values: list[Any]) -> str:
@@ -111,6 +132,25 @@ def _ensure_table(cur: Any, sql: Any, schema: str, table: str, columns: list[str
     cur.execute(sql.SQL("CREATE TABLE IF NOT EXISTS {}.{} ({})").format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(", ").join(definitions)))
 
 
+def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list[str]) -> None:
+    """Ensure a unique index on ``keys`` so ``ON CONFLICT`` can target it.
+
+    Needed when the table already existed (e.g. created by a previous
+    ``replace`` load) without a matching primary key/unique constraint.
+    """
+    if not keys:
+        return
+    index_name = "uq_" + "_".join([table] + keys)[:60]
+    cur.execute(
+        sql.SQL("CREATE UNIQUE INDEX IF NOT EXISTS {} ON {}.{} ({})").format(
+            sql.Identifier(index_name),
+            sql.Identifier(schema),
+            sql.Identifier(table),
+            sql.SQL(", ").join(sql.Identifier(key) for key in keys),
+        )
+    )
+
+
 class PostgresLoader(BaseLoader):
     """DEV PostgreSQL loader using psycopg2 and a fixed existing schema."""
 
@@ -131,14 +171,10 @@ class PostgresLoader(BaseLoader):
             self.config.get("postgre_schema") or default_schema,
         )
         table = table or self.config.get("source")
-        keys = _primary_keys(self.config)
-        disposition = str(self.config.get("write_disposition") or "truncate_insert").lower()
-        if disposition == "merge":
-            disposition = "upsert"
-        if disposition not in ("truncate_insert", "upsert"):
-            raise ConfigError("WRITE_DISPOSITION must be 'truncate_insert' or 'upsert'")
-        if disposition == "upsert" and not keys:
-            raise ConfigError("PRIMARY_KEY is required when WRITE_DISPOSITION=upsert")
+        method = _load_method(self.config)
+        keys = _unique_keys(self.config)
+        if method == "upsert" and not keys:
+            raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
 
         timestamp_column = str(self.config.get("load_timestamp_column") or "loaded_at").strip()
         if timestamp_column:
@@ -160,12 +196,14 @@ class PostgresLoader(BaseLoader):
             with conn, conn.cursor() as cur:
                 qualified = sql.SQL("{}.{}").format(sql.Identifier(schema), sql.Identifier(table))
                 _ensure_table(cur, sql, schema, table, columns, rows, keys)
-                if disposition == "truncate_insert":
+                if method == "upsert":
+                    _ensure_unique_index(cur, sql, schema, table, keys)
+                if method == "replace":
                     cur.execute(sql.SQL("TRUNCATE TABLE {}" ).format(qualified))
                 column_sql = sql.SQL(", ").join(sql.Identifier(column) for column in columns)
                 values = [[row.get(column) for column in columns] for row in rows]
                 query = sql.SQL("INSERT INTO {} ({}) VALUES %s").format(qualified, column_sql)
-                if disposition == "upsert":
+                if method == "upsert":
                     updates = [column for column in columns if column not in keys]
                     if updates:
                         query += sql.SQL(" ON CONFLICT ({}) DO UPDATE SET {}" ).format(
@@ -195,9 +233,12 @@ class DltPostgresLoader(BaseLoader):
         default_schema = get_raw("DEV__POSTGRES_DATASET", "ingestion_dev")
         schema, table = _split_schema_table(self.config.get("postgre_table"), self.config.get("postgre_schema") or default_schema)
         table = table or self.config.get("source")
-        keys = _primary_keys(self.config)
+        method = _load_method(self.config)
+        keys = _unique_keys(self.config)
+        if method == "upsert" and not keys:
+            raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
         pipeline = dlt.pipeline(pipeline_name=f"ingestion_{self.config.get('usecase')}", destination=postgres_destination(credentials=_postgres_credentials()), dataset_name=schema)
-        pipeline.run(dlt.resource(rows, name=table, write_disposition="merge" if keys else "append", primary_key=keys or None))
+        pipeline.run(dlt.resource(rows, name=table, write_disposition="merge" if method == "upsert" else "replace", primary_key=keys or None))
         return len(rows)
 
 
@@ -215,10 +256,23 @@ class ElasticLoader(BaseLoader):
             get_raw("DEV__ELASTIC_URL", "http://localhost:9200"),
             api_key=get_raw("DEV__ELASTIC_API_KEY") or None,
         )
-        index = self.config.get("table") or self.config.get("source")
+        index = self.config.get("es_index") or self.config.get("table") or self.config.get("source")
+        method = _load_method(self.config)
+        keys = _unique_keys(self.config)
+        if method == "upsert" and not keys:
+            raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
+
+        if method == "replace":
+            client.indices.delete(index=index, ignore_unavailable=True)
+            ids = [str(uuid4()) for _ in rows]
+        else:
+            ids = [
+                str(row.get("_id") or "|".join(str(row.get(key, "")) for key in keys))
+                for row in rows
+            ]
         actions = [
-            {"_index": index, "_id": row.get("_id") or str(uuid4()), "_source": row}
-            for row in rows
+            {"_index": index, "_id": doc_id, "_source": row}
+            for doc_id, row in zip(ids, rows)
         ]
         helpers.bulk(client, actions)
         return len(rows)

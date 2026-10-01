@@ -1,9 +1,12 @@
 """Pydantic schema — UMK Aceh (mirrors the Data Dictionary)."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, Field
 
 
 class Record(BaseModel):
-    """TODO: fill fields from docs/dictionary_<usecase>_<source>.md."""
+    kabupaten_kota: str | None = Field(default=None, alias="Kabupaten Kota")
+    umk: int | None = Field(default=None, alias="umk")
+    tahun: int | None = Field(default=None, alias="tahun")
 
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+    model_config = {"populate_by_name": True, "extra": "ignore"}
+

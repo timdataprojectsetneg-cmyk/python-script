@@ -72,6 +72,26 @@ python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisiha
 python run_ingestion.py run --usecase ... --source ... --access pdf --mode prod
 ```
 
+### Load method (DEV `postgres` / `elastic` target)
+
+Per source/access, set `{USECASE}__{PUBLISHER}__{SOURCE}__{ACCESS}__METHOD`:
+
+- `replace` (default) — replace the target content before writing (PostgreSQL
+  `TRUNCATE`, Elasticsearch index delete).
+- `upsert` — merge existing rows by `{USECASE}__{PUBLISHER}__{SOURCE}__{ACCESS}__UNIQUE_KEY`
+  (comma/semicolon-separated, one or more columns, default empty). `upsert`
+  without a unique key is a config error.
+
+```bash
+KETENAGAKERJAAN__KEMNAKER__SATU_DATA_KEMNAKER__API__METHOD=upsert
+KETENAGAKERJAAN__KEMNAKER__SATU_DATA_KEMNAKER__API__UNIQUE_KEY=id
+# multi-column:
+# KETENAGAKERJAAN__SOME__SRC__API__UNIQUE_KEY=provinsi,kota,tahun
+```
+
+For API sources the HTTP verb is `...__HTTP_METHOD` (legacy configs using
+`METHOD=GET`/`POST` still work).
+
 ## Layout
 
 ```

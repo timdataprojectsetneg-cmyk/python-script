@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterator, List, Optional
 
+from ...config import HTTP_METHODS
 from ...exceptions import SourceUnavailable
 from ..base.extractor import BaseExtractor
 from ..base.http import HttpClient
@@ -20,6 +21,18 @@ class ApiExtractor(BaseExtractor):
         if api_key:
             headers.setdefault("X-API-KEY", api_key)
         return headers
+
+    def _http_method(self) -> str:
+        """Resolve the HTTP verb.
+
+        ``METHOD`` now doubles as the load strategy (``replace``/``upsert``), so
+        prefer ``HTTP_METHOD`` and only treat ``METHOD`` as a verb when it is one.
+        """
+        candidate = (self.config.get("http_method") or "").strip().upper()
+        if candidate not in HTTP_METHODS:
+            legacy = (self.config.get("method") or "").strip().upper()
+            candidate = legacy if legacy in HTTP_METHODS else "GET"
+        return candidate
 
     def _records_from(self, payload: Any) -> List[Dict[str, Any]]:
         data = get_path(payload, self.config.get("data_path"))
@@ -55,7 +68,7 @@ class ApiExtractor(BaseExtractor):
         max_pages = int(self.config.get("max_pages", 1) or 1)
         page_size = self.config.get("page_size")
         base_params = parse_json_value(self.config.get("params"), {})
-        method = (self.config.get("method") or "GET").upper()
+        method = self._http_method()
 
         fetched = 0
         while True:

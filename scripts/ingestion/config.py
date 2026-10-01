@@ -64,10 +64,15 @@ KNOWN_KEYS = (
     "POSTGRE_SCHEMA",
     "POSTGRE_TABLE",
     "ES_INDEX",
-    "PRIMARY_KEY",
+    "UNIQUE_KEY",
     "WRITE_DISPOSITION",
     "LOAD_TIMESTAMP_COLUMN",
+    "HTTP_METHOD",
 )
+
+# HTTP verbs accepted by ``HTTP_METHOD`` / legacy ``METHOD`` for API extraction.
+# Any other ``METHOD`` value is a load strategy (``replace``/``upsert``).
+HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
 
 
 def set_env_profile(profile: Optional[str]) -> None:
@@ -171,7 +176,6 @@ def load_config(
             cfg[key.lower()] = value
             cfg["raw"][key] = value
 
-    cfg.setdefault("method", "GET")
     cfg.setdefault("target", "none" if access == "pdf" else "postgres")
 
     if require_url and not (cfg.get("url") or cfg.get("pdf_url") or cfg.get("source_file")):

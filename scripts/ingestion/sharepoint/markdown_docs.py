@@ -70,38 +70,16 @@ def _group_sources(sources: List[Dict[str, Any]]) -> Dict[tuple, Dict[str, Any]]
     return grouped
 
 
-def _structure_tree(usecase: str, grouped: Dict[tuple, Dict[str, Any]]) -> str:
-    """Nested tree: usecases/<usecase>/<publisher>/<source>/<access>."""
-    usecase_slug = derive_module_name(usecase)
-    lines = [f"usecases/{usecase_slug}/"]
+def env_lines(
+    usecase: str, sources: List[Dict[str, Any]], preserved: Dict[str, str] | None = None
+) -> List[str]:
+    """Env var lines for eligible sources: {UC}__{PUBLISHER}__{SOURCE}__{ACCESS}__{KEY}.
 
-    by_publisher: Dict[str, List[str]] = {}
-    for publisher, source in grouped:
-        by_publisher.setdefault(publisher, []).append(source)
-
-    publishers = list(by_publisher.keys())
-    for p_index, publisher in enumerate(publishers):
-        p_last = p_index == len(publishers) - 1
-        lines.append(f"{'└── ' if p_last else '├── '}{publisher}/")
-        p_stem = "    " if p_last else "│   "
-        sources = by_publisher[publisher]
-        for s_index, source in enumerate(sources):
-            s_last = s_index == len(sources) - 1
-            lines.append(f"{p_stem}{'└── ' if s_last else '├── '}{source}/")
-            s_stem = p_stem + ("    " if s_last else "│   ")
-            lines.append(f"{s_stem}├── models.py            # from docs/dictionary_{usecase_slug}_{source}.md")
-            lines.append(f"{s_stem}├── normalizer.py")
-            accesses = grouped[(publisher, source)]["accesses"] or ["excel"]
-            for a_index, access in enumerate(accesses):
-                a_last = a_index == len(accesses) - 1
-                lines.append(f"{s_stem}{'└── ' if a_last else '├── '}{access}/")
-                a_stem = s_stem + ("    " if a_last else "│   ")
-                lines.append(f"{a_stem}└── extractor.py")
-    return "\n".join(lines)
-
-
-def env_lines(usecase: str, sources: List[Dict[str, Any]]) -> List[str]:
-    """Env var lines for eligible sources: {UC}__{PUBLISHER}__{SOURCE}__{ACCESS}__{KEY}."""
+    ``preserved`` maps an existing env var name to its current value (read from a
+    previously generated ``.env``); ``METHOD``/``UNIQUE_KEY`` keep those values
+    instead of being reset to the defaults.
+    """
+    preserved = preserved or {}
     usecase_slug = derive_module_name(usecase)
     lines: List[str] = []
     for source in sources:
@@ -122,6 +100,8 @@ def env_lines(usecase: str, sources: List[Dict[str, Any]]) -> List[str]:
         for key, value in targets:
             if value:
                 lines.append(f"{prefix}__{key}={value}")
+        lines.append(f"{prefix}__METHOD={preserved.get(f'{prefix}__METHOD') or 'replace'}")
+        lines.append(f"{prefix}__UNIQUE_KEY={preserved.get(f'{prefix}__UNIQUE_KEY', '')}")
     return lines
 
 
@@ -129,7 +109,6 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
     usecase_slug = derive_module_name(usecase)
     grouped = _group_sources(sources)
     eligible_grouped = {slug: entry for slug, entry in grouped.items() if entry["eligible"]}
-    skipped = [entry["name"] for slug, entry in grouped.items() if not entry["eligible"]]
 
     out: List[str] = [
         f"# Use Case: {usecase}",
@@ -175,34 +154,13 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
 
     out += [
         "",
-        "## Proposed module structure (eligible sources only)",
-        "",
-        "> Only sources with `Eligible = true` are scaffolded. Ineligible sources are listed below.",
-        "",
-        "```",
-        _structure_tree(usecase, eligible_grouped) if eligible_grouped else f"usecases/{usecase_slug}/  (no eligible sources)",
-        "```",
-        "",
-    ]
-
-    if skipped:
-        out += ["### Skipped (not eligible)", ""]
-        out += [f"- {name}" for name in skipped]
-        out += [""]
-
-    out += ["## Environment variables", "", "```bash"]
-    out += env_lines(usecase, sources)
-    out += ["```", ""]
-
-    out += [
         "## Next steps",
         "",
         f"1. Scaffold eligible sources: `python -m ingestion.cli docs --usecase {usecase_slug} --scaffold`",
-        "   (or copy the structure above by hand).",
         "2. For each source, open `docs/dictionary_<usecase>_<source>.md` and copy the Pydantic model into `models.py`.",
         "3. Implement `normalizer.py` (or rely on the generic normalizer validating against `Record`).",
         "4. Implement `<access>/extractor.py` (class `Extractor`), or rely on the generic extractor.",
-        "5. Register the environment variables above and run in DEV mode.",
+        "5. Register the source environment variables and run in DEV mode.",
         "",
     ]
     return "\n".join(out)
