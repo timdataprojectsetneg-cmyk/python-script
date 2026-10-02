@@ -1,6 +1,10 @@
 """Tests for Data Dictionary matrix parsing and snake_case column names."""
 
-from ingestion.sharepoint.metadata_parser import parse_dictionary_matrix, to_snake_case
+from ingestion.sharepoint.metadata_parser import (
+    parse_dictionary_matrix,
+    to_pydantic_source,
+    to_snake_case,
+)
 
 
 def test_to_snake_case():
@@ -45,3 +49,35 @@ def test_parse_dictionary_matrix_partial_row_kept():
     schema = parse_dictionary_matrix(matrix)
     assert len(schema) == 1
     assert schema[0]["satuan"] is None
+
+
+NESTED_MATRIX = [
+    ["Data Dictionary", None, None, None],
+    [],
+    ["Label", "Tipe Data", "Satuan", "Deskripsi"],
+    ["nomor_perkara", "String", "-", "Nomor perkara"],
+    ["putusan", "json", None, None],
+    ["link_file", "String", None, "link url pdf"],
+    [],
+    ["Data Dictionary : putusan", None, None, None],
+    ["Label", "Tipe Data", "Satuan", "Deskripsi"],
+    ["Nomor_Perkara", "String", "-", "Nomor putusan"],
+    ["Tahun", "Integer", "-", "Tahun perkara"],
+]
+
+
+def test_parse_dictionary_matrix_nested_json_fields():
+    schema = parse_dictionary_matrix(NESTED_MATRIX)
+    assert [field["name"] for field in schema] == ["nomor_perkara", "putusan", "link_file"]
+    assert "fields" not in schema[0]
+    assert [sub["name"] for sub in schema[1]["fields"]] == ["nomor_perkara", "tahun"]
+    assert schema[1]["fields"][0]["deskripsi"] == "Nomor putusan"
+
+
+def test_to_pydantic_source_json_nested():
+    schema = parse_dictionary_matrix(NESTED_MATRIX)
+    source = to_pydantic_source("PerkaraRecord", schema)
+    assert "class Putusan(BaseModel):" in source
+    assert 'putusan: Putusan | None = Field(default=None, alias="putusan"' in source
+    assert 'description="Nomor perkara"' in source
+    assert "nomor_perkara: str | None" in source

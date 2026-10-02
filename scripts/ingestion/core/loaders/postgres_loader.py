@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable
 from uuid import uuid4
 import importlib
+import json
 from datetime import datetime, date
 
 from ...config import HTTP_METHODS, get_raw
@@ -76,6 +77,30 @@ def _unique_keys(config: Dict[str, Any]) -> list[str]:
     return [item.strip() for item in str(value or "").replace(";", ",").split(",") if item.strip()]
 
 
+def _dedupe_rows(rows: list[Dict[str, Any]], keys: list[str]) -> list[Dict[str, Any]]:
+    """Collapse rows sharing a full unique key, keeping the last occurrence.
+
+    ``INSERT ... ON CONFLICT DO UPDATE`` fails if the same constrained value is
+    proposed twice in one statement. Rows with a missing key part are kept as-is
+    (they cannot be deduplicated reliably).
+    """
+    if not keys:
+        return rows
+    index_by_key: Dict[tuple, int] = {}
+    result: list[Dict[str, Any]] = []
+    for row in rows:
+        key = tuple(row.get(k) for k in keys)
+        if any(value is None for value in key):
+            result.append(row)
+            continue
+        if key in index_by_key:
+            result[index_by_key[key]] = row
+        else:
+            index_by_key[key] = len(result)
+            result.append(row)
+    return result
+
+
 def _load_method(config: Dict[str, Any]) -> str:
     """Resolve the load method: ``replace`` (default) or ``upsert``.
 
@@ -98,6 +123,8 @@ def _column_type(values: list[Any]) -> str:
     non_null = [value for value in values if value is not None]
     if non_null and all(isinstance(value, bool) for value in non_null):
         return "BOOLEAN"
+    if non_null and all(isinstance(value, (dict, list)) for value in non_null):
+        return "JSONB"
     if non_null and all(isinstance(value, int) and not isinstance(value, bool) for value in non_null):
         return "BIGINT"
     if non_null and all(isinstance(value, float) for value in non_null):
@@ -109,18 +136,48 @@ def _column_type(values: list[Any]) -> str:
     return "TEXT"
 
 
-def _model_columns(config: Dict[str, Any]) -> list[str]:
-    """Return fields from the use-case Pydantic Record model when available."""
+def _model_record(config: Dict[str, Any]) -> Any:
+    """Import and return the use-case Pydantic ``Record`` model, or None."""
     module_name = ".".join(("ingestion", "usecases", config.get("usecase", ""), config.get("publisher", ""), config.get("source", ""), "models"))
     try:
         model = importlib.import_module(module_name)
-        record = getattr(model, "Record", None)
-        return list(getattr(record, "model_fields", {}) or {})
+        return getattr(model, "Record", None)
     except (ImportError, AttributeError, ValueError):
-        return []
+        return None
 
 
-def _ensure_table(cur: Any, sql: Any, schema: str, table: str, columns: list[str], rows: list[Dict[str, Any]], keys: list[str]) -> None:
+def _model_columns(config: Dict[str, Any]) -> list[str]:
+    """Return fields from the use-case Pydantic Record model when available."""
+    record = _model_record(config)
+    return list(getattr(record, "model_fields", {}) or {})
+
+
+def _model_comments(config: Dict[str, Any]) -> Dict[str, str]:
+    """Column comments from the Record model's ``Field(description=...)`` values."""
+    record = _model_record(config)
+    comments: Dict[str, str] = {}
+    for name, info in (getattr(record, "model_fields", {}) or {}).items():
+        description = getattr(info, "description", None)
+        if description:
+            comments[name] = str(description)
+    return comments
+
+
+def _json_dumps(value: Any) -> str:
+    """JSON-encode a JSONB value, stringifying date/datetime objects (ISO)."""
+    return json.dumps(value, ensure_ascii=False, default=str)
+
+
+def _ensure_table(
+    cur: Any,
+    sql: Any,
+    schema: str,
+    table: str,
+    columns: list[str],
+    rows: list[Dict[str, Any]],
+    keys: list[str],
+    comments: Dict[str, str],
+) -> None:
     """Create a missing table from the Pydantic fields and observed values."""
     observed = list(dict.fromkeys(column for row in rows for column in row))
     ordered = list(dict.fromkeys(columns + observed))
@@ -130,6 +187,17 @@ def _ensure_table(cur: Any, sql: Any, schema: str, table: str, columns: list[str
     if keys:
         definitions.append(sql.SQL("PRIMARY KEY ({})").format(sql.SQL(", ").join(sql.Identifier(key) for key in keys)))
     cur.execute(sql.SQL("CREATE TABLE IF NOT EXISTS {}.{} ({})").format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(", ").join(definitions)))
+    for column in ordered:
+        comment = comments.get(column)
+        if comment:
+            cur.execute(
+                sql.SQL("COMMENT ON COLUMN {}.{}.{} IS {}").format(
+                    sql.Identifier(schema),
+                    sql.Identifier(table),
+                    sql.Identifier(column),
+                    sql.Literal(comment),
+                )
+            )
 
 
 def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list[str]) -> None:
@@ -161,7 +229,7 @@ class PostgresLoader(BaseLoader):
         try:
             import psycopg2
             from psycopg2 import sql
-            from psycopg2.extras import execute_values
+            from psycopg2.extras import Json, execute_values
         except ImportError as exc:
             raise ConfigError("DEV PostgreSQL load requires the 'psycopg2-binary' package") from exc
 
@@ -175,6 +243,10 @@ class PostgresLoader(BaseLoader):
         keys = _unique_keys(self.config)
         if method == "upsert" and not keys:
             raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
+        if method == "upsert":
+            # Each constrained value may appear only once per INSERT ... ON CONFLICT
+            # statement, so collapse duplicate keys within the batch (keep the last).
+            rows = _dedupe_rows(rows, keys)
 
         timestamp_column = str(self.config.get("load_timestamp_column") or "loaded_at").strip()
         if timestamp_column:
@@ -186,6 +258,7 @@ class PostgresLoader(BaseLoader):
         creds = _postgres_credentials()
         columns = list(dict.fromkeys(key for row in rows for key in row))
         model_fields = _model_columns(self.config)
+        comments = _model_comments(self.config)
         columns = list(dict.fromkeys(model_fields + columns))
         if timestamp_column and timestamp_column not in columns:
             columns.append(timestamp_column)
@@ -195,13 +268,21 @@ class PostgresLoader(BaseLoader):
         try:
             with conn, conn.cursor() as cur:
                 qualified = sql.SQL("{}.{}").format(sql.Identifier(schema), sql.Identifier(table))
-                _ensure_table(cur, sql, schema, table, columns, rows, keys)
+                _ensure_table(cur, sql, schema, table, columns, rows, keys, comments)
                 if method == "upsert":
                     _ensure_unique_index(cur, sql, schema, table, keys)
                 if method == "replace":
                     cur.execute(sql.SQL("TRUNCATE TABLE {}" ).format(qualified))
                 column_sql = sql.SQL(", ").join(sql.Identifier(column) for column in columns)
-                values = [[row.get(column) for column in columns] for row in rows]
+                values = [
+                    [
+                        Json(row.get(column), dumps=_json_dumps)
+                        if isinstance(row.get(column), (dict, list))
+                        else row.get(column)
+                        for column in columns
+                    ]
+                    for row in rows
+                ]
                 query = sql.SQL("INSERT INTO {} ({}) VALUES %s").format(qualified, column_sql)
                 if method == "upsert":
                     updates = [column for column in columns if column not in keys]

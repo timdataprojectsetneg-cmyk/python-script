@@ -28,11 +28,11 @@ from pydantic import BaseModel, Field
 
 
 class SignalKetenagakerjaanRecord(BaseModel):
-    tanggal: str | None = Field(default=None, alias="Tanggal")
-    judul_berita: str | None = Field(default=None, alias="Judul_Berita")
-    isi_berita: str | None = Field(default=None, alias="Isi_Berita")
-    sumber_berita: str | None = Field(default=None, alias="Sumber_Berita")
-    url_berita: str | None = Field(default=None, alias="Url_Berita")
+    tanggal: str | None = Field(default=None, alias="Tanggal", description="Tanggal publikasi berita.")
+    judul_berita: str | None = Field(default=None, alias="Judul_Berita", description="Judul berita.")
+    isi_berita: str | None = Field(default=None, alias="Isi_Berita", description="Isi lengkap pemberitaan.")
+    sumber_berita: str | None = Field(default=None, alias="Sumber_Berita", description="Nama sumber pemberitaan (teks, bukan URL).")
+    url_berita: str | None = Field(default=None, alias="Url_Berita", description="URL artikel.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

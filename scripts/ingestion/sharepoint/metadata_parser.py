@@ -145,49 +145,84 @@ DICTIONARY_HEADER_ALIASES = {
     "deskripsi": ("deskripsi", "description", "keterangan"),
 }
 
+# Minimum columns needed to treat a row as a dictionary header.
+DICTIONARY_REQUIRED_HEADERS = ("label", "type")
 
-def parse_dictionary_matrix(matrix: List[List[Any]]) -> List[Dict[str, Any]]:
-    """Parse a Data Dictionary sheet from a raw matrix.
 
-    Reading **starts** at the header row containing Label / Tipe Data / Satuan /
-    Deskripsi and **ends** at the first fully-empty row. Column names are
-    normalized to lower snake_case (``name``), keeping the original ``label``.
+def _detect_dictionary_header(row: List[Any]) -> Optional[Dict[str, int]]:
+    """Return column indexes for a Label/Tipe Data header row, else None.
+
+    Matching is exact first, then substring, so headers such as
+    ``Tipe Data (opsional)`` are still recognised.
     """
-    if not matrix:
-        return []
+    normalized = [_normalize_key(cell) for cell in row]
+    found: Dict[str, int] = {}
+    for field, aliases in DICTIONARY_HEADER_ALIASES.items():
+        for alias in aliases:
+            key = _normalize_key(alias)
+            if not key:
+                continue
+            if key in normalized:
+                found[field] = normalized.index(key)
+                break
+            match = next((i for i, cell in enumerate(normalized) if key in cell), None)
+            if match is not None:
+                found[field] = match
+                break
+    if all(field in found for field in DICTIONARY_REQUIRED_HEADERS):
+        return found
+    return None
 
-    header_index = None
-    columns: Dict[str, int] = {}
-    for index, row in enumerate(matrix):
-        normalized = [_normalize_key(cell) for cell in row]
-        found: Dict[str, int] = {}
-        for field, aliases in DICTIONARY_HEADER_ALIASES.items():
-            for alias in aliases:
-                key = _normalize_key(alias)
-                if key and key in normalized:
-                    found[field] = normalized.index(key)
-                    break
-        if len(found) == len(DICTIONARY_HEADER_ALIASES):
-            header_index, columns = index, found
-            break
 
-    if header_index is None:
-        return []
+def _section_title(matrix: List[List[Any]], header_index: int) -> str:
+    """Text of the nearest non-blank row above a header (e.g. ``Data Dictionary : putusan``)."""
+    for index in range(header_index - 1, -1, -1):
+        row = matrix[index]
+        if all(_blank_cell(cell) for cell in row):
+            continue
+        text = " ".join(str(cell).strip() for cell in row if not _blank_cell(cell)).strip()
+        if text:
+            return text
+    return ""
 
+
+def _title_key(title: str) -> str:
+    """Normalized key of a sub-table title: text after ``:`` (``Data Dictionary : putusan`` -> ``putusan``)."""
+    text = title.split(":", 1)[1] if ":" in title else title
+    return _normalize_key(text)
+
+
+def _match_field(schema: List[Dict[str, Any]], key: str) -> Optional[Dict[str, Any]]:
+    """Find the field a JSON sub-table belongs to, by name/label match."""
+    if not key:
+        return None
+    partial: List[Dict[str, Any]] = []
+    for field in schema:
+        names = (_normalize_key(field.get("name")), _normalize_key(field.get("label")))
+        if key in names:
+            return field
+        if any(key in name or name in key for name in names if name):
+            partial.append(field)
+    return partial[0] if len(partial) == 1 else None
+
+
+def _parse_dictionary_rows(
+    matrix: List[List[Any]], header_index: int, end_index: int, columns: Dict[str, int]
+) -> List[Dict[str, Any]]:
     def value(row: List[Any], field: str) -> Any:
-        idx = columns[field]
-        if idx >= len(row) or _blank_cell(row[idx]):
+        idx = columns.get(field)
+        if idx is None or idx >= len(row) or _blank_cell(row[idx]):
             return None
         return row[idx]
 
-    schema: List[Dict[str, Any]] = []
-    for row in matrix[header_index + 1:]:
+    rows: List[Dict[str, Any]] = []
+    for row in matrix[header_index + 1 : end_index]:
         if all(_blank_cell(cell) for cell in row):
-            break  # end of the dictionary table
+            continue
         label = value(row, "label")
         if label is None:
             continue
-        schema.append(
+        rows.append(
             {
                 "label": label,
                 "name": to_snake_case(label),
@@ -196,6 +231,48 @@ def parse_dictionary_matrix(matrix: List[List[Any]]) -> List[Dict[str, Any]]:
                 "deskripsi": value(row, "deskripsi"),
             }
         )
+    return rows
+
+
+def parse_dictionary_matrix(matrix: List[List[Any]]) -> List[Dict[str, Any]]:
+    """Parse a Data Dictionary sheet from a raw matrix.
+
+    The first ``Label / Tipe Data / Satuan / Deskripsi`` table is the record
+    schema. Any later table introduced by a ``Data Dictionary : <field>`` title is
+    attached as ``fields`` on the matching field, giving the shape of JSON
+    columns. Column names are lower snake_case (``name``), keeping the original
+    ``label``.
+    """
+    if not matrix:
+        return []
+
+    blocks: List[Dict[str, Any]] = []
+    index = 0
+    total = len(matrix)
+    while index < total:
+        header = _detect_dictionary_header(matrix[index]) if matrix[index] else None
+        if header is None:
+            index += 1
+            continue
+        end = index + 1
+        while end < total and not all(_blank_cell(cell) for cell in matrix[end]):
+            end += 1
+        blocks.append(
+            {
+                "title": _section_title(matrix, index),
+                "rows": _parse_dictionary_rows(matrix, index, end, header),
+            }
+        )
+        index = end
+
+    if not blocks:
+        return []
+
+    schema = blocks[0]["rows"]
+    for block in blocks[1:]:
+        target = _match_field(schema, _title_key(block["title"]))
+        if target is not None and block["rows"]:
+            target["fields"] = block["rows"]
     return schema
 
 
@@ -223,31 +300,103 @@ def derive_module_name(source_name: str) -> str:
     return name
 
 
+PYDANTIC_TYPE_MAP = {
+    "integer": "int",
+    "int": "int",
+    "number": "float",
+    "float": "float",
+    "decimal": "float",
+    "date": "date",
+    "datetime": "datetime",
+    "boolean": "bool",
+    "bool": "bool",
+    "json": "dict[str, Any]",
+    "object": "dict[str, Any]",
+    "dict": "dict[str, Any]",
+}
+
+
+def _pascal_case(value: Any) -> str:
+    parts = re.split(r"[^a-z0-9]+", str(value or "").lower())
+    return "".join(part.capitalize() for part in parts if part) or "Nested"
+
+
+def _field_description(field: Dict[str, Any]) -> Optional[str]:
+    """Description for a field: its own ``Deskripsi``, else the nested JSON fields'."""
+    desc = field.get("deskripsi")
+    if isinstance(desc, str) and desc.strip():
+        return desc.strip()
+    parts = []
+    for sub in field.get("fields") or []:
+        sub_desc = sub.get("deskripsi")
+        if isinstance(sub_desc, str) and sub_desc.strip():
+            label = sub.get("name") or sub.get("label")
+            parts.append(f"{label}: {sub_desc.strip()}")
+    return "; ".join(parts) if parts else None
+
+
+def _field_kwargs(field: Dict[str, Any]) -> str:
+    label = field.get("label") or field.get("name") or "field"
+    args = ["default=None", f'alias="{label}"']
+    desc = _field_description(field)
+    if desc:
+        escaped = desc.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+        args.append(f'description="{escaped}"')
+    return ", ".join(args)
+
+
 def to_pydantic_source(class_name: str, schema: List[Dict[str, Any]]) -> str:
-    """Generate a Pydantic model source snippet from Data Dictionary entries."""
-    type_map = {
-        "integer": "int",
-        "int": "int",
-        "number": "float",
-        "float": "float",
-        "decimal": "float",
-        "date": "str",
-        "datetime": "str",
-        "boolean": "bool",
-        "bool": "bool",
-    }
-    lines = ["from pydantic import BaseModel, Field", "", "", f"class {class_name}(BaseModel):"]
-    for field in schema:
-        label = field.get("label") or "field"
-        field_type = type_map.get(str(field.get("type") or "").strip().lower(), "str")
-        safe_name = field.get("name") or to_snake_case(label) or "field"
-        lines.append(
-            f"    {safe_name}: {field_type} | None = Field(default=None, alias=\"{label}\")"
-        )
-    lines.append("")
-    lines.append('    model_config = {"populate_by_name": True, "extra": "ignore"}')
-    lines.append("")
-    return "\n".join(lines)
+    """Generate a Pydantic model source snippet from Data Dictionary entries.
+
+    Fields with a nested ``fields`` list become their own ``BaseModel`` class, so
+    JSON columns are typed instead of stringified. Dictionary descriptions become
+    ``Field(description=...)``; the PostgreSQL loader reuses them as column
+    comments.
+    """
+    classes: List[str] = []
+    used_names = {class_name}
+    needs_any = False
+    needs_date = False
+    needs_datetime = False
+
+    def render(name: str, fields: List[Dict[str, Any]]) -> None:
+        nonlocal needs_any, needs_date, needs_datetime
+        body: List[str] = []
+        for field in fields:
+            label = field.get("label") or "field"
+            safe_name = field.get("name") or to_snake_case(label) or "field"
+            nested = field.get("fields")
+            if nested:
+                nested_name = _pascal_case(field.get("name") or label)
+                while nested_name in used_names:
+                    nested_name += "Item"
+                used_names.add(nested_name)
+                render(nested_name, nested)
+                annotation = nested_name
+            else:
+                annotation = PYDANTIC_TYPE_MAP.get(
+                    str(field.get("type") or "").strip().lower(), "str"
+                )
+                needs_any = needs_any or annotation == "dict[str, Any]"
+                needs_date = needs_date or annotation == "date"
+                needs_datetime = needs_datetime or annotation == "datetime"
+            body.append(
+                f"    {safe_name}: {annotation} | None = Field({_field_kwargs(field)})"
+            )
+        body.append("")
+        body.append('    model_config = {"populate_by_name": True, "extra": "ignore"}')
+        classes.append(f"class {name}(BaseModel):\n" + "\n".join(body))
+
+    render(class_name, schema)
+
+    imports: List[str] = []
+    datetime_names = [n for n, flag in (("date", needs_date), ("datetime", needs_datetime)) if flag]
+    if datetime_names:
+        imports.append("from datetime import " + ", ".join(datetime_names))
+    if needs_any:
+        imports.append("from typing import Any")
+    imports.append("from pydantic import BaseModel, Field")
+    return "\n".join(imports) + "\n\n\n" + "\n\n\n".join(classes) + "\n"
 
 
 ACCESS_KEYWORDS = (

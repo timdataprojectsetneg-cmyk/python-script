@@ -92,3 +92,25 @@ def test_render_dictionary_markdown():
     assert "| Jenis_Perselisihan | `jenis_perselisihan` | String | - | Jenis kasus |" in md
     assert "class KasusPerselisihanRecord(BaseModel):" in md
     assert "jumlah_pusat: int | None" in md
+
+
+def test_render_dictionary_markdown_json_nested():
+    schema = [
+        {
+            "label": "putusan",
+            "name": "putusan",
+            "type": "json",
+            "fields": [
+                {
+                    "label": "Nomor_Perkara",
+                    "name": "nomor_perkara",
+                    "type": "String",
+                    "satuan": "-",
+                    "deskripsi": "Nomor putusan",
+                }
+            ],
+        }
+    ]
+    md = render_dictionary_markdown("ketenagakerjaan", "Direktori Putusan", schema, SOURCES[0], "a/b/models.py")
+    assert "### JSON field: `putusan`" in md
+    assert "| Nomor_Perkara | `nomor_perkara` | String | - | Nomor putusan |" in md

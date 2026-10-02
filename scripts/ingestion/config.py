@@ -36,6 +36,8 @@ KNOWN_KEYS = (
     "PARAMS",
     "API_KEY",
     "TOKEN",
+    "COOKIE",
+    "USER_AGENT",
     "PAGINATION_TYPE",
     "PAGINATION_PARAM",
     "START_PAGE",

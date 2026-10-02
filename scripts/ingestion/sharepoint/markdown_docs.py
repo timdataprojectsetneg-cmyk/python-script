@@ -41,6 +41,17 @@ def _cell(value: Any) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ").strip()
 
 
+def _field_row(field: Dict[str, Any]) -> str:
+    """One Markdown table row for a Data Dictionary field."""
+    return "| {label} | `{name}` | {type} | {satuan} | {desc} |".format(
+        label=_cell(field.get("label")),
+        name=_cell(field.get("name") or to_snake_case(field.get("label"))),
+        type=_cell(field.get("type")),
+        satuan=_cell(field.get("satuan")),
+        desc=_cell(field.get("deskripsi")),
+    )
+
+
 def _link_cell(value: Any, url: Any) -> str:
     """Markdown cell, hyperlinking the display text when a URL is available."""
     if value in (None, "") and url:
@@ -198,17 +209,22 @@ def render_dictionary_markdown(
         "|---|---|---|---|---|",
     ]
     for field in schema:
-        out.append(
-            "| {label} | `{name}` | {type} | {satuan} | {desc} |".format(
-                label=_cell(field.get("label")),
-                name=_cell(field.get("name") or to_snake_case(field.get("label"))),
-                type=_cell(field.get("type")),
-                satuan=_cell(field.get("satuan")),
-                desc=_cell(field.get("deskripsi")),
-            )
-        )
+        out.append(_field_row(field))
     if not schema:
         out.append("| - | - | - | - | No fields parsed from the Data Dictionary. |")
+
+    for field in schema:
+        nested = field.get("fields")
+        if not nested:
+            continue
+        out += [
+            "",
+            f"### JSON field: `{_cell(field.get('name'))}` ({_cell(field.get('label'))})",
+            "",
+            "| Label | Name (column) | Tipe Data | Satuan | Deskripsi |",
+            "|---|---|---|---|---|",
+        ]
+        out += [_field_row(sub) for sub in nested]
 
     out += [
         "",
