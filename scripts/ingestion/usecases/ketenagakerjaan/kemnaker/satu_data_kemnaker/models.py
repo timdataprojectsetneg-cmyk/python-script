@@ -32,6 +32,7 @@ class SatuDataKemnakerRecord(BaseModel):
     created_at: str | None = Field(default=None)
     updated_at: str | None = Field(default=None)
     deleted_at: str | None = Field(default=None)
+    minio_file: str | None = Field(default=None)
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 

@@ -28,7 +28,7 @@
 | oktober | `oktober` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
 | november | `november` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
 | desember | `desember` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| Tahunan | `tahunan` | Decimal | Persen | Akumulasi inflasi tahun kalender (year-to-date, dari Januari s.d. bulan terakhir yang tersedia) - BUKAN inflasi year-on-year (data y-o-y ada di sheet terpisah "BPS Inflasi YOY"). Perlu dikonfirmasi ke definisi asli BPS untuk memastikan. |
+| Tahun | `tahun` | Decimal | Persen | Akumulasi inflasi tahun kalender (year-to-date, dari Januari s.d. bulan terakhir yang tersedia) - BUKAN inflasi year-on-year (data y-o-y ada di sheet terpisah "BPS Inflasi YOY"). Perlu dikonfirmasi ke definisi asli BPS untuk memastikan. |
 
 ## Generated Pydantic model
 
@@ -50,7 +50,7 @@ class BpsInflasiMomRecord(BaseModel):
     oktober: float | None = Field(default=None, alias="oktober", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
     november: float | None = Field(default=None, alias="november", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
     desember: float | None = Field(default=None, alias="desember", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    tahunan: float | None = Field(default=None, alias="Tahunan", description="Akumulasi inflasi tahun kalender (year-to-date, dari Januari s.d. bulan terakhir yang tersedia) - BUKAN inflasi year-on-year (data y-o-y ada di sheet terpisah \"BPS Inflasi YOY\"). Perlu dikonfirmasi ke definisi asli BPS untuk memastikan.")
+    tahun: float | None = Field(default=None, alias="Tahun", description="Akumulasi inflasi tahun kalender (year-to-date, dari Januari s.d. bulan terakhir yang tersedia) - BUKAN inflasi year-on-year (data y-o-y ada di sheet terpisah \"BPS Inflasi YOY\"). Perlu dikonfirmasi ke definisi asli BPS untuk memastikan.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

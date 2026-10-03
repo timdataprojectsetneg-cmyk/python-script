@@ -1,14 +1,9 @@
-"""Pydantic schema — Signal Ketenagakerjaan."""
+"""Pydantic schema — Signal Ketenagakerjaan (mirrors the Data Dictionary)."""
 
-from __future__ import annotations
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class Record(BaseModel):
-    title: str | None = Field(default=None)
-    url: str | None = Field(default=None)
-    published_at: str | None = Field(default=None, alias="Published_At")
-    summary: str | None = Field(default=None)
+    """TODO: fill fields from docs/dictionary_<usecase>_<source>.md."""
 
-    model_config = {"populate_by_name": True, "extra": "ignore"}
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
