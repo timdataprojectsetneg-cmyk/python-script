@@ -373,7 +373,10 @@ def run(
 @click.option(
     "--scaffold-overwrite",
     is_flag=True,
-    help="Overwrite existing scaffold files (default: skip them)",
+    help=(
+        "Overwrite existing scaffold files (default: skip them). Limited to "
+        "--source / --publisher when given, else the whole usecase"
+    ),
 )
 @click.option("--include-ineligible", is_flag=True, help="Also emit dictionaries for ineligible sources")
 @click.option("--env", "env_profile", default=None, help=ENV_OPTION_HELP)
@@ -593,11 +596,23 @@ def _generate_docs(
         from .sharepoint.scaffold import remove_ineligible_sources, scaffold_usecase
 
         scaffold_root = "ingestion/usecases"
-        removed = remove_ineligible_sources(scaffold_root, usecase, eligible)
+        scaffold_targets = [s for s in targets if is_eligible(s)]
+        if source_name:
+            scope_publishers = {publisher_slug(s) for s in targets}
+            scope_sources = {source_slug(s) for s in targets}
+        elif publisher:
+            scope_publishers = {publisher_slug(s) for s in targets}
+            scope_sources = None
+        else:
+            scope_publishers = None
+            scope_sources = None
+        removed = remove_ineligible_sources(
+            scaffold_root, usecase, scaffold_targets, scope_publishers, scope_sources
+        )
         for path in removed:
             logger.info("Removed ineligible scaffold: %s", path)
         created, skipped = scaffold_usecase(
-            scaffold_root, usecase, eligible, schemas, overwrite=scaffold_overwrite
+            scaffold_root, usecase, scaffold_targets, schemas, overwrite=scaffold_overwrite
         )
         for path in created:
             logger.info("  created %s", path)

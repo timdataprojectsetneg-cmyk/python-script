@@ -21,7 +21,8 @@ class BaseExtractor(ABC):
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.url = config.get("url") or config.get("pdf_url")
-        self.http = HttpClient(default_headers=DEFAULT_HEADERS)
+        self.impersonate = config.get("impersonate")
+        self.http = HttpClient(default_headers=DEFAULT_HEADERS, impersonate=self.impersonate)
 
     @abstractmethod
     def extract(self) -> Iterator[Dict[str, Any]]:

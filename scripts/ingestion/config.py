@@ -70,6 +70,7 @@ KNOWN_KEYS = (
     "WRITE_DISPOSITION",
     "LOAD_TIMESTAMP_COLUMN",
     "HTTP_METHOD",
+    "IMPERSONATE",
 )
 
 # HTTP verbs accepted by ``HTTP_METHOD`` / legacy ``METHOD`` for API extraction.

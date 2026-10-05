@@ -9,8 +9,8 @@ Framework: **NiFi orchestrates & loads; Python extracts & normalizes.** Python
 outputs NDJSON to stdout in production; NiFi `PutDatabaseRecord` writes to
 PostgreSQL/Elasticsearch. DEV can write directly via dlt.
 
-Location: `bigaction/python-script/scripts/` (package `ingestion/`, entrypoints
-`run_ingestion.py`, `capture_page.py`).
+Location: `bigaction/python-script/scripts/` (package `ingestion/`; entrypoints
+`python -m ingestion` and `run_ingestion.py`).
 
 ## Golden rules
 
@@ -21,7 +21,8 @@ Location: `bigaction/python-script/scripts/` (package `ingestion/`, entrypoints
 3. **Secrets never in code/logs.** `.env` is published (non-secret only);
    `.env.<profile>` (e.g. `.env.dev`) is gitignored and loaded with `--env dev`.
    PROD Python holds no DB credentials.
-4. **Unit tests are not required** for this project.
+4. **Unit tests are optional**; a pytest suite lives in `scripts/tests/unit`
+   (`pytest scripts/tests/unit`).
 
 ## Folder convention
 
@@ -54,14 +55,18 @@ KETENAGAKERJAAN__GOODSTATS__UMK_SUMUT__SCRAPER__SOURCE_FILE=./data/umk_sumut.htm
 Common keys: `URL`, `TABLE`, `SCHEMA`, `POSTGRE_SCHEMA`, `POSTGRE_TABLE`,
 `ES_INDEX`, `MINIO_BUCKET`, `API_KEY`, `TOKEN`, `PAGINATION_TYPE`,
 `PAGINATION_PARAM`, `DATA_PATH`, `ITEM_SELECTOR`, `FIELDS`, `DOWNLOAD_SELECTOR`,
-`DOWNLOAD_URL`, `DYNAMIC`, `SOURCE_FILE`, `SHEET`, `HEADER_ROW`, `METHOD`,
-`UNIQUE_KEY`, `HTTP_METHOD`.
+`DOWNLOAD_URL`, `SOURCE_FILE`, `SHEET`, `HEADER_ROW`, `METHOD`,
+`UNIQUE_KEY`, `HTTP_METHOD`, `IMPERSONATE`.
 
 Load method (DEV `postgres`/`elastic` target): `METHOD` is `replace` (default)
 or `upsert`; `upsert` requires `UNIQUE_KEY` (comma/semicolon-separated, one or
+one or
 more columns, default empty). `replace` truncates/recreates the target before
 writing. For API sources the HTTP verb is `HTTP_METHOD` (legacy: `METHOD` is
 still honored when it is a verb like `GET`/`POST`).
+
+Global (non-namespaced) secrets live directly in `.env.dev` and are read with
+`config.get_raw("KEY")`, e.g. `BPS_WEBAPI_KEY` for the BPS WebAPI extractors.
 
 ## CLI
 
@@ -80,17 +85,26 @@ python -m ingestion docs --usecase ketenagakerjaan --env dev
 python -m ingestion docs --usecase ketenagakerjaan --publisher kemnaker
 python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
 python -m ingestion docs --usecase ketenagakerjaan --env dev --scaffold
+python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan" --scaffold-overwrite
 ```
 
 - `--access` optional; omit to use the source default (single discovered
   extractor or `config.py` `EXTRACTORS`/`ACCESS`).
+- DEV loading requires `--env dev` (sets `--mode dev`); `--target` picks the DEV
+  sink and `--use-dlt` uses dlt instead of the direct writer.
+- `--scaffold` creates missing folders/files; `--scaffold-overwrite` replaces
+  existing scaffold files, limited to the `--source`/`--publisher` scope (or the
+  whole usecase when neither is given).
 - Exit codes: `0` ok, `1` ingestion error, `2` config, `3` auth, `4` source
   unavailable. Errors log `file:line (function)`.
 
 ## Adding a source — checklist
 
 1. `python -m ingestion docs --usecase <uc> --scaffold --env dev` (creates
-   folders for **Eligible = true** sources), or copy the example source.
+   folders for **Eligible = true** sources; add `--source`/`--publisher` to limit
+   the scope and `--scaffold-overwrite` to replace existing files in that scope).
+   `--scaffold` also refreshes each `models.py` from the dictionary while keeping
+   hand-written code; or copy the example source.
 2. Fill `models.py` (`class Record`) from the generated
    `docs/dictionary_<usecase>_<source>.md`; map source column names to canonical
    fields with Pydantic `validation_alias=AliasChoices(...)`; add
@@ -103,19 +117,23 @@ python -m ingestion docs --usecase ketenagakerjaan --env dev --scaffold
 
 ## Extractor patterns & gotchas
 
-- **Excel (satudata SPA)**: source sets `DOWNLOAD_SELECTOR` and `DYNAMIC=True`.
-  Needs `pip install playwright && playwright install chromium`. The page is
-  client-rendered, so the selector is only visible after JS runs.
+- **Excel (satudata SPA)**: the source sets `DOWNLOAD_SELECTOR` (e.g.
+  `bg-satudata-800`); the generic extractor fetches the landing page and finds
+  the download link via that selector, with a fallback that scans anchors,
+  `data-href` and embedded `.xlsx` URLs. If the page is a JS SPA with no static
+  link, set `DOWNLOAD_URL` to the file URL directly.
 - **Download URLs with `%2520`**: keep the href **as-is** (raw); `_download()`
   tries raw first then URL-decoded (`%20`). Decoding up-front returns 404.
 - **Multi-row / merged headers**: override `_parse_excel` in the source and
   forward-fill merged header cells (see `kemnaker/kasus_perselisihan`,
   `kemnaker/data_mogok_kerja`).
-- **Cloudflare-protected sites (e.g. goodstats.id)**: server-side fetch is
-  blocked. Support `SOURCE_FILE` (saved HTML) and/or `DYNAMIC=true`; parse a
-  scoped container (e.g. `div.statistic-content ol li`). Capture a page with
-  `python tools/capture_page.py --url <url> --output ./data/page.html --headed`, or
-  attach to your own Chrome via `--cdp http://127.0.0.1:9222`.
+- **Cloudflare-protected sites (e.g. putusan3.mahkamahagung.go.id, goodstats.id)**:
+  plain `requests` gets a managed challenge (403 + "Just a moment...") even with a
+  fresh `cf_clearance` cookie, because Cloudflare binds the cookie to the browser
+  TLS fingerprint. Set `{...}__SCRAPER__IMPERSONATE=chrome` (needs `curl_cffi`) so
+  the request uses a browser TLS/HTTP2 fingerprint; the MA PHI extractor defaults
+  to `chrome` already. Alternatively support `SOURCE_FILE` (saved HTML) and parse a
+  scoped container (e.g. `div.statistic-content ol li`).
 - **PDF**: `pdf/extractor.py` downloads and uploads to MinIO/S3, emitting a
   metadata record (bucket, object_key, etag, size, sha256).
 
@@ -131,6 +149,13 @@ python -m ingestion docs --usecase ketenagakerjaan --env dev --scaffold
   `POSTGRE_SCHEMA`, `POSTGRE_TABLE` (`schema.table`), `ES_INDEX`, `MINIO_BUCKET`.
 - Only `Eligible = true` sources are structured/scaffolded/env-emitted;
   `--include-ineligible` overrides for dictionaries.
+- `--scaffold` scaffolds only the selected scope (`--source` / `--publisher` /
+  whole usecase) and refreshes `models.py` from the dictionary field-by-field,
+  preserving hand-written code (imports, extra classes, methods, custom field
+  aliases). `--scaffold-overwrite` fully replaces existing scaffold files, also
+  limited to that scope.
+- `docs/usecase_<usecase>.env` is auto-loaded by `load_env()` when running that
+  usecase (the generated fragment stays under `docs/`).
 
 ## SharePoint
 

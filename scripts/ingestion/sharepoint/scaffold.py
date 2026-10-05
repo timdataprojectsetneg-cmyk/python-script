@@ -6,9 +6,10 @@ by default; callers can explicitly opt into overwriting them.
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 import shutil
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .metadata_parser import derive_access, derive_module_name, publisher_slug, source_slug, to_pydantic_source
 
@@ -75,6 +76,150 @@ class Extractor({base}):
 '''
 
 
+def _iter_fields(cls: ast.ClassDef):
+    """Yield ``(name, node)`` for each Pydantic field (``name: T = Field(...)``)."""
+    for node in cls.body:
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            yield node.target.id, node
+
+
+def _is_plain_field(segment: str) -> bool:
+    """True when a field definition looks generated (safe to regenerate).
+
+    Hand-customized fields (multi-line, custom ``validation_alias`` /
+    ``AliasChoices``) are treated as custom code and left untouched.
+    """
+    stripped = segment.strip()
+    return (
+        "\n" not in stripped
+        and "validation_alias" not in stripped
+        and "AliasChoices" not in stripped
+    )
+
+
+def _field_insert_line(cls: ast.ClassDef) -> int:
+    """Line before which new fields should be inserted (before methods/assigns)."""
+    last_field_end: Optional[int] = None
+    for node in cls.body:
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            last_field_end = node.end_lineno
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Assign)):
+            return node.lineno
+    if last_field_end is not None:
+        return last_field_end + 1
+    if cls.body:
+        return cls.body[0].lineno
+    return cls.lineno + 1
+
+
+def _field_segment(source: str, node: ast.AST) -> str:
+    """Source text of a field, re-indented to its original column."""
+    text = ast.get_source_segment(source, node) or ""
+    if "\n" in text:
+        return text
+    return " " * getattr(node, "col_offset", 0) + text
+
+
+def _import_insert_line(tree: ast.Module) -> int:
+    """Line after which new import statements should be inserted."""
+    last_import_end: Optional[int] = None
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            last_import_end = node.end_lineno
+        elif last_import_end is None and isinstance(node, ast.Expr):
+            return node.end_lineno + 1
+    if last_import_end is not None:
+        return last_import_end + 1
+    return 1
+
+
+def _imported_names(tree: ast.Module) -> Dict[str, Set[str]]:
+    modules: Dict[str, Set[str]] = {}
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom):
+            modules.setdefault(node.module or "", set()).update(a.name for a in node.names)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                modules.setdefault(alias.name, set()).add(alias.name)
+    return modules
+
+
+def merge_models_source(existing: str, generated: str) -> str:
+    """Sync generated Pydantic fields into an existing ``models.py``.
+
+    Regenerates the model classes from the Data Dictionary (fields, nested
+    classes, imports) while preserving hand-written code: the module docstring,
+    extra imports, extra classes, methods, ``Record = <Custom>`` rebinds, and
+    any custom field definition (multi-line or using ``validation_alias`` /
+    ``AliasChoices``). New dictionary fields are added; plain generated fields
+    are updated in place.
+    """
+    if not existing.strip():
+        return generated
+    try:
+        existing_tree = ast.parse(existing)
+        generated_tree = ast.parse(generated)
+    except SyntaxError:
+        return existing
+
+    ex_classes = {n.name: n for n in existing_tree.body if isinstance(n, ast.ClassDef)}
+    alias: Dict[str, str] = {}
+    for node in existing_tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target, value = node.targets[0], node.value
+            if isinstance(target, ast.Name) and isinstance(value, ast.Name):
+                alias[target.id] = value.id
+
+    lines = existing.splitlines()
+    edits: List[Tuple[int, int, str]] = []
+    appends: List[str] = []
+
+    for gen_cls in (n for n in generated_tree.body if isinstance(n, ast.ClassDef)):
+        target_name = gen_cls.name
+        if gen_cls.name == "Record" and "Record" not in ex_classes:
+            target_name = alias.get("Record", gen_cls.name)
+        ex_cls = ex_classes.get(target_name)
+        if ex_cls is None:
+            appends.append(ast.get_source_segment(generated, gen_cls))
+            continue
+
+        ex_fields = {name: node for name, node in _iter_fields(ex_cls)}
+        missing: List[str] = []
+        for name, gen_node in _iter_fields(gen_cls):
+            gen_segment = _field_segment(generated, gen_node)
+            ex_node = ex_fields.get(name)
+            if ex_node is None:
+                missing.append(gen_segment)
+                continue
+            ex_segment = "\n".join(lines[ex_node.lineno - 1 : ex_node.end_lineno])
+            if _is_plain_field(ex_segment):
+                edits.append((ex_node.lineno, ex_node.end_lineno, gen_segment))
+        if missing:
+            insert_at = _field_insert_line(ex_cls)
+            edits.append((insert_at, insert_at - 1, "\n".join(missing)))
+
+    needed = _imported_names(generated_tree)
+    have = _imported_names(existing_tree)
+    import_lines = [
+        f"from {module} import {', '.join(sorted(names - have.get(module, set())))}"
+        for module, names in needed.items()
+        if names - have.get(module, set())
+    ]
+    if import_lines:
+        insert_at = _import_insert_line(existing_tree)
+        edits.append((insert_at, insert_at - 1, "\n".join(import_lines)))
+
+    for start, end, text in sorted(edits, key=lambda e: e[0], reverse=True):
+        boundary = end if end >= start else start - 1
+        lines[start - 1 : boundary] = text.splitlines()
+
+    result = "\n".join(lines).rstrip("\n")
+    for segment in appends:
+        result += "\n\n\n" + segment
+    return result + "\n"
+
+
+
 def scaffold_usecase(
     root: str,
     usecase: str,
@@ -101,14 +246,26 @@ def scaffold_usecase(
         access = derive_access(source.get("data_access"))
         source_name = str(source.get("source_name") or slug)
 
+        models_path = source_dir / "models.py"
         files: Dict[Path, str] = {
             usecase_dir / publisher / "__init__.py": EMPTY,
             source_dir / "__init__.py": EMPTY,
-            source_dir / "models.py": _models_source(source_name, schemas.get(slug, [])),
             source_dir / "normalizer.py": _normalizer_source(source_name),
             source_dir / access / "__init__.py": EMPTY,
             source_dir / access / "extractor.py": _extractor_source(source_name, access),
         }
+
+        generated_models = _models_source(source_name, schemas.get(slug, []))
+        if models_path.exists() and not overwrite:
+            current = models_path.read_text(encoding="utf-8")
+            merged = merge_models_source(current, generated_models)
+            if merged == current:
+                skipped.append(str(models_path))
+            else:
+                models_path.write_text(merged, encoding="utf-8")
+                created.append(str(models_path))
+        else:
+            files[models_path] = generated_models
 
         for path, content in files.items():
             if path.exists() and not overwrite:
@@ -121,8 +278,18 @@ def scaffold_usecase(
     return created, skipped
 
 
-def remove_ineligible_sources(root: str, usecase: str, eligible_sources: List[Dict[str, Any]]) -> List[str]:
-    """Remove generated source structures no longer marked eligible."""
+def remove_ineligible_sources(
+    root: str,
+    usecase: str,
+    eligible_sources: List[Dict[str, Any]],
+    publishers: Optional[Set[str]] = None,
+    sources: Optional[Set[str]] = None,
+) -> List[str]:
+    """Remove generated source structures no longer marked eligible.
+
+    Traversal is limited to ``publishers`` / ``sources`` when given, so a scoped
+    run (``--publisher`` / ``--source``) never deletes other sources.
+    """
     usecase_dir = Path(root) / derive_module_name(usecase)
     allowed = {(publisher_slug(source), source_slug(source)) for source in eligible_sources}
     removed: List[str] = []
@@ -131,8 +298,14 @@ def remove_ineligible_sources(root: str, usecase: str, eligible_sources: List[Di
     for publisher_dir in usecase_dir.iterdir():
         if not publisher_dir.is_dir() or publisher_dir.name.startswith("__"):
             continue
+        if publishers is not None and publisher_dir.name not in publishers:
+            continue
         for source_dir in publisher_dir.iterdir():
-            if source_dir.is_dir() and (publisher_dir.name, source_dir.name) not in allowed:
+            if not source_dir.is_dir():
+                continue
+            if sources is not None and source_dir.name not in sources:
+                continue
+            if (publisher_dir.name, source_dir.name) not in allowed:
                 shutil.rmtree(source_dir)
                 removed.append(str(source_dir))
         if not any(publisher_dir.iterdir()):

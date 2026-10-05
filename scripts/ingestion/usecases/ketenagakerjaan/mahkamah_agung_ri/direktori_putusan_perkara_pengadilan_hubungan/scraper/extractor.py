@@ -15,7 +15,7 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any, Dict, Iterator, List, Tuple, get_args
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Comment
@@ -23,6 +23,7 @@ from bs4 import BeautifulSoup, Comment
 from ......core.base.extractor import BaseExtractor
 from ......core.base.http import HttpClient
 from ......exceptions import ConfigError, SourceUnavailable
+from ..models import Putusan
 
 BASE = "https://putusan3.mahkamahagung.go.id/"
 SEARCH_URL = BASE + "search.html"
@@ -40,38 +41,44 @@ BULAN = {
     "juli": 7, "agustus": 8, "september": 9, "oktober": 10, "november": 11, "desember": 12,
 }
 
-# label tabel detail (dinormalisasi) -> key di JSON `putusan`
-DETAIL_MAP = {
-    "nomor": "Nomor_Perkara",
-    "tingkat proses": "Tingkat_Proses",
-    "klasifikasi": "Klasifikasi",
-    "kata kunci": "Kata_Kunci",
-    "tahun": "Tahun",
-    "lembaga peradilan": "Pengadilan",
-    "jenis lembaga peradilan": "Jenis_Lembaga_Peradilan",
-    "tanggal register": "Tanggal_Register",
-    "tanggal musyawarah": "Tanggal_Musyawarah",
-    "tanggal dibacakan": "Tanggal_Dibacakan",
-    "tanggal upload": "Tanggal_Upload",
-    "hakim ketua": "Hakim_Ketua",
-    "hakim anggota": "Hakim_Anggota",
-    "panitera": "Panitera",
-    "panitera pengganti": "Panitera",
-    "amar": "Amar",
-    "amar lainnya": "Amar_Lainnya",
-    "catatan amar": "Catatan_Amar",
-    "kaidah": "Kaidah",
-    "abstrak": "Abstrak",
-    "penggugat": "Penggugat",
-    "tergugat": "Tergugat",
+# Detail-page table label (normalized) -> ``Putusan`` field name. The site
+# labels are free text, so the label side stays explicit; the field side is
+# validated against the model (unknown names fail fast at import).
+DETAIL_LABEL_FIELDS = {
+    "nomor": "nomor_perkara",
+    "tingkat proses": "tingkat_proses",
+    "klasifikasi": "klasifikasi",
+    "kata kunci": "kata_kunci",
+    "tahun": "tahun",
+    "lembaga peradilan": "pengadilan",
+    "jenis lembaga peradilan": "jenis_lembaga_peradilan",
+    "tanggal register": "tanggal_register",
+    "tanggal musyawarah": "tanggal_musyawarah",
+    "tanggal dibacakan": "tanggal_dibacakan",
+    "tanggal upload": "tanggal_upload",
+    "hakim ketua": "hakim_ketua",
+    "hakim anggota": "hakim_anggota",
+    "panitera": "panitera",
+    "panitera pengganti": "panitera",
+    "amar": "amar",
+    "amar lainnya": "amar_lainnya",
+    "catatan amar": "catatan_amar",
+    "kaidah": "kaidah",
+    "abstrak": "abstrak",
+    "penggugat": "penggugat",
+    "tergugat": "tergugat",
 }
-PUTUSAN_KEYS = [
-    "Nomor_Perkara", "Tingkat_Proses", "Klasifikasi", "Kata_Kunci", "Tahun", "Pengadilan",
-    "Jenis_Lembaga_Peradilan", "Tanggal_Register", "Tanggal_Musyawarah", "Tanggal_Dibacakan",
-    "Tanggal_Upload", "Hakim_Ketua", "Hakim_Anggota", "Panitera", "Penggugat", "Tergugat",
-    "Amar", "Amar_Lainnya", "Catatan_Amar", "Kaidah", "Abstrak", "Status_Putusan_Listing",
+
+# JSON keys, aliases and date columns all come from the Pydantic model so they
+# stay in sync when a dictionary field is added, renamed or retyped.
+FIELD_ALIAS = {name: (field.alias or name) for name, field in Putusan.model_fields.items()}
+DETAIL_MAP = {label: FIELD_ALIAS[field] for label, field in DETAIL_LABEL_FIELDS.items()}
+PUTUSAN_KEYS = list(FIELD_ALIAS.values())
+DATE_KEYS = [
+    FIELD_ALIAS[name]
+    for name, field in Putusan.model_fields.items()
+    if date in get_args(field.annotation)
 ]
-DATE_KEYS = ["Tanggal_Register", "Tanggal_Musyawarah", "Tanggal_Dibacakan", "Tanggal_Upload"]
 
 # kota/kode pengadilan -> provinsi (best effort; kosong jika tidak ketemu)
 PROVINSI = {
@@ -555,6 +562,11 @@ class Extractor(BaseExtractor):
             self._headers["Cookie"] = cookie
         if token:
             self.url = with_security_token(self.url or SEARCH_URL, token)
+        # putusan3 is behind Cloudflare: plain requests get a managed challenge
+        # even with a fresh cf_clearance cookie, because cf_clearance is bound to
+        # the browser TLS fingerprint. Impersonate Chrome (curl_cffi) to pass it;
+        # override with ...__SCRAPER__IMPERSONATE="".
+        self._impersonate = str(config.get("impersonate") or "chrome").strip() or None
 
     def _get_soup(self, http: HttpClient, url: str) -> BeautifulSoup:
         return BeautifulSoup(http.get(url, headers=self._headers, timeout=60).text, "html.parser")
@@ -568,7 +580,7 @@ class Extractor(BaseExtractor):
         Each call uses its own ``HttpClient`` (and therefore its own ``requests``
         session) because ``requests.Session`` is not thread-safe.
         """
-        http = HttpClient(default_headers=self._headers)
+        http = HttpClient(default_headers=self._headers, impersonate=self._impersonate)
         soup = listing or self._get_soup(http, page_url(self.url or SEARCH_URL, page))
         cards = soup.select("div.spost")
         if not cards:
@@ -606,7 +618,7 @@ class Extractor(BaseExtractor):
 
         # Page 1 is fetched up front to discover the total row count, then its
         # listing soup is reused (no extra request).
-        discovery = HttpClient(default_headers=self._headers)
+        discovery = HttpClient(default_headers=self._headers, impersonate=self._impersonate)
         first = self._get_soup(discovery, page_url(url, 1))
         if not first.select("div.spost") and looks_blocked(first):
             raise SourceUnavailable(

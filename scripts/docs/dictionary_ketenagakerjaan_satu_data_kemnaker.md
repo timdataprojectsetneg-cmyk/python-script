@@ -18,10 +18,11 @@
 | judul | `judul` | String | - | - |
 | link_file | `link_file` | Integer | link | - |
 | abstraksi | `abstraksi` | Integer | - | - |
-| created_at | `created_at` | Datetime | YYYY-MM-DDTHH:MM:SS | Tanggal Pembuatan |
-| updated_at | `updated_at` | Datetime | YYYY-MM-DDTHH:MM:SS | - |
+| created_at | `created_at` | String | YYYY-MM-DDTHH:MM:SS | Tanggal Pembuatan |
+| updated_at | `updated_at` | String | YYYY-MM-DDTHH:MM:SS | - |
 | is_deleted | `is_deleted` | bool | - | - |
-| deleted_at | `deleted_at` | Datetime | YYYY-MM-DDTHH:MM:SS | - |
+| deleted_at | `deleted_at` | string | YYYY-MM-DDTHH:MM:SS | - |
+| minio_file | `minio_file` | String | - | - |
 
 ## Generated Pydantic model
 
@@ -37,6 +38,7 @@ class SatuDataKemnakerRecord(BaseModel):
     updated_at: str | None = Field(default=None, alias="updated_at")
     is_deleted: bool | None = Field(default=None, alias="is_deleted")
     deleted_at: str | None = Field(default=None, alias="deleted_at")
+    minio_file: str | None = Field(default=None, alias="minio_file")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

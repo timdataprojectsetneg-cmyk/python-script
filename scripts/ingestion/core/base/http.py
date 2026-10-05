@@ -8,13 +8,42 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from ...exceptions import AuthError, SourceUnavailable
+from ...exceptions import AuthError, ConfigError, SourceUnavailable
+
+try:  # optional: browser-fingerprint HTTP (needed to pass Cloudflare TLS checks)
+    from curl_cffi import requests as curl_requests
+except ImportError:  # pragma: no cover - curl_cffi is optional
+    curl_requests = None
+
+
+def _request_errors() -> tuple:
+    errors = [requests.RequestException]
+    if curl_requests is not None:
+        curl_error = getattr(curl_requests, "RequestsError", None)
+        if isinstance(curl_error, type):
+            errors.append(curl_error)
+    return tuple(errors)
+
+
+REQUEST_ERRORS = _request_errors()
 
 
 class HttpClient:
-    def __init__(self, default_headers: Optional[Dict[str, str]] = None):
-        self.session = requests.Session()
+    def __init__(
+        self,
+        default_headers: Optional[Dict[str, str]] = None,
+        impersonate: Optional[str] = None,
+    ):
         self.default_headers = default_headers or {}
+        self.impersonate = impersonate
+        if impersonate:
+            if curl_requests is None:
+                raise ConfigError(
+                    "IMPERSONATE requires the curl_cffi package (pip install curl_cffi)."
+                )
+            self.session = curl_requests.Session(impersonate=impersonate)
+        else:
+            self.session = requests.Session()
 
     def request(
         self,
@@ -43,7 +72,7 @@ class HttpClient:
                     json=json,
                     timeout=timeout,
                 )
-            except requests.RequestException as exc:
+            except REQUEST_ERRORS as exc:
                 last_exc = exc
                 wait = min(base_sleep * (2 ** attempt) + random.uniform(0, 1.5), 60)
                 time.sleep(wait)

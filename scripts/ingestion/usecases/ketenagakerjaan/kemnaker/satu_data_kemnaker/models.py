@@ -19,20 +19,20 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 class SatuDataKemnakerRecord(BaseModel):
     id: int | None = Field(default=None)
-    judul: str | None = Field(default=None)
+    judul: str | None = Field(default=None, alias="judul")
     link_file: str | None = Field(
         default=None, validation_alias=AliasChoices("link_file", "file")
     )
-    abstraksi: str | None = Field(default=None)
+    abstraksi: int | None = Field(default=None, alias="abstraksi")
     isi: str | None = Field(default=None)
     size_files: str | None = Field(default=None)
     kategori: str | None = Field(default=None)
     total_download: int | None = Field(default=None)
-    is_deleted: bool | None = Field(default=None)
-    created_at: str | None = Field(default=None)
-    updated_at: str | None = Field(default=None)
-    deleted_at: str | None = Field(default=None)
-    minio_file: str | None = Field(default=None)
+    is_deleted: bool | None = Field(default=None, alias="is_deleted")
+    created_at: str | None = Field(default=None, alias="created_at", description="Tanggal Pembuatan")
+    updated_at: str | None = Field(default=None, alias="updated_at")
+    deleted_at: str | None = Field(default=None, alias="deleted_at")
+    minio_file: str | None = Field(default=None, alias="minio_file")
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
