@@ -180,3 +180,29 @@ def test_get_path():
     payload = {"result": [{"rows": [1, 2]}]}
     assert get_path(payload, "result[0].rows[1]") == 2
     assert get_path(payload, "missing.path") is None
+
+
+def _excel_row_filter(**config):
+    from ingestion.core.extractors.excel_extractor import ExcelExtractor
+
+    return ExcelExtractor({"url": "https://p", "download_selector": "s", **config})
+
+
+def test_excel_is_data_row_default_drops_all_blank():
+    extractor = _excel_row_filter()
+    assert extractor._is_data_row({"a": None, "b": float("nan"), "c": "  "}) is False
+    assert extractor._is_data_row({"a": None, "b": 1}) is True
+
+
+def test_excel_is_data_row_require_columns():
+    extractor = _excel_row_filter(require_columns="Provinsi")
+    assert extractor._is_data_row({"Provinsi": "Aceh", "Upah": 1}) is True
+    assert extractor._is_data_row({"Provinsi": float("nan"), "Upah": 1}) is False
+    assert extractor._is_data_row({"Provinsi": "  ", "Upah": 1}) is False
+
+
+def test_excel_is_data_row_skip_row_prefixes():
+    extractor = _excel_row_filter(skip_row_prefixes="sumber,rata-rata")
+    assert extractor._is_data_row({"Keterangan": "Sumber: Kemnaker RI"}) is False
+    assert extractor._is_data_row({"Keterangan": "Rata-Rata"}) is False
+    assert extractor._is_data_row({"Keterangan": "Aceh"}) is True

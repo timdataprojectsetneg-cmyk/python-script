@@ -10,6 +10,7 @@ Handles three patterns:
 
 from __future__ import annotations
 
+import math
 import re
 from io import BytesIO
 from typing import Any, Dict, Iterator, List
@@ -20,6 +21,21 @@ from bs4 import BeautifulSoup
 from ...exceptions import ConfigError, SourceUnavailable
 from ..base.extractor import BaseExtractor
 from .utils import parse_fields
+
+
+def _is_blank(value: Any) -> bool:
+    """True for None, NaN, or blank/whitespace strings."""
+    if value is None:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    if isinstance(value, str):
+        return value.strip() == ""
+    return False
+
+
+def _split_config_list(value: Any) -> List[str]:
+    return [token.strip() for token in re.split(r"[,;]", str(value)) if token.strip()]
 
 
 class ExcelExtractor(BaseExtractor):
@@ -117,8 +133,32 @@ class ExcelExtractor(BaseExtractor):
             records: List[Dict[str, Any]] = []
             for frame in frames.values():
                 records.extend(frame.to_dict(orient="records"))
-            return records
-        return frames.to_dict(orient="records")
+        else:
+            records = frames.to_dict(orient="records")
+        return [record for record in records if self._is_data_row(record)]
+
+    def _is_data_row(self, record: Dict[str, Any]) -> bool:
+        """Hook deciding whether a parsed row is real data (not aggregate/footer).
+
+        Generic, config-driven rules (override in a source if needed):
+        - ``require_columns``: drop the row when any named column is blank
+          (e.g. ``Provinsi``).
+        - ``skip_row_prefixes``: drop the row when a string value starts with one
+          of these prefixes, case-insensitive (e.g. ``sumber,total``).
+        With no config, keep rows that have at least one non-blank value.
+        """
+        require = self.config.get("require_columns")
+        if require:
+            for column in _split_config_list(require):
+                if column in record and _is_blank(record[column]):
+                    return False
+        prefixes = self.config.get("skip_row_prefixes")
+        if prefixes:
+            tokens = tuple(token.casefold() for token in _split_config_list(prefixes))
+            for value in record.values():
+                if isinstance(value, str) and value.strip().casefold().startswith(tokens):
+                    return False
+        return any(not _is_blank(value) for value in record.values())
 
     def _apply_column_map(self, record: Dict[str, Any]) -> Dict[str, Any]:
         field_map = parse_fields(self.config.get("columns"))

@@ -18,6 +18,9 @@ from .....exceptions import SourceUnavailable
 # 0-based header row (Excel row 4): No | Provinsi | Upah Minimum (Rp).
 SHEET = "data"
 HEADER_ROW = 3
+# Drop non-province rows (aggregate 'Rata-Rata' and 'Sumber: ...' footer).
+REQUIRE_COLUMNS = "Provinsi"
+SKIP_ROW_PREFIXES = "sumber,rata-rata"
 # Download button class on the satudata page (the SPA hydrates its href from the API).
 DOWNLOAD_SELECTOR = "bg-satudata-800"
 # Public endpoint the SPA uses to build the download link; supports page/limit.
@@ -33,8 +36,11 @@ class Extractor(ExcelExtractor):
         merged = dict(config)
         merged.setdefault("sheet", SHEET)
         merged.setdefault("header_row", HEADER_ROW)
+        merged.setdefault("require_columns", REQUIRE_COLUMNS)
+        merged.setdefault("skip_row_prefixes", SKIP_ROW_PREFIXES)
         merged.setdefault("download_selector", DOWNLOAD_SELECTOR)
         super().__init__(merged)
+
 
     def _resolve_download_url(self) -> str:
         from_step = self.config.get("download_url")
