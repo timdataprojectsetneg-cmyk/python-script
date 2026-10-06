@@ -50,6 +50,7 @@ KNOWN_KEYS = (
     "PAGE_SIZE",
     "DATA_PATH",
     "NEXT_PATH",
+    "YEARS",
     "SELECTOR",
     "ITEM_SELECTOR",
     "FIELDS",
