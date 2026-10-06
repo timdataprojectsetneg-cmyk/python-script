@@ -25,11 +25,13 @@ Pakai sebagai library di dalam usecase:
     )
 
     result = extract_workbook("file.xlsx", const={"provinsi": "Gorontalo"})
-    write_csvs(result.tables, out_dir="./out")
+    write_tables(result.tables, out_dir="./out", fmt="csv")
+    records = tables_to_records(result.tables)   # {nama_tabel: [dict, ...]} untuk normalisasi/loader
 
-Pakai sebagai CLI (hasil selalu CSV):
+Pakai sebagai CLI (keluaran csv/json/ndjson):
     python -m ingestion.core.extractors.excel_automation file.xlsx --out-dir ./out
-    python -m ingestion.core.extractors.excel_automation file.xlsx --output data_long
+    python -m ingestion.core.extractors.excel_automation file.xlsx --output data_long --format json
+    python -m ingestion.core.extractors.excel_automation file.xlsx --output data --format ndjson
     python -m ingestion.core.extractors.excel_automation file.xlsx --output data,data_long,recommendation
     python -m ingestion.core.extractors.excel_automation file.xlsx --output all
     # pilihan: data, data_long, dim_mapping, meta_sheet, meta_dataset, meta_indicator,
@@ -40,12 +42,15 @@ from __future__ import annotations
 import argparse
 import difflib
 import itertools
+import json
+import math
 import os
 import re
 import sys
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from io import BytesIO
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -269,9 +274,15 @@ class Grid:
         return out
 
 
-def load_grids(path: str) -> list[Grid]:
-    wb_f = load_workbook(path, data_only=False)     # untuk membaca formula
-    wb_v = load_workbook(path, data_only=True)      # nilai hasil hitung (cache)
+def load_grids(source) -> list[Grid]:
+    """Read every sheet into a Grid. ``source`` is a path or raw xlsx bytes."""
+    def open_wb(data_only: bool):
+        if isinstance(source, (bytes, bytearray)):
+            return load_workbook(BytesIO(source), data_only=data_only)
+        return load_workbook(source, data_only=data_only)
+
+    wb_f = open_wb(False)     # untuk membaca formula
+    wb_v = open_wb(True)      # nilai hasil hitung (cache)
     grids = []
     for ws_f in wb_f.worksheets:
         ws_v = wb_v[ws_f.title]
@@ -1133,7 +1144,7 @@ class ExtractionResult:
 
 
 def extract_workbook(
-    path: str,
+    source: "str | bytes",
     *,
     prefix: Optional[str] = None,
     const: Optional[Dict[str, str]] = None,
@@ -1145,7 +1156,7 @@ def extract_workbook(
     """Baca workbook Excel dan kembalikan tabel terstruktur (DataFrame).
 
     Args:
-        path: path file .xlsx.
+        source: path file .xlsx, atau bytes dari file .xlsx (mis. hasil unduhan).
         prefix: prefix nama tabel; default dari nama sheet data.
         const: kolom konstanta tambahan, mis. {"provinsi": "Gorontalo"}.
         data_start_row: paksa baris awal data (1-based) bila deteksi salah.
@@ -1157,11 +1168,12 @@ def extract_workbook(
         ExtractionResult dengan ``.tables`` berisi ``{nama_tabel: DataFrame}``.
     """
     const_dict = {slugify(k): v for k, v in (const or {}).items()}
-    opts = ExtractionOptions(file=path, prefix=prefix, const=const_dict,
+    source_name = os.path.basename(source) if isinstance(source, (str, os.PathLike)) else "<bytes>"
+    opts = ExtractionOptions(file=source_name, prefix=prefix, const=const_dict,
                              data_start_row=data_start_row, profile=profile, relations=relations)
 
     # 1. baca semua sheet
-    grids = load_grids(path)
+    grids = load_grids(source)
     roles = detect_roles(grids)
     data_grids = [g for g in grids if roles[g.name] == "data"]
     meta_grids = [g for g in grids if roles[g.name] == "metadata"]
@@ -1250,11 +1262,63 @@ def write_csvs(tables: Dict[str, pd.DataFrame], out_dir: str) -> List[str]:
     return written
 
 
+def _py_scalar(value: Any) -> Any:
+    """Convert a pandas/numpy scalar to a JSON/pydantic-friendly Python value."""
+    if value is None or value is pd.NA or value is pd.NaT:
+        return None
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return None if math.isnan(float(value)) else float(value)
+    if isinstance(value, (np.bool_, bool)):
+        return bool(value)
+    if isinstance(value, (pd.Timestamp, datetime, date)):
+        return value.isoformat()
+    return value
+
+
+def to_records(df: pd.DataFrame) -> List[Dict[str, Any]]:
+    """DataFrame -> list of dict (NaN/NaT -> None, tipe numpy -> Python native)."""
+    return [{key: _py_scalar(value) for key, value in row.items()} for row in df.to_dict(orient="records")]
+
+
+def tables_to_records(tables: Dict[str, pd.DataFrame]) -> Dict[str, List[Dict[str, Any]]]:
+    """Semua tabel -> ``{nama_tabel: [record, ...]}`` untuk normalisasi/loader."""
+    return {name: to_records(df) for name, df in tables.items()}
+
+
+OUTPUT_FORMATS = ["csv", "json", "ndjson"]
+
+
+def write_tables(tables: Dict[str, pd.DataFrame], out_dir: str, fmt: str = "csv") -> List[str]:
+    """Tulis tabel ke disk. ``fmt``: csv, json (array of records), atau ndjson."""
+    fmt = (fmt or "csv").lower()
+    if fmt == "csv":
+        return write_csvs(tables, out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+    written: List[str] = []
+    for name, df in tables.items():
+        records = to_records(df)
+        if fmt == "json":
+            path = os.path.join(out_dir, f"{name}.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(records, handle, ensure_ascii=False, indent=2, default=str)
+        else:
+            path = os.path.join(out_dir, f"{name}.ndjson")
+            with open(path, "w", encoding="utf-8") as handle:
+                for record in records:
+                    handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+        written.append(path)
+    return written
+
+
 # =============================================================================
-# CLI (selalu keluaran CSV)
+# CLI
 # =============================================================================
 def parse_args():
-    p = argparse.ArgumentParser(description="Excel (data + metadata) -> tabel CSV terstruktur",
+    p = argparse.ArgumentParser(description="Excel (data + metadata) -> tabel CSV/JSON terstruktur",
                                 formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     p.add_argument("file", help="path file .xlsx")
     p.add_argument("--prefix", help="prefix nama tabel (default: dari nama sheet data)")
@@ -1265,7 +1329,10 @@ def parse_args():
                    help="tabel yang dikeluarkan; pisahkan dengan koma atau spasi. Pilihan: "
                         + ", ".join(OUTPUT_CHOICES) + ", all. Default: data. "
                         "Contoh: --output data,data_long,recommendation")
-    p.add_argument("--out-dir", default="./out", help="direktori keluaran CSV (default: ./out)")
+    p.add_argument("--format", choices=OUTPUT_FORMATS, default="csv",
+                   help="format keluaran: csv (default), json (array of records), "
+                        "ndjson (satu record per baris)")
+    p.add_argument("--out-dir", default="./out", help="direktori keluaran (default: ./out)")
     a = p.parse_args()
     a.const_dict = {}
     for item in a.const:
@@ -1305,9 +1372,9 @@ def main() -> None:
         outputs=outputs,
     )
     _print_summary(result)
-    written = write_csvs(result.tables, args.out_dir)
+    written = write_tables(result.tables, args.out_dir, args.format)
     for path in written:
-        print(f"  [CSV] {path}")
+        print(f"  [{args.format.upper()}] {path}")
 
 
 if __name__ == "__main__":

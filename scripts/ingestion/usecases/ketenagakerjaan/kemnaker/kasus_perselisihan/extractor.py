@@ -17,23 +17,23 @@ from typing import Any, Dict, List
 import openpyxl
 
 from .._satudata import SatuDataExcelExtractor
+from .models import Record
 
 DATA_START = 6                # 0-based Excel row 7 (first data row)
 TITLE_ROW = 1                 # 0-based Excel row 2 -> 'Tahun <yyyy>'
-# Column index -> model field name (0-based).
+FIRST_DATA_COLUMN = 0         # column A is the first data column
+# Fields derived from the sheet title/name, not read from a data column.
+DERIVED_FIELDS = ("periode", "tahun")
+
+
+def _column_fields() -> List[str]:
+    """Excel data columns follow the model's field order (minus derived fields)."""
+    return [name for name in Record.model_fields if name not in DERIVED_FIELDS]
+
+
+# Column index -> model field name, derived from the pydantic model.
 FIELD_BY_COLUMN = {
-    0: "jenis_perselisihan",
-    1: "jumlah_pusat",
-    2: "jumlah_daerah",
-    3: "jumlah",
-    4: "bipartit",
-    5: "mediasi_pb",
-    6: "mediasi_anjuran",
-    7: "konsiliasi",
-    8: "arbitrasi",
-    9: "hakim_hi",
-    10: "jumlah_penyelesaian",
-    11: "sisa_kasus",
+    FIRST_DATA_COLUMN + offset: name for offset, name in enumerate(_column_fields())
 }
 MONTH_NUMBER = {
     "januari": 1, "februari": 2, "maret": 3, "april": 4, "mei": 5, "juni": 6,

@@ -113,7 +113,7 @@ Source count: **53** · eligible for implementation: **47**
 | BPS Inflasi MoM | - | - | raw_bps.inflasi_bulanan | False | - | - | False |
 | BPS Consumer Price Index | - | - | raw_bps.indeks_harga_konsumen | False | - | - | False |
 | Data Pengawas Ketenagakerjaan | - | - | - | False | - | - | False |
-| Kemnaker Perusahaan WLKP | - | - | - | False | - | - | False |
+| Kemnaker Perusahaan WLKP | - | - | raw_kemnaker.kemnaker_perusahaan_wlkp | False | - | - | False |
 | Kemnaker Perusahaan Melapor PP | - | - | - | False | - | - | False |
 | Kemnaker Perusahaan Skala Upah | - | - | - | False | - | - | False |
 | Kemnaker Lapor PKB di WLKP | - | - | - | False | - | - | False |

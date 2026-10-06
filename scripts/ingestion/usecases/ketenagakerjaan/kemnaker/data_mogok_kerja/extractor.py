@@ -15,16 +15,24 @@ from typing import Any, Dict, List
 import openpyxl
 
 from .._satudata import SatuDataExcelExtractor
+from .models import Record
 
 SHEET = "mogok"
-HEADER_ROWS = (3, 4)          # 0-based Excel rows 4-5
-DATA_START = 5                # 0-based Excel row 6
+DATA_START = 5                # 0-based Excel row 6 (first data row)
 TITLE_ROW = 1                 # 0-based Excel row 2 -> 'Tahun <yyyy>'
-# Column index -> model field name (0-based).
+FIRST_DATA_COLUMN = 1         # 0-based; column 0 is 'No.'
+# Fields derived from the sheet title/name, not read from a data column.
+DERIVED_FIELDS = ("tahun",)
+
+
+def _column_fields() -> List[str]:
+    """Excel data columns follow the model's field order (minus derived fields)."""
+    return [name for name in Record.model_fields if name not in DERIVED_FIELDS]
+
+
+# Column index -> model field name, derived from the pydantic model.
 FIELD_BY_COLUMN = {
-    1: "provinsi",
-    2: "kasus",
-    3: "tenaga_kerja_yang_terlibat",
+    FIRST_DATA_COLUMN + offset: name for offset, name in enumerate(_column_fields())
 }
 
 
