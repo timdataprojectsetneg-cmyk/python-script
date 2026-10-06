@@ -28,21 +28,20 @@ def test_scaffold_creates_files(tmp_path):
     assert (base / "__init__.py").exists()
     assert (base / "models.py").exists()
     assert (base / "normalizer.py").exists()
-    assert (base / "excel" / "__init__.py").exists()
-    assert (base / "excel" / "extractor.py").exists()
+    assert (base / "extractor.py").exists()
 
     models = (base / "models.py").read_text()
     assert "class Record(BaseModel):" in models
     assert "jumlah_pusat" in models
 
-    extractor = (base / "excel" / "extractor.py").read_text()
+    extractor = (base / "extractor.py").read_text()
     assert "class Extractor(ExcelExtractor):" in extractor
-    assert "from ......core.extractors.excel_extractor import ExcelExtractor" in extractor
+    assert "from .....core.extractors.excel_extractor import ExcelExtractor" in extractor
 
     normalizer = (base / "normalizer.py").read_text()
     assert "from .....core.base.normalizer import BaseNormalizer" in normalizer
 
-    assert len(created) == 6
+    assert len(created) == 5
     assert skipped == []
 
 

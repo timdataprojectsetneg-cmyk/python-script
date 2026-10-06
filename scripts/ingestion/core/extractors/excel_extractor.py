@@ -28,7 +28,7 @@ class ExcelExtractor(BaseExtractor):
         if not selector:
             raise ConfigError(
                 "Missing DOWNLOAD_SELECTOR for Excel extraction. Set it in the source "
-                "extractor or via {USECASE}__{SOURCE}__EXCEL__DOWNLOAD_SELECTOR."
+                "extractor or via {USECASE}__{PUBLISHER}__{SOURCE}__DOWNLOAD_SELECTOR."
             )
         return selector
 
@@ -55,12 +55,13 @@ class ExcelExtractor(BaseExtractor):
             raise SourceUnavailable(
                 "The site returned a 'Web Page Blocked' page (network/firewall filter). "
                 "Run from an allowed network, or set "
-                "{USECASE}__{SOURCE}__EXCEL__DOWNLOAD_URL to the file URL."
+                "{USECASE}__{PUBLISHER}__{SOURCE}__DOWNLOAD_URL to the file URL."
             )
         if 'id="root"' in html:
             raise SourceUnavailable(
                 f"Download container '{selector}' not found and no download link was found; "
-                "the page looks like a JavaScript SPA. Set {USECASE}__{SOURCE}__EXCEL__DOWNLOAD_URL."
+                "the page looks like a JavaScript SPA. Set "
+                "{USECASE}__{PUBLISHER}__{SOURCE}__DOWNLOAD_URL."
             )
         raise SourceUnavailable(f"Download container not found for selector: {selector}")
 

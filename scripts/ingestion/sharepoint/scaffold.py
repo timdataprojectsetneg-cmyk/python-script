@@ -64,15 +64,20 @@ class Normalizer(BaseNormalizer):
 
 def _extractor_source(source_name: str, access: str) -> str:
     base, module = EXTRACTOR_BASES.get(access, EXTRACTOR_BASES["excel"])
-    return f'''"""{access.capitalize()} access — {source_name}."""
+    return f'''"""Extractor — {source_name}.
+
+Scaffolded from the catalog Data Access '{access}'; the extractor may combine
+several retrieval steps internally (e.g. scrape a page, then download the Excel
+it links to).
+"""
 
 from __future__ import annotations
 
-from ......{module} import {base}
+from .....{module} import {base}
 
 
 class Extractor({base}):
-    """Implemented per source; falls back to the generic {access} extractor."""
+    """Implemented per source; subclass the generic base and override as needed."""
 '''
 
 
@@ -251,8 +256,7 @@ def scaffold_usecase(
             usecase_dir / publisher / "__init__.py": EMPTY,
             source_dir / "__init__.py": EMPTY,
             source_dir / "normalizer.py": _normalizer_source(source_name),
-            source_dir / access / "__init__.py": EMPTY,
-            source_dir / access / "extractor.py": _extractor_source(source_name, access),
+            source_dir / "extractor.py": _extractor_source(source_name, access),
         }
 
         generated_models = _models_source(source_name, schemas.get(slug, []))

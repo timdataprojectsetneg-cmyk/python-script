@@ -2,11 +2,16 @@
 
 Environment variable naming convention:
 
-    {USECASE}__{SOURCE}__{ACCESS}__{KEY}
+    {USECASE}__{PUBLISHER}__{SOURCE}__{KEY}
 
-All uppercase, double underscore as segment delimiter. Non-confidential values
-live in ``scripts/.env`` (loaded via python-dotenv); confidential values are
-injected by the NiFi ``ExecuteStreamCommand`` processor into the process env.
+All uppercase, double underscore as segment delimiter. Configuration is scoped to
+a source (not to a data-access step): one source owns one extractor, which may
+internally combine several retrieval steps (e.g. scrape a page, then download the
+Excel it points at).
+
+Non-confidential values live in ``scripts/.env`` (loaded via python-dotenv);
+confidential values are injected by the NiFi ``ExecuteStreamCommand`` processor
+into the process env.
 """
 
 from __future__ import annotations
@@ -25,7 +30,7 @@ _loaded = False
 _loaded_usecase_files: set[str] = set()
 _profile: Optional[str] = None
 
-# Keys that are safe/expected at the {USECASE}__{SOURCE}__{ACCESS}__ level.
+# Keys that are safe/expected at the {USECASE}__{PUBLISHER}__{SOURCE}__ level.
 KNOWN_KEYS = (
     "URL",
     "SCHEMA",
@@ -136,13 +141,13 @@ def load_env(usecase: Optional[str] = None) -> None:
         _loaded_usecase_files.add(fragment)
 
 
-def env_key(usecase: str, publisher: str, source: str, access: str, key: str) -> str:
-    return f"{usecase}__{publisher}__{source}__{access}__{key}".upper()
+def env_key(usecase: str, publisher: str, source: str, key: str) -> str:
+    return f"{usecase}__{publisher}__{source}__{key}".upper()
 
 
-def get(usecase: str, publisher: str, source: str, access: str, key: str, default: Any = None) -> Any:
+def get(usecase: str, publisher: str, source: str, key: str, default: Any = None) -> Any:
     load_env(usecase)
-    return os.environ.get(env_key(usecase, publisher, source, access, key), default)
+    return os.environ.get(env_key(usecase, publisher, source, key), default)
 
 
 def get_raw(key: str, default: Any = None) -> Any:
@@ -151,47 +156,45 @@ def get_raw(key: str, default: Any = None) -> Any:
 
 
 def load_config(
-    usecase: str, publisher: str, source: str, access: str, require_url: bool = True
+    usecase: str, publisher: str, source: str, require_url: bool = True
 ) -> Dict[str, Any]:
-    """Build the flattened config dict for a usecase/publisher/source/access tuple.
+    """Build the flattened config dict for a usecase/publisher/source tuple.
 
-    ``require_url=False`` is used for later pipeline steps that receive their URL
-    from a preceding extractor (e.g. scraper -> excel).
+    ``require_url=False`` is used when the source does not have a single entry
+    URL (e.g. it reads a local file via ``SOURCE_FILE``).
     """
-    if not usecase or not publisher or not source or not access:
-        raise ConfigError("usecase, publisher, source and access are required")
+    if not usecase or not publisher or not source:
+        raise ConfigError("usecase, publisher and source are required")
 
     usecase = usecase.strip().lower()
     publisher = publisher.strip().lower()
     source = source.strip().lower()
-    access = access.strip().lower()
 
     cfg: Dict[str, Any] = {
         "usecase": usecase,
         "publisher": publisher,
         "source": source,
-        "access": access,
         "raw": {},
     }
     for key in KNOWN_KEYS:
-        value = get(usecase, publisher, source, access, key)
+        value = get(usecase, publisher, source, key)
         if value is not None:
             cfg[key.lower()] = value
             cfg["raw"][key] = value
 
-    cfg.setdefault("target", "none" if access == "pdf" else "postgres")
+    cfg.setdefault("target", "postgres")
 
     if require_url and not (cfg.get("url") or cfg.get("pdf_url") or cfg.get("source_file")):
         raise ConfigError(
-            f"Missing required configuration: {env_key(usecase, publisher, source, access, 'URL')}"
+            f"Missing required configuration: {env_key(usecase, publisher, source, 'URL')}"
         )
 
     return cfg
 
 
-def resolve_credentials(usecase: str, publisher: str, source: str, access: str) -> Dict[str, Optional[str]]:
+def resolve_credentials(usecase: str, publisher: str, source: str) -> Dict[str, Optional[str]]:
     """Return credential-like values without ever logging them."""
     return {
-        "api_key": get(usecase, publisher, source, access, "API_KEY"),
-        "token": get(usecase, publisher, source, access, "TOKEN"),
+        "api_key": get(usecase, publisher, source, "API_KEY"),
+        "token": get(usecase, publisher, source, "TOKEN"),
     }

@@ -15,8 +15,8 @@ NDJSON emission, not a completed database insert.
 | Step | Processor | Purpose |
 |---|---|---|
 | 1 | `GenerateFlowFile` (CRON) | Trigger per Update Frequency (daily/monthly/yearly) |
-| 2 | `UpdateAttribute` | Inject `usecase`, `source`, `access`, `ingestion_ts` |
-| 3 | `ExecuteStreamCommand` | Invoke `run_ingestion.py run --usecase ${USECASE} --source ${SOURCE} --access ${ACCESS} --mode prod` |
+| 2 | `UpdateAttribute` | Inject `usecase`, `source`, `ingestion_ts` |
+| 3 | `ExecuteStreamCommand` | Invoke `run_ingestion.py run --usecase ${USECASE} --source ${SOURCE} --mode prod` |
 | 4 | `RouteOnAttribute` | Route by `exit.code` (see below) |
 | 5a | `ConvertRecord` + `JsonTreeReader` | NDJSON → Record |
 | 6a | `PutDatabaseRecord` + `DBCPConnectionPool` | Write to PostgreSQL / Elasticsearch |
@@ -27,7 +27,7 @@ NDJSON emission, not a completed database insert.
 ```
 Working Directory : /opt/nifi/nifi-current/scripts
 Command Path      : /opt/nifi/nifi-current/venv/bin/python3
-Command Arguments : run_ingestion.py run --usecase ${USECASE} --source ${SOURCE} --access ${ACCESS} --mode prod
+Command Arguments : run_ingestion.py run --usecase ${USECASE} --source ${SOURCE} --mode prod
 Ignore STDIN      : false
 ```
 
@@ -54,10 +54,10 @@ alert   : ${exit.code:or(${exit.code:equals('2')}, ${exit.code:equals('3')})}
 
 ## PDF data access
 
-For `--access pdf`, the Python CLI downloads the PDF and uploads it to
-MinIO/S3 on-prem, then emits a single metadata record (bucket, object_key,
-etag, size, sha256). Point `PutDatabaseRecord` at a metadata table, or route the
-metadata to a catalog index.
+For a PDF source (extractor based on `PdfExtractor`), the Python CLI downloads
+the PDF and uploads it to MinIO/S3 on-prem, then emits a single metadata record
+(bucket, object_key, etag, size, sha256). Point `PutDatabaseRecord` at a metadata
+table, or route the metadata to a catalog index.
 
 ## Parameter Context
 

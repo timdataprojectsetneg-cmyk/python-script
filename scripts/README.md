@@ -8,42 +8,44 @@ PostgreSQL / Elasticsearch. See `PRD_NiFi_Python_Ingestion.md` (repository root)
 > untouched. The framework lives in the `ingestion/` package and is invoked via
 > `run_ingestion.py`.
 
-## Data access methods
+## Extractor base classes
 
-| Access | Class | Output |
+Each source has a single `extractor.py` that subclasses the generic base matching
+its retrieval method. The base class provides the common mechanics; the source
+overrides what it needs.
+
+| Base | Module | Output |
 |---|---|---|
-| `excel` | `core/extractors/excel_extractor.py` | normalized records |
-| `api` | `core/extractors/api_extractor.py` | normalized records |
-| `scraper` | `core/extractors/web_scraper.py` | normalized records |
-| `pdf` | `core/extractors/pdf_extractor.py` | **binary uploaded to MinIO/S3 on-prem**, metadata record emitted |
+| `ExcelExtractor` | `core/extractors/excel_extractor.py` | normalized records |
+| `ApiExtractor` | `core/extractors/api_extractor.py` | normalized records |
+| `WebScraper` | `core/extractors/web_scraper.py` | normalized records |
+| `PdfExtractor` | `core/extractors/pdf_extractor.py` | **binary uploaded to MinIO/S3 on-prem**, metadata record emitted |
 
 PDF flow: source/landing URL → resolve PDF URL → download → upload to MinIO →
 emit metadata (bucket, object_key, etag, size, sha256).
 
-Extractors can be **chained** when a source needs more than one step (e.g. a
-scraper that discovers the Excel download link, then the Excel extractor). Later
-steps receive the URL discovered by earlier ones.
+A source extractor may combine several retrieval steps internally (e.g. scrape a
+landing page, then download the Excel it links to). This lives entirely in the
+source's `extractor.py`; there is no per-source access chain or config.
 
 The Excel download-link CSS selector is **not hardcoded in core**: each source
-declares it (e.g. `usecases/ketenagakerjaan/kasus_perselisihan/excel/extractor.py`
+declares it (e.g. `usecases/ketenagakerjaan/kemnaker/kasus_perselisihan/extractor.py`
 sets `DOWNLOAD_SELECTOR = "bg-satudata-800"`), overridable via the
-`{USECASE}__{PUBLISHER}__{SOURCE}__EXCEL__DOWNLOAD_SELECTOR` env var.
+`{USECASE}__{PUBLISHER}__{SOURCE}__DOWNLOAD_SELECTOR` env var.
 
-JS-rendered pages require a direct download URL; the ingestion runtime performs
-static HTTP extraction only.
+JS-rendered pages require resolving the link from an API or a direct download
+URL; the extraction runtime performs static HTTP only.
 
-Each Excel has its own layout, so source-specific parsing overrides
-`_parse_excel` in the source's `<access>/extractor.py` (see
-`usecases/ketenagakerjaan/kasus_perselisihan/excel/extractor.py`: it merges the
-3-row header, parses the month sheets, adds a `periode`, and skips the `Total` /
-`Sumber:` rows). The generic extractor still handles simple single-header files.
+Each Excel has its own layout, so source-specific parsing overrides `_parse_excel`
+in the source's `extractor.py`. The generic extractor handles simple
+single-header files.
 
 Downloads try the URL as-is first and fall back to the URL-decoded form, so both
 `%20`-literal (double-encoded `%2520`) and normally-encoded paths work.
 
 Some sites are behind bot protection (Cloudflare). For those, sources can accept
-a saved page via `{USECASE}__{PUBLISHER}__{SOURCE}__SCRAPER__SOURCE_FILE` (local HTML) and parse
-it offline; see `usecases/ketenagakerjaan/umk_sumut/scraper/extractor.py`.
+a saved page via `{USECASE}__{PUBLISHER}__{SOURCE}__SOURCE_FILE` (local HTML) and parse
+it offline; see `usecases/ketenagakerjaan/goodstats/umk_sumut/extractor.py`.
 
 ## Usage
 
@@ -53,40 +55,34 @@ python -m ingestion.cli docs --usecase ketenagakerjaan
 python -m ingestion.cli docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --scaffold
 
-# `--access` is optional: omit it to use the source default
+# Run one source
 python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --mode prod
 
 # Run every source under a publisher
 python -m ingestion.cli run --usecase ketenagakerjaan --publisher kemnaker --mode prod
 
-# Chained extractors (order matters)
-python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan \
-    --access scraper --access excel --mode prod
-python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan \
-    --access scraper,excel --mode prod
-
 # DEV: load directly to local PostgreSQL/Elastic (the profile enables loading)
-python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --access excel --env dev
+python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --env dev
 
 # Equivalent flat wrapper (NiFi style)
-python run_ingestion.py run --usecase ... --source ... --access pdf --mode prod
+python run_ingestion.py run --usecase ... --source ... --mode prod
 ```
 
 ### Load method (DEV `postgres` / `elastic` target)
 
-Per source/access, set `{USECASE}__{PUBLISHER}__{SOURCE}__{ACCESS}__METHOD`:
+Per source, set `{USECASE}__{PUBLISHER}__{SOURCE}__METHOD`:
 
 - `replace` (default) — replace the target content before writing (PostgreSQL
   `TRUNCATE`, Elasticsearch index delete).
-- `upsert` — merge existing rows by `{USECASE}__{PUBLISHER}__{SOURCE}__{ACCESS}__UNIQUE_KEY`
+- `upsert` — merge existing rows by `{USECASE}__{PUBLISHER}__{SOURCE}__UNIQUE_KEY`
   (comma/semicolon-separated, one or more columns, default empty). `upsert`
   without a unique key is a config error.
 
 ```bash
-KETENAGAKERJAAN__KEMNAKER__SATU_DATA_KEMNAKER__API__METHOD=upsert
-KETENAGAKERJAAN__KEMNAKER__SATU_DATA_KEMNAKER__API__UNIQUE_KEY=id
+KETENAGAKERJAAN__KEMNAKER__SATU_DATA_KEMNAKER__METHOD=upsert
+KETENAGAKERJAAN__KEMNAKER__SATU_DATA_KEMNAKER__UNIQUE_KEY=id
 # multi-column:
-# KETENAGAKERJAAN__SOME__SRC__API__UNIQUE_KEY=provinsi,kota,tahun
+# KETENAGAKERJAAN__SOME__SRC__UNIQUE_KEY=provinsi,kota,tahun
 ```
 
 For API sources the HTTP verb is `...__HTTP_METHOD` (legacy configs using
@@ -97,7 +93,7 @@ For API sources the HTTP verb is `...__HTTP_METHOD` (legacy configs using
 ```
 ingestion/
 ├── cli.py              # click CLI: run / sharepoint
-├── config.py           # {USECASE}__{PUBLISHER}__{SOURCE}__{ACCESS}__{KEY} env loader
+├── config.py           # {USECASE}__{PUBLISHER}__{SOURCE}__{KEY} env loader
 ├── exceptions.py       # exceptions + exit codes 0..4
 ├── core/
 │   ├── base/           # Extractor / Normalizer / Loader / Storage ABCs + HttpClient
@@ -147,10 +143,10 @@ python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --scaffold
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --scaffold --scaffold-overwrite
 ```
 
-`--scaffold` writes `ingestion/usecases/<usecase>/<source>/{__init__.py,models.py,normalizer.py}`
-and `<access>/{__init__.py,extractor.py}` for every eligible source. Use
-`--include-ineligible` to still emit dictionaries for ineligible sources, and
-`--source "Kasus Perselisihan"` to limit dictionary generation.
+`--scaffold` writes `ingestion/usecases/<usecase>/<publisher>/<source>/{__init__.py,models.py,normalizer.py,extractor.py}`
+for every eligible source (the generic base is chosen from the catalog Data
+Access). Use `--include-ineligible` to still emit dictionaries for ineligible
+sources, and `--source "Kasus Perselisihan"` to limit dictionary generation.
 
 ### Long source names / acronyms
 
@@ -173,7 +169,7 @@ omit it to emit dictionaries for eligible sources in the use case.
 ```bash
 # Load secrets from .env.dev
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev
-python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --access excel --env dev
+python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --env dev
 
 # --env also works on the group
 python -m ingestion.cli --env dev docs --usecase ketenagakerjaan

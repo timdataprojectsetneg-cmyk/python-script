@@ -3,6 +3,7 @@
 from ingestion.sharepoint.metadata_parser import derive_access, resolve_sheet_name
 from ingestion.sharepoint.markdown_docs import (
     dictionary_filename,
+    env_lines,
     render_dictionary_markdown,
     render_usecase_markdown,
     usecase_filename,
@@ -57,12 +58,15 @@ SOURCES = [
 def test_render_usecase_markdown():
     md = render_usecase_markdown("ketenagakerjaan", SOURCES, "catalog.xlsx")
     assert "# Use Case: ketenagakerjaan" in md
-    assert "usecases/ketenagakerjaan/" in md
-    assert "├── kasus_perselisihan/" in md
-    assert "└── excel/" in md
-    assert "└── api/" in md
-    assert "extractor.py" in md
-    assert "KETENAGAKERJAAN__KASUS_PERSELISIHAN__EXCEL__URL=" in md
+    assert "Kasus Perselisihan" in md
+    assert "BPS Inflasi MoM" in md
+
+
+def test_env_lines_are_flat_without_access():
+    lines = env_lines("ketenagakerjaan", SOURCES)
+    assert any(line.startswith("KETENAGAKERJAAN__KEMNAKER__KASUS_PERSELISIHAN__URL=") for line in lines)
+    assert any(line.startswith("KETENAGAKERJAAN__BPS__BPS_INFLASI_MOM__URL=") for line in lines)
+    assert all("__EXCEL__" not in line and "__API__" not in line for line in lines)
 
 
 def test_render_usecase_markdown_targets():
@@ -73,13 +77,13 @@ def test_render_usecase_markdown_targets():
             "data_access": "Download Excel",
             "update_frequency": "Monthly",
             "raw_minio_bucket": "setneg-raw",
-            "raw_postgre_schema": "raw_ketenagakerjaan",
+            "raw_postgre_table": "raw_ketenagakerjaan.kasus_perselisihan",
         }
     ]
     md = render_usecase_markdown("ketenagakerjaan", sources, "catalog.xlsx")
     assert "## Targets" in md
     assert "setneg-raw" in md
-    assert "raw_ketenagakerjaan" in md
+    assert "raw_ketenagakerjaan.kasus_perselisihan" in md
 
 
 def test_render_dictionary_markdown():

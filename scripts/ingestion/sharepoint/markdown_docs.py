@@ -84,7 +84,7 @@ def _group_sources(sources: List[Dict[str, Any]]) -> Dict[tuple, Dict[str, Any]]
 def env_lines(
     usecase: str, sources: List[Dict[str, Any]], preserved: Dict[str, str] | None = None
 ) -> List[str]:
-    """Env var lines for eligible sources: {UC}__{PUBLISHER}__{SOURCE}__{ACCESS}__{KEY}.
+    """Env var lines for eligible sources: {UC}__{PUBLISHER}__{SOURCE}__{KEY}.
 
     ``preserved`` maps an existing env var name to its current value (read from a
     previously generated ``.env``); ``METHOD``/``UNIQUE_KEY`` keep those values
@@ -98,8 +98,7 @@ def env_lines(
             continue
         publisher = publisher_slug(source)
         slug = source_slug(source)
-        access = derive_access(source.get("data_access"))
-        prefix = f"{usecase_slug}__{publisher}__{slug}__{access}".upper()
+        prefix = f"{usecase_slug}__{publisher}__{slug}".upper()
         lines.append(f"{prefix}__URL={source.get('source_link') or ''}")
         schema, postgre_table = split_postgre(source.get("raw_postgre_table"))
         targets = (
@@ -170,7 +169,7 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
         f"1. Scaffold eligible sources: `python -m ingestion.cli docs --usecase {usecase_slug} --scaffold`",
         "2. For each source, open `docs/dictionary_<usecase>_<source>.md` and copy the Pydantic model into `models.py`.",
         "3. Implement `normalizer.py` (or rely on the generic normalizer validating against `Record`).",
-        "4. Implement `<access>/extractor.py` (class `Extractor`), or rely on the generic extractor.",
+        "4. Implement `<source>/extractor.py` (class `Extractor`), subclassing the generic base.",
         "5. Register the source environment variables and run in DEV mode.",
         "",
     ]

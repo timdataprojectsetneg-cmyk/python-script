@@ -125,5 +125,5 @@ Source count: **53** · eligible for implementation: **46**
 1. Scaffold eligible sources: `python -m ingestion.cli docs --usecase ketenagakerjaan --scaffold`
 2. For each source, open `docs/dictionary_<usecase>_<source>.md` and copy the Pydantic model into `models.py`.
 3. Implement `normalizer.py` (or rely on the generic normalizer validating against `Record`).
-4. Implement `<access>/extractor.py` (class `Extractor`), or rely on the generic extractor.
+4. Implement `<source>/extractor.py` (class `Extractor`), subclassing the generic base.
 5. Register the source environment variables and run in DEV mode.

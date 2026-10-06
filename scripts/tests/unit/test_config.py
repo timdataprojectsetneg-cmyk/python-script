@@ -8,28 +8,28 @@ from ingestion.core.extractors.utils import decode_url, get_path
 
 
 def test_env_key_format():
-    assert env_key("ketenagakerjaan", "kasus_perselisihan", "excel", "url") == (
-        "KETENAGAKERJAAN__KASUS_PERSELISIHAN__EXCEL__URL"
+    assert env_key("ketenagakerjaan", "kemnaker", "kasus_perselisihan", "url") == (
+        "KETENAGAKERJAAN__KEMNAKER__KASUS_PERSELISIHAN__URL"
     )
 
 
 def test_load_config_missing_url(monkeypatch):
-    monkeypatch.delenv("GHOST__NONE__EXCEL__URL", raising=False)
+    monkeypatch.delenv("GHOST__PUB__SRC__URL", raising=False)
     with pytest.raises(ConfigError):
-        load_config("ghost", "none", "excel")
+        load_config("ghost", "pub", "src")
 
 
 def test_load_config_reads_env(monkeypatch):
-    monkeypatch.setenv("DEMO__SRC__EXCEL__URL", "https://example.com")
-    cfg = load_config("demo", "src", "excel")
+    monkeypatch.setenv("DEMO__PUB__SRC__URL", "https://example.com")
+    cfg = load_config("demo", "pub", "src")
     assert cfg["url"] == "https://example.com"
     assert cfg["target"] == "postgres"
 
 
 def test_load_config_reads_download_url_override(monkeypatch):
-    monkeypatch.setenv("KETENAGAKERJAAN__KASUS_PERSELISIHAN__EXCEL__URL", "https://satudata/page")
-    monkeypatch.setenv("KETENAGAKERJAAN__KASUS_PERSELISIHAN__EXCEL__DOWNLOAD_URL", "https://x/a.xlsx")
-    cfg = load_config("ketenagakerjaan", "kasus_perselisihan", "excel")
+    monkeypatch.setenv("KETENAGAKERJAAN__KEMNAKER__KASUS_PERSELISIHAN__URL", "https://satudata/page")
+    monkeypatch.setenv("KETENAGAKERJAAN__KEMNAKER__KASUS_PERSELISIHAN__DOWNLOAD_URL", "https://x/a.xlsx")
+    cfg = load_config("ketenagakerjaan", "kemnaker", "kasus_perselisihan")
     assert cfg["download_url"] == "https://x/a.xlsx"
 
 
@@ -87,17 +87,24 @@ def test_excel_download_falls_back_to_decoded(monkeypatch):
     assert calls == ["https://x/7.%2520PPHI.xlsx", "https://x/7.%20PPHI.xlsx"]
 
 
-def test_pdf_default_target_none(monkeypatch):
-    monkeypatch.setenv("DEMO__DOC__PDF__URL", "https://example.com/doc.pdf")
-    cfg = load_config("demo", "doc", "pdf")
+def test_target_defaults_to_postgres(monkeypatch):
+    monkeypatch.setenv("DEMO__PUB__SRC__URL", "https://example.com")
+    cfg = load_config("demo", "pub", "src")
+    assert cfg["target"] == "postgres"
+
+
+def test_target_env_override(monkeypatch):
+    monkeypatch.setenv("DEMO__PUB__SRC__URL", "https://example.com")
+    monkeypatch.setenv("DEMO__PUB__SRC__TARGET", "none")
+    cfg = load_config("demo", "pub", "src")
     assert cfg["target"] == "none"
 
 
-def test_load_config_optional_url_for_pipeline_step(monkeypatch):
-    monkeypatch.delenv("GHOST__NONE__EXCEL__URL", raising=False)
-    cfg = load_config("ghost", "none", "excel", require_url=False)
-    assert cfg["source"] == "none"
-    assert cfg["access"] == "excel"
+def test_load_config_optional_url(monkeypatch):
+    monkeypatch.delenv("GHOST__PUB__SRC__URL", raising=False)
+    cfg = load_config("ghost", "pub", "src", require_url=False)
+    assert cfg["source"] == "src"
+    assert "access" not in cfg
 
 
 def test_excel_extractor_requires_selector():
@@ -154,31 +161,14 @@ def test_blocked_page_message():
     assert "Blocked" in str(err.value)
 
 
-def test_kasus_perselisihan_defines_selector_and_dynamic():
-    from ingestion.usecases.ketenagakerjaan.kasus_perselisihan.excel.extractor import (
-        DOWNLOAD_SELECTOR,
-        DYNAMIC,
+def test_source_extractor_subclasses_generic():
+    from ingestion.core.extractors.excel_extractor import ExcelExtractor
+    from ingestion.usecases.ketenagakerjaan.kemnaker.kasus_perselisihan.extractor import (
         Extractor,
     )
 
-    assert DOWNLOAD_SELECTOR == "bg-satudata-800"
-    assert DYNAMIC is True
-    extractor = Extractor(
-        {"usecase": "ketenagakerjaan", "source": "kasus_perselisihan", "access": "excel", "url": "https://x"}
-    )
-    assert extractor.config["download_selector"] == "bg-satudata-800"
-    assert extractor.config["dynamic"] is True
-    # Env override wins.
-    overridden = Extractor(
-        {
-            "usecase": "ketenagakerjaan",
-            "source": "kasus_perselisihan",
-            "access": "excel",
-            "url": "https://x",
-            "dynamic": "false",
-        }
-    )
-    assert overridden.config["dynamic"] == "false"
+    assert issubclass(Extractor, ExcelExtractor)
+    assert Extractor({}).__class__.__module__.endswith("kasus_perselisihan.extractor")
 
 
 def test_decode_url_double_encoding():

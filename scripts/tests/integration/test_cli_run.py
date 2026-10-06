@@ -7,14 +7,14 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parents[2]
 
 # Port 9 (discard) is closed locally, so connections fail fast without network.
-# Use a direct .xlsx URL so no landing-page selector is required.
+# Use a direct .xlsx URL so no landing page is fetched.
 UNREACHABLE_URL = "http://127.0.0.1:9/unreachable.xlsx"
 
 
 def test_cli_prod_maps_source_error(tmp_path):
     env = {
         "PYTHONPATH": str(SCRIPTS_DIR),
-        "EXAMPLE_USECASE__DEMO_SOURCE__EXCEL__URL": UNREACHABLE_URL,
+        "EXAMPLE_USECASE__EXAMPLE_PUBLISHER__EXAMPLE_SOURCE__URL": UNREACHABLE_URL,
         "PATH": "/usr/bin:/bin:/usr/local/bin",
     }
     result = subprocess.run(
@@ -26,9 +26,7 @@ def test_cli_prod_maps_source_error(tmp_path):
             "--usecase",
             "example_usecase",
             "--source",
-            "demo_source",
-            "--access",
-            "excel",
+            "example_source",
             "--mode",
             "prod",
             "--limit",

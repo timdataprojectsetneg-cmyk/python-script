@@ -18,7 +18,12 @@
 | Jenis_Perselisihan | `jenis_perselisihan` | String | - | Perselisihan Hak / Kepentingan / PHK / Serikat Pekerja. |
 | Jumlah_Pusat | `jumlah_pusat` | Integer | Kasus | Jumlah perselisihan tercatat di tingkat pusat. |
 | Jumlah_Daerah | `jumlah_daerah` | Integer | Kasus | Jumlah perselisihan tercatat di tingkat daerah. |
-| Bipartit/Mediasi_PB/Mediasi_Anjuran/Konsiliasi/Arbitrasi/Hakim_HI | `bipartit_mediasi_pb_mediasi_anjuran_konsiliasi_arbitrasi_hakim_hi` | Integer | Kasus | Jumlah kasus diselesaikan per mekanisme. |
+| Bipartit | `bipartit` | Integer | Kasus | Jumlah kasus diselesaikan per mekanisme. |
+| Mediasi_PB | `mediasi_pb` | Integer | Kasus | Jumlah kasus diselesaikan per mekanisme. |
+| Mediasi_Anjuran | `mediasi_anjuran` | Integer | Kasus | Jumlah kasus diselesaikan per mekanisme. |
+| Konsiliasi | `konsiliasi` | Integer | Kasus | Jumlah kasus diselesaikan per mekanisme. |
+| Arbitrasi | `arbitrasi` | Integer | Kasus | Jumlah kasus diselesaikan per mekanisme. |
+| Hakim_HI | `hakim_hi` | Integer | Kasus | Jumlah kasus diselesaikan per mekanisme. |
 | Sisa_Kasus | `sisa_kasus` | Integer | Kasus | Kasus belum terselesaikan. |
 
 ## Generated Pydantic model
@@ -31,7 +36,12 @@ class KasusPerselisihanRecord(BaseModel):
     jenis_perselisihan: str | None = Field(default=None, alias="Jenis_Perselisihan", description="Perselisihan Hak / Kepentingan / PHK / Serikat Pekerja.")
     jumlah_pusat: int | None = Field(default=None, alias="Jumlah_Pusat", description="Jumlah perselisihan tercatat di tingkat pusat.")
     jumlah_daerah: int | None = Field(default=None, alias="Jumlah_Daerah", description="Jumlah perselisihan tercatat di tingkat daerah.")
-    bipartit_mediasi_pb_mediasi_anjuran_konsiliasi_arbitrasi_hakim_hi: int | None = Field(default=None, alias="Bipartit/Mediasi_PB/Mediasi_Anjuran/Konsiliasi/Arbitrasi/Hakim_HI", description="Jumlah kasus diselesaikan per mekanisme.")
+    bipartit: int | None = Field(default=None, alias="Bipartit", description="Jumlah kasus diselesaikan per mekanisme.")
+    mediasi_pb: int | None = Field(default=None, alias="Mediasi_PB", description="Jumlah kasus diselesaikan per mekanisme.")
+    mediasi_anjuran: int | None = Field(default=None, alias="Mediasi_Anjuran", description="Jumlah kasus diselesaikan per mekanisme.")
+    konsiliasi: int | None = Field(default=None, alias="Konsiliasi", description="Jumlah kasus diselesaikan per mekanisme.")
+    arbitrasi: int | None = Field(default=None, alias="Arbitrasi", description="Jumlah kasus diselesaikan per mekanisme.")
+    hakim_hi: int | None = Field(default=None, alias="Hakim_HI", description="Jumlah kasus diselesaikan per mekanisme.")
     sisa_kasus: int | None = Field(default=None, alias="Sisa_Kasus", description="Kasus belum terselesaikan.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}

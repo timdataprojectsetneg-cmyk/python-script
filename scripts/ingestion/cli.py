@@ -2,7 +2,7 @@
 
 Usage:
     python -m ingestion.cli run --usecase ketenagakerjaan \\
-        --source kasus_perselisihan --access excel --mode prod
+        --source kasus_perselisihan --mode prod
 
     python -m ingestion.cli docs --usecase ketenagakerjaan --env dev [--scaffold]
 """
@@ -22,11 +22,10 @@ import click
 from . import __version__
 from .config import load_config
 from .exceptions import ConfigError, ExitCode, IngestionError, exit_code_for
-from .usecases.registry import resolve_normalizer
+from .usecases.registry import resolve_extractor_class, resolve_normalizer
 
 logger = logging.getLogger("ingestion")
 
-ACCESS_CHOICES = ["excel", "api", "scraper", "pdf"]
 MODE_CHOICES = ["dev", "prod"]
 TARGET_CHOICES = ["none", "postgres", "elastic"]
 
@@ -98,105 +97,30 @@ def _dev_load(
     return loader(config).load(records)
 
 
-URL_FORWARD_KEYS = ("download_url", "excel_url", "pdf_url", "url", "href")
-
-
-def _parse_accesses(access: Any, usecase: str, publisher: str, source: str) -> List[str]:
-    """Resolve the access chain: explicit values (list/comma string) or source default."""
-    from .usecases.registry import default_accesses, normalize_access
-
-    if access is None:
-        items: List[str] = []
-    elif isinstance(access, str):
-        items = [part for part in access.split(",") if part.strip()]
-    else:
-        items = [part for value in access for part in str(value).split(",") if part.strip()]
-
-    if not items:
-        resolved = default_accesses(usecase, publisher, source)
-        logger.info("Access not specified; using default: %s", ", ".join(resolved))
-        return resolved
-
-    resolved = []
-    for item in items:
-        normalized = normalize_access(item)
-        if normalized not in ACCESS_CHOICES:
-            raise ConfigError(
-                f"Unsupported --access '{item}'. Choose from: {', '.join(ACCESS_CHOICES)}"
-            )
-        resolved.append(normalized)
-    return resolved
-
-
-def _first_url(records: List[Dict[str, Any]]) -> Optional[str]:
-    for record in records:
-        for key in URL_FORWARD_KEYS:
-            value = record.get(key)
-            if isinstance(value, str) and value.startswith(("http://", "https://")):
-                return value
-    return None
-
-
 def _extract(
-    usecase: str,
-    publisher: str,
-    source: str,
-    accesses: List[str],
-    configs: List[Dict[str, Any]],
+    usecase: str, publisher: str, source: str, config: Dict[str, Any]
 ) -> Iterator[Dict[str, Any]]:
-    """Run the extractor chain. Later steps receive the URL discovered by earlier ones."""
-    from .usecases.registry import resolve_extractor_class
-
-    if len(accesses) == 1:
-        extractor = resolve_extractor_class(usecase, publisher, source, accesses[0])(configs[0])
-        return extractor.extract()
-
-    records: List[Dict[str, Any]] = []
-    step_config = dict(configs[0])
-    for index, access in enumerate(accesses):
-        extractor = resolve_extractor_class(usecase, publisher, source, access)(step_config)
-        if index < len(accesses) - 1:
-            produced = list(extractor.extract())
-            discovered = _first_url(produced)
-            if not discovered:
-                raise IngestionError(
-                    f"Step '{access}' produced no URL to feed step '{accesses[index + 1]}'"
-                )
-            logger.info("Step '%s' discovered URL for next step", access)
-            step_config = {**configs[index + 1], "url": discovered, "download_url": discovered}
-            records = produced
-        else:
-            records = extractor.extract()
-    return iter(records)
+    """Run the source extractor (it may combine several retrieval steps internally)."""
+    extractor = resolve_extractor_class(usecase, publisher, source)(config)
+    return extractor.extract()
 
 
 def execute_run(
     usecase: str,
     publisher: str,
     source: str,
-    access: Any = None,
     mode: str = "prod",
     target: Optional[str] = None,
     limit: int = 0,
     use_dlt: bool = False,
 ) -> int:
-    accesses = _parse_accesses(access, usecase, publisher, source)
-    if not accesses:
-        raise ConfigError("No data access resolved")
-
-    # Build per-step configs; only the first step must have a URL of its own.
-    configs = [
-        load_config(usecase, publisher, source, step, require_url=(index == 0))
-        for index, step in enumerate(accesses)
-    ]
-    config = configs[-1]
+    config = load_config(usecase, publisher, source)
     effective_target = (target or config.get("target") or "none").lower()
 
     logger.info("Starting ingestion")
     logger.info("Usecase: %s", config["usecase"])
     logger.info("Publisher: %s", config["publisher"])
     logger.info("Source: %s", config["source"])
-    logger.info("Access: %s", " -> ".join(accesses))
     logger.info("Mode: %s (target=%s)", mode, effective_target)
     if mode == "prod" and effective_target != "none":
         # Production deliberately has no database credentials. The NDJSON
@@ -208,7 +132,7 @@ def execute_run(
 
     normalizer = resolve_normalizer(config["usecase"], config["publisher"], config["source"], config)
     records = normalizer.normalize(
-        _extract(config["usecase"], config["publisher"], config["source"], accesses, configs)
+        _extract(config["usecase"], config["publisher"], config["source"], config)
     )
     if limit and limit > 0:
         records = (rec for i, rec in enumerate(records) if i < limit)
@@ -279,14 +203,6 @@ def cli(env_profile: Optional[str]) -> None:
 @click.option("--usecase", required=True, help="Use case name, e.g. ketenagakerjaan")
 @click.option("--publisher", default=None, help="Run all sources under this publisher")
 @click.option("--source", default=None, help="Source name, e.g. kasus_perselisihan")
-@click.option(
-    "--access",
-    "accesses",
-    multiple=True,
-    help="Data access step(s): repeatable or comma-separated, e.g. "
-    "--access scraper --access excel (or --access scraper,excel). "
-    "Omit to use the source default.",
-)
 @click.option("--mode", default="prod", type=click.Choice(MODE_CHOICES), show_default=True)
 @click.option("--target", default=None, type=click.Choice(TARGET_CHOICES), help="DEV load target override")
 @click.option("--limit", default=0, type=int, help="Limit records (debug)")
@@ -297,7 +213,6 @@ def run(
     usecase: str,
     publisher: str,
     source: str,
-    accesses: tuple,
     mode: str,
     target: str,
     limit: int,
@@ -307,9 +222,7 @@ def run(
 ) -> None:
     """Run data ingestion for a usecase by --publisher and/or --source.
 
-    ``--publisher`` runs every source under that publisher. ``--access`` is
-    optional; omit it to use each source's default, or pass one/more steps (in
-    order) to chain extractors.
+    ``--publisher`` runs every source under that publisher.
     """
     setup_logging(log_level)
     try:
@@ -331,7 +244,7 @@ def run(
         code = ExitCode.SUCCESS
         for pub, src in pairs:
             try:
-                execute_run(usecase, pub, src, accesses, mode, target, limit, use_dlt)
+                execute_run(usecase, pub, src, mode, target, limit, use_dlt)
             except Exception as exc:  # noqa: BLE001 - continue the remaining sources
                 code = exit_code_for(exc)
                 logger.error(
