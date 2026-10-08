@@ -7,6 +7,10 @@ A file reference is either:
   (optionally forced with an ``id:`` prefix), or
 - a **drive-relative path**, e.g. ``Folder/Available Data Source.xlsx``.
 
+Path downloads fall back to a suffix match within the parent folder when the
+exact path is missing (HTTP 404), so a file renamed with an ordinal prefix
+(``1. File.xlsx`` matches ``File.xlsx``) still resolves.
+
 Environment:
 
     SHAREPOINT__TENANT_ID
@@ -29,7 +33,7 @@ from urllib.parse import quote
 import requests
 
 from ..config import get_raw
-from ..exceptions import AuthError, ConfigError, SourceUnavailable
+from ..exceptions import AuthError, ConfigError, ItemNotFound, SourceUnavailable
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 TOKEN_BASE = "https://login.microsoftonline.com"
@@ -39,6 +43,7 @@ GUID_RE = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 )
 OPAQUE_ID_RE = re.compile(r"^[A-Za-z0-9_\-!]{16,}$")
+_ORDINAL_RE = re.compile(r"^\s*\d+[.)]\s+")
 
 
 def is_item_id(ref: str) -> bool:
@@ -95,7 +100,7 @@ class SharePointClient:
         if resp.status_code == 401:
             raise AuthError("SharePoint download unauthorized")
         if resp.status_code == 404:
-            raise SourceUnavailable(f"SharePoint item not found: {url}")
+            raise ItemNotFound(f"SharePoint item not found: {url}")
         if resp.status_code >= 400:
             raise SourceUnavailable(f"SharePoint download failed ({resp.status_code})")
         return resp.content
@@ -120,15 +125,82 @@ class SharePointClient:
             url = f"{self.item_url(item_id)}/content"
         return self._fetch(url)
 
+    def _children_url(self, folder_path: str) -> str:
+        """Graph URL listing the children of a drive folder path ('' = root)."""
+        folder_path = (folder_path or "").strip().strip("/")
+        suffix = f":/{quote(folder_path)}:/children" if folder_path else "/children"
+        if self.drive_id:
+            root = f"{GRAPH_BASE}/drives/{quote(self.drive_id, safe='')}/root"
+        else:
+            site = self._require(self.site_id, "SHAREPOINT__SITE_ID")
+            root = f"{GRAPH_BASE}/sites/{site}/drive/root"
+        return root + suffix
+
+    def list_children(self, folder_path: str) -> List[Dict[str, Any]]:
+        """List drive items (``name``, ``id``, ``folder``/``file``) under a folder.
+
+        Returns an empty list when the folder does not exist (HTTP 404).
+        """
+        url = f"{self._children_url(folder_path)}?$select=name,id,folder,file"
+        resp = requests.get(url, headers=self._headers(), timeout=60)
+        if resp.status_code == 404:
+            return []
+        if resp.status_code == 401:
+            raise AuthError("SharePoint folder listing unauthorized")
+        if resp.status_code >= 400:
+            raise SourceUnavailable(
+                f"SharePoint folder listing failed ({resp.status_code})"
+            )
+        return list((resp.json() or {}).get("value", []) or [])
+
+    @staticmethod
+    def _match_child(children: List[Dict[str, Any]], filename: str) -> Optional[Dict[str, Any]]:
+        """Find a child matching ``filename``, tolerant of an ordinal prefix.
+
+        Names are compared after ignoring an optional leading ordinal (``1. ``,
+        ``2) ``), so a file renamed for ordering (``1. Foo.xlsx``) still matches
+        ``Foo.xlsx`` without updating the catalog. An exact name wins; otherwise
+        the shortest equivalent name is chosen (deterministic on collisions).
+        """
+        def normalize(name: Any) -> str:
+            return _ORDINAL_RE.sub("", str(name).strip()).strip().casefold()
+
+        target = normalize(filename)
+        if not target:
+            return None
+        matches = [child for child in children if normalize(child.get("name", "")) == target]
+        if not matches:
+            return None
+        wanted = str(filename).strip().casefold()
+        for child in matches:
+            if str(child.get("name", "")).strip().casefold() == wanted:
+                return child
+        return min(matches, key=lambda child: len(str(child.get("name", ""))))
+
     def download_file(self, item_path: str) -> bytes:
-        """Download content using a drive-relative path."""
+        """Download content using a drive-relative path.
+
+        If the exact path is missing (HTTP 404), fall back to matching a child of
+        the parent folder whose name ends with the requested filename. This keeps
+        downloads working after files are renamed with an ordinal prefix
+        (e.g. ``1. Data Dictionary - ....xlsx``) without updating the catalog.
+        """
         item_path = self._require((item_path or "").strip(), "item_path")
         if self.drive_id:
             url = f"{GRAPH_BASE}/drives/{quote(self.drive_id, safe='')}/root:/{quote(item_path)}:/content"
         else:
             site = self._require(self.site_id, "SHAREPOINT__SITE_ID")
             url = f"{GRAPH_BASE}/sites/{site}/drive/root:/{quote(item_path)}:/content"
-        return self._fetch(url)
+        try:
+            return self._fetch(url)
+        except ItemNotFound:
+            folder, _, filename = item_path.rpartition("/")
+            if not filename:
+                raise
+            match = self._match_child(self.list_children(folder), filename)
+            if match is None or not match.get("id"):
+                raise
+            return self.download_file_by_id(str(match["id"]))
 
     def get_content(self, ref: str) -> bytes:
         """Download by item id or path. ``id:`` prefix forces id interpretation."""

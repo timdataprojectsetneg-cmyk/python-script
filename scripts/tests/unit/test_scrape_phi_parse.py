@@ -2,7 +2,7 @@
 
 from bs4 import BeautifulSoup
 
-from ingestion.usecases.ketenagakerjaan.mahkamah_agung_ri.direktori_putusan_perkara_pengadilan_hubungan.extractor import (  # noqa: E501
+from ingestion.usecases.ketenagakerjaan.ma_ri.direktori_putusan_perkara_pengadilan_hubungan.extractor import (  # noqa: E501
     build_row,
     detect_total_data,
     is_phi_case,
@@ -88,7 +88,7 @@ def test_page_url_keeps_search_filters():
 
 
 def test_extract_uses_total_data_for_page_count_and_threads_pages():
-    from ingestion.usecases.ketenagakerjaan.mahkamah_agung_ri.direktori_putusan_perkara_pengadilan_hubungan.extractor import (  # noqa: E501
+    from ingestion.usecases.ketenagakerjaan.ma_ri.direktori_putusan_perkara_pengadilan_hubungan.extractor import (  # noqa: E501
         Extractor,
     )
 

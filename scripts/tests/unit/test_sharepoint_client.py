@@ -2,7 +2,7 @@
 
 import pytest
 
-from ingestion.exceptions import ConfigError
+from ingestion.exceptions import ConfigError, ItemNotFound, SourceUnavailable
 from ingestion.sharepoint.client import SharePointClient, is_item_id
 
 
@@ -135,3 +135,105 @@ def test_read_matrix(client, monkeypatch):
     matrix = client.read_matrix("X", "S")
     assert matrix[0] == ["a", "b"]
     assert matrix[1] == [1, 2]
+
+
+def test_children_url(client):
+    client.site_id = "contoso.sharepoint.com,sites/SetnegTeam"
+    client.drive_id = None
+    assert client._children_url("Folder/Sub") == (
+        "https://graph.microsoft.com/v1.0/sites/contoso.sharepoint.com,sites/SetnegTeam/"
+        "drive/root:/Folder/Sub:/children"
+    )
+    assert client._children_url("") == (
+        "https://graph.microsoft.com/v1.0/sites/contoso.sharepoint.com,sites/SetnegTeam/"
+        "drive/root/children"
+    )
+    client.site_id = None
+    client.drive_id = "b!DriveId"
+    assert client._children_url("Folder") == (
+        "https://graph.microsoft.com/v1.0/drives/b%21DriveId/root:/Folder:/children"
+    )
+
+
+def test_match_child_prefers_exact_then_shortest_suffix(client):
+    children = [
+        {"name": "1. Foo.xlsx", "id": "a"},
+        {"name": "Foo.xlsx", "id": "b"},
+    ]
+    assert client._match_child(children, "Foo.xlsx")["id"] == "b"
+    assert client._match_child(children, "Bar.xlsx") is None
+    assert client._match_child(children, "") is None
+
+    prefixed_only = [
+        {"name": "10. Data Dictionary - Foo.xlsx", "id": "a"},
+        {"name": "2. Data Dictionary - Foo.xlsx", "id": "b"},
+    ]
+    assert client._match_child(prefixed_only, "Data Dictionary - Foo.xlsx")["id"] == "b"
+
+
+def test_download_file_falls_back_to_suffix_match(client, monkeypatch):
+    client.drive_id = None
+    client.site_id = "contoso.sharepoint.com,sites/SetnegTeam"
+    calls = {}
+
+    def fake_fetch(url):
+        calls["fetched"] = url
+        raise ItemNotFound("SharePoint item not found")
+
+    def fake_children(folder):
+        calls["folder"] = folder
+        return [
+            {"name": "1. Data Dictionary.xlsx", "id": "01PREFIXED"},
+            {"name": "Unrelated.xlsx", "id": "01OTHER"},
+        ]
+
+    def fake_by_id(iid):
+        calls["by_id"] = iid
+        return b"content"
+
+    monkeypatch.setattr(client, "_fetch", fake_fetch)
+    monkeypatch.setattr(client, "list_children", fake_children)
+    monkeypatch.setattr(client, "download_file_by_id", fake_by_id)
+
+    assert client.download_file("Folder/Data Dictionary.xlsx") == b"content"
+    assert calls["folder"] == "Folder"
+    assert calls["by_id"] == "01PREFIXED"
+
+
+def test_download_file_reraises_without_match(client, monkeypatch):
+    client.drive_id = None
+    client.site_id = "contoso.sharepoint.com,sites/SetnegTeam"
+
+    def fake_fetch(url):
+        raise ItemNotFound("SharePoint item not found")
+
+    monkeypatch.setattr(client, "_fetch", fake_fetch)
+    monkeypatch.setattr(
+        client, "list_children", lambda folder: [{"name": "Nope.xlsx", "id": "x"}]
+    )
+
+    with pytest.raises(SourceUnavailable):
+        client.download_file("Folder/Data Dictionary.xlsx")
+
+
+def test_download_file_does_not_fall_back_on_non_404(client, monkeypatch):
+    """Only a 404 (ItemNotFound) should trigger the suffix fallback."""
+    client.drive_id = None
+    client.site_id = "contoso.sharepoint.com,sites/SetnegTeam"
+    called = {"children": False}
+
+    def fake_fetch(url):
+        raise SourceUnavailable("SharePoint download failed (503)")
+
+    def fake_children(folder):
+        called["children"] = True
+        return []
+
+    monkeypatch.setattr(client, "_fetch", fake_fetch)
+    monkeypatch.setattr(client, "list_children", fake_children)
+
+    with pytest.raises(SourceUnavailable):
+        client.download_file("Folder/Data Dictionary.xlsx")
+    assert called["children"] is False
+
+

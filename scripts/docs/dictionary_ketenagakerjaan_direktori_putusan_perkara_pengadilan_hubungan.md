@@ -4,12 +4,12 @@
 
 - Use case: `ketenagakerjaan`
 - Source: `Direktori Putusan Perkara Pengadilan Hubungan Industrial (Mahkamah Agung RI)`
-- Publisher: Mahkamah Agung RI
+- Publisher: MA RI
 - Data access: `scraper`
 - Update frequency: Daily
 - Eligible: `True`
-- Data Dictionary file: [Data Dictionary - Ketenagakerjaan - Hubungan Industrial dan Pengupahan.xlsx](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20Pengupahan.xlsx?d=w44c390bae78b45c7b1e33bdcfe15c94f&csf=1&web=1&e=hv0qBL&nav=MTVfezlBMUQyMjZELTM5N0EtNDkyNC1CQTVGLTc3NzE4QjQ3QUZCN30)
-- Target module: `ingestion/usecases/ketenagakerjaan/mahkamah_agung_ri/direktori_putusan_perkara_pengadilan_hubungan/models.py`
+- Data Dictionary file: [Data Dictionary - Ketenagakerjaan - Hubungan Industrial dan Pengupahan.xlsx](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/1.%20Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20Pengupahan.xlsx?d=w44c390bae78b45c7b1e33bdcfe15c94f&csf=1&web=1&e=GQWeHe&nav=MTVfezlBMUQyMjZELTM5N0EtNDkyNC1CQTVGLTc3NzE4QjQ3QUZCN30)
+- Target module: `ingestion/usecases/ketenagakerjaan/ma_ri/direktori_putusan_perkara_pengadilan_hubungan/models.py`
 
 ## Fields
 
@@ -62,6 +62,7 @@
 ## Generated Pydantic model
 
 ```python
+from datetime import date
 from pydantic import BaseModel, Field
 
 
@@ -73,10 +74,10 @@ class Putusan(BaseModel):
     tahun: int | None = Field(default=None, alias="Tahun", description="Tahun perkara sebagaimana tercantum di sistem. PERINGATAN: pada contoh yang diperiksa, field ini bisa TIDAK konsisten dengan Tanggal_Register/Tanggal_Dibacakan - lihat catatan anomali.")
     pengadilan: str | None = Field(default=None, alias="Pengadilan", description="Nama pengadilan yang memutus (PN <kab/kota> untuk tingkat pertama; MAHKAMAH AGUNG untuk kasasi) - proxy wilayah.")
     jenis_lembaga_peradilan: str | None = Field(default=None, alias="Jenis_Lembaga_Peradilan", description="Jenis lembaga, contoh: 'PN' (Pengadilan Negeri).")
-    tanggal_register: str | None = Field(default=None, alias="Tanggal_Register", description="Tanggal perkara didaftarkan di pengadilan.")
-    tanggal_musyawarah: str | None = Field(default=None, alias="Tanggal_Musyawarah", description="Tanggal musyawarah hakim. PERINGATAN: pada contoh yang diperiksa (36/Pdt.Sus-PHI-2019/PN Jap), tanggal ini (23-10-2019) tercatat SEBELUM Tanggal_Register (11-08-2021) - urutan tidak logis, indikasi galat input, perlu verifikasi manual.")
-    tanggal_dibacakan: str | None = Field(default=None, alias="Tanggal_Dibacakan", description="Tanggal putusan dibacakan (= Tanggal_Putus). PERINGATAN: beberapa data teramati menunjukkan tanggal di masa depan (anomali, perlu verifikasi manual).")
-    tanggal_upload: str | None = Field(default=None, alias="Tanggal_Upload", description="Tanggal putusan diunggah ke Direktori Putusan MA.")
+    tanggal_register: date | None = Field(default=None, alias="Tanggal_Register", description="Tanggal perkara didaftarkan di pengadilan.")
+    tanggal_musyawarah: date | None = Field(default=None, alias="Tanggal_Musyawarah", description="Tanggal musyawarah hakim. PERINGATAN: pada contoh yang diperiksa (36/Pdt.Sus-PHI-2019/PN Jap), tanggal ini (23-10-2019) tercatat SEBELUM Tanggal_Register (11-08-2021) - urutan tidak logis, indikasi galat input, perlu verifikasi manual.")
+    tanggal_dibacakan: date | None = Field(default=None, alias="Tanggal_Dibacakan", description="Tanggal putusan dibacakan (= Tanggal_Putus). PERINGATAN: beberapa data teramati menunjukkan tanggal di masa depan (anomali, perlu verifikasi manual).")
+    tanggal_upload: date | None = Field(default=None, alias="Tanggal_Upload", description="Tanggal putusan diunggah ke Direktori Putusan MA.")
     hakim_ketua: str | None = Field(default=None, alias="Hakim_Ketua", description="Nama hakim ketua yang menyidangkan.")
     hakim_anggota: str | None = Field(default=None, alias="Hakim_Anggota", description="Nama hakim anggota (bisa lebih dari satu, dipisah koma).")
     panitera: str | None = Field(default=None, alias="Panitera", description="Nama panitera pengganti.")
@@ -95,8 +96,8 @@ class Putusan(BaseModel):
 class DirektoriPutusanPerkaraPengadilanHubunganRecord(BaseModel):
     nomor_perkara: str | None = Field(default=None, alias="nomor_perkara", description="Nomor registrasi resmi perkara sengketa pada Pengadilan Hubungan Industrial (contoh: 12/Pdt.Sus-PHI/2024/PN Jkt.Pst)")
     jenis_perselisihan: str | None = Field(default=None, alias="jenis_perselisihan", description="Klasifikasi sengketa ketenagakerjaan menurut UU No. 2/2004 (Perselisihan Hak, Perselisihan Kepentingan, Perselisihan PHK, Perselisihan Antar Serikat Pekerja)")
-    tanggal_mulai_daftar: str | None = Field(default=None, alias="tanggal_mulai_daftar", description="Tanggal pendaftaran berkas gugatan di kepaniteraan Pengadilan Hubungan Industrial")
-    tanggal_selesai_putus: str | None = Field(default=None, alias="tanggal_selesai_putus", description="Tanggal pembacaan putusan sidang oleh majelis hakim PHI")
+    tanggal_mulai_daftar: date | None = Field(default=None, alias="tanggal_mulai_daftar", description="Tanggal pendaftaran berkas gugatan di kepaniteraan Pengadilan Hubungan Industrial")
+    tanggal_selesai_putus: date | None = Field(default=None, alias="tanggal_selesai_putus", description="Tanggal pembacaan putusan sidang oleh majelis hakim PHI")
     lama_penyelesaian_hari_kerja: int | None = Field(default=None, alias="lama_penyelesaian_hari_kerja", description="Durasi penanganan perkara dari registrasi hingga putusan (maksimal 50 hari kerja berdasarkan Pasal 103 UU No. 2/2004)")
     status_penyelesaian: str | None = Field(default=None, alias="status_penyelesaian", description="Amar putusan sengketa (Kabul Seluruhnya, Kabul Sebagian, Ditolak, Dicabut, Akta Perdamaian/Dading)")
     nama_penggugat: str | None = Field(default=None, alias="nama_penggugat", description="Identitas pihak penggugat (Pekerja / Karyawan / Serikat Pekerja)")

@@ -248,7 +248,7 @@ class PostgresLoader(BaseLoader):
             # statement, so collapse duplicate keys within the batch (keep the last).
             rows = _dedupe_rows(rows, keys)
 
-        timestamp_column = str(self.config.get("load_timestamp_column") or "loaded_at").strip()
+        timestamp_column = str(self.config.get("load_timestamp_column") or "_loaded_at").strip()
         if timestamp_column:
             from datetime import datetime, timezone
             stamp = datetime.now(timezone.utc)

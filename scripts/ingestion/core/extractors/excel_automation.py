@@ -28,12 +28,19 @@ Pakai sebagai library di dalam usecase:
     write_tables(result.tables, out_dir="./out", fmt="csv")
     records = tables_to_records(result.tables)   # {nama_tabel: [dict, ...]} untuk normalisasi/loader
 
+Beberapa tabel dalam satu sheet dipisah dengan penanda teks (mis. "Tabel 1", "Tabel 2"):
+    result = extract_workbook("file.xlsx", table_markers=["Tabel 1", "Tabel 2"])
+
+Setiap tabel hasil selalu memuat kolom ``_sheet_name`` (default: nama sheet asal).
+
 Pakai sebagai CLI (keluaran csv/json/ndjson):
     python -m ingestion.core.extractors.excel_automation file.xlsx --out-dir ./out
     python -m ingestion.core.extractors.excel_automation file.xlsx --output data_long --format json
     python -m ingestion.core.extractors.excel_automation file.xlsx --output data --format ndjson
     python -m ingestion.core.extractors.excel_automation file.xlsx --output data,data_long,recommendation
     python -m ingestion.core.extractors.excel_automation file.xlsx --output all
+    python -m ingestion.core.extractors.excel_automation file.xlsx \
+        --table-marker "Tabel 1" --table-marker "Tabel 2" --output data
     # pilihan: data, data_long, dim_mapping, meta_sheet, meta_dataset, meta_indicator,
     #          meta_column, profile, relation, recommendation, all
 """
@@ -305,6 +312,55 @@ def load_grids(source) -> list[Grid]:
                   for rg in ws_f.merged_cells.ranges]
         grids.append(Grid(ws_f.title, vals, merged))
     return grids
+
+
+def slice_grid(g: Grid, r0: int, r1: int) -> Grid:
+    """Salinan grid untuk baris ``r0..r1`` (0-based inclusive), merge disesuaikan."""
+    r0, r1 = max(0, r0), min(g.n_rows - 1, r1)
+    values = [row[:] for row in g.values[r0:r1 + 1]]
+    merged = []
+    for mr1, mc1, mr2, mc2 in g.merged:
+        if mr2 < r0 or mr1 > r1:
+            continue
+        merged.append((max(mr1, r0) - r0, mc1, min(mr2, r1) - r0, mc2))
+    return Grid(g.name, values, merged)
+
+
+def _first_text(g: Grid, r: int) -> Optional[str]:
+    for v in g.values[r]:
+        if not is_blank(v):
+            return clean_text(v)
+    return None
+
+
+def split_by_markers(g: Grid, markers: List[str]) -> list[tuple[Optional[str], Grid]]:
+    """Pecah satu sheet menjadi beberapa tabel berdasarkan penanda baris.
+
+    Sebuah baris dianggap awal tabel bila teks (sel non-kosong pertama) diawali
+    salah satu ``markers`` (case-insensitive). Tabel membentang dari baris penanda
+    sampai sebelum penanda berikutnya. Bila tidak ada penanda, kembalikan satu
+    tabel berisi seluruh sheet. Label tabel = penanda yang cocok (mis. "Tabel 1").
+    """
+    wanted = [(m.strip(), m.strip().casefold()) for m in markers if m and m.strip()]
+    starts: list[tuple[int, str]] = []
+    for r in range(g.n_rows):
+        txt = _first_text(g, r)
+        if not txt:
+            continue
+        low = txt.casefold()
+        hit: Optional[str] = None
+        for raw, m_low in wanted:
+            if low.startswith(m_low) and (hit is None or len(raw) > len(hit)):
+                hit = raw
+        if hit:
+            starts.append((r, hit))
+    if not starts:
+        return [(None, g)]
+    out: list[tuple[Optional[str], Grid]] = []
+    for i, (r, label) in enumerate(starts):
+        end = starts[i + 1][0] - 1 if i + 1 < len(starts) else g.n_rows - 1
+        out.append((label, slice_grid(g, r, end)))
+    return out
 
 
 def detect_roles(grids: list[Grid]) -> dict[str, str]:
@@ -762,12 +818,14 @@ class ExtractionOptions:
     data_start_row: Optional[int] = None
     profile: bool = True
     relations: bool = True
+    table_markers: Optional[List[str]] = None
 
 
-def process_data_sheet(g: Grid, meta: Metadata, opts: ExtractionOptions, prefix: str, multi: bool) -> SheetResult:
-    sheet_slug = slugify(g.name)
-    t_wide = f"{prefix}_{sheet_slug}_data" if multi else f"{prefix}_data"
-    t_long = f"{prefix}_{sheet_slug}_data_long" if multi else f"{prefix}_data_long"
+def process_data_sheet(g: Grid, meta: Metadata, opts: ExtractionOptions, prefix: str, multi: bool,
+                       table_label: Optional[str] = None) -> SheetResult:
+    table_slug = f"{slugify(g.name)}_{slugify(table_label)}" if table_label else slugify(g.name)
+    t_wide = f"{prefix}_{table_slug}_data" if multi else f"{prefix}_data"
+    t_long = f"{prefix}_{table_slug}_data_long" if multi else f"{prefix}_data_long"
     filled = g.filled()
     L = detect_layout(g, opts.data_start_row)
     n_cols = L.n_cols
@@ -851,10 +909,12 @@ def process_data_sheet(g: Grid, meta: Metadata, opts: ExtractionOptions, prefix:
     for k, v in opts.const.items():
         wide[k] = pd.Series([v] * n, dtype="object")
     wide["_source_row"] = pd.array([r + 1 for r in L.body_rows], dtype="Int64")
+    wide["_sheet_name"] = pd.Series([g.name] * n, dtype="object")
     wide["_source_file"] = pd.Series([os.path.basename(opts.file)] * n, dtype="object")
     wide["_loaded_at"] = pd.Series([now] * n)
     wide_df = pd.DataFrame(wide)
-    dtypes.update({"is_total_row": "boolean", "_source_row": "bigint", "_source_file": "text",
+    dtypes.update({"is_total_row": "boolean", "_source_row": "bigint", "_sheet_name": "text",
+                   "_source_file": "text",
                    "_loaded_at": "timestamp", **{k: "text" for k in const_cols}})
     wide_df["is_total_row"] = wide_df["is_total_row"].astype(bool)
 
@@ -891,7 +951,7 @@ def process_data_sheet(g: Grid, meta: Metadata, opts: ExtractionOptions, prefix:
         sub_col, grp_col = "kolom", ("kolom_grup" if len(distinct_parents) > 1 else None)
     if sub_col in label_cols:
         sub_col += "_kolom"
-    base_cols = label_cols + const_cols + ["is_total_row"]
+    base_cols = label_cols + const_cols + ["_sheet_name", "is_total_row"]
     frames = []
     for order, c in enumerate(meas_cols):
         f = wide_df[base_cols].copy()
@@ -909,10 +969,10 @@ def process_data_sheet(g: Grid, meta: Metadata, opts: ExtractionOptions, prefix:
     long_df["nilai"] = to_series(long_df["nilai"].where(long_df["nilai"].notna(), None).tolist(), nilai_type)
     long_df["_source_file"] = os.path.basename(opts.file)
     long_df["_loaded_at"] = now
-    ordered = (label_cols + const_cols + [sub_col] + ([grp_col] if grp_col else []) +
+    ordered = (label_cols + const_cols + ["_sheet_name", sub_col] + ([grp_col] if grp_col else []) +
                ["is_total_row", "is_total_col", "nilai", "_source_row", "_source_file", "_loaded_at"])
     long_df = long_df[ordered]
-    dtypes_long = {**{c: "text" for c in label_cols + const_cols + [sub_col] + ([grp_col] if grp_col else [])},
+    dtypes_long = {**{c: "text" for c in label_cols + const_cols + ["_sheet_name", sub_col] + ([grp_col] if grp_col else [])},
                    "is_total_row": "boolean", "is_total_col": "boolean", "nilai": nilai_type,
                    "_source_row": "bigint", "_source_file": "text", "_loaded_at": "timestamp"}
 
@@ -970,7 +1030,8 @@ def process_data_sheet(g: Grid, meta: Metadata, opts: ExtractionOptions, prefix:
                None, None, None, "cli")
         else:
             cm(t_wide, c, i, "lineage", None, None, d,
-               {"_source_row": "Nomor baris Excel asal (1-based).", "_source_file": "Nama file sumber.",
+               {"_source_row": "Nomor baris Excel asal (1-based).", "_sheet_name": "Nama sheet Excel asal.",
+                "_source_file": "Nama file sumber.",
                 "_loaded_at": "Waktu proses load."}[c], None, None, None, "derived")
     info_long = indicator_info(meta, [])
     for i, c in enumerate(long_df.columns, 1):
@@ -1152,6 +1213,7 @@ def extract_workbook(
     profile: bool = True,
     relations: bool = True,
     outputs: Optional[List[str]] = None,
+    table_markers: Optional[List[str]] = None,
 ) -> ExtractionResult:
     """Baca workbook Excel dan kembalikan tabel terstruktur (DataFrame).
 
@@ -1163,6 +1225,9 @@ def extract_workbook(
         profile: hitung tabel profiling.
         relations: hitung tabel relasi (dipakai untuk deteksi kunci).
         outputs: batasi tabel keluaran (lihat OUTPUT_CHOICES). None = semua.
+        table_markers: penanda teks awal tiap tabel di dalam satu sheet, mis.
+            ["Tabel 1", "Tabel 2"]. Bila diisi, tiap sheet dipecah menjadi beberapa
+            tabel per penanda; bila kosong, satu tabel per sheet (perilaku lama).
 
     Returns:
         ExtractionResult dengan ``.tables`` berisi ``{nama_tabel: DataFrame}``.
@@ -1170,7 +1235,8 @@ def extract_workbook(
     const_dict = {slugify(k): v for k, v in (const or {}).items()}
     source_name = os.path.basename(source) if isinstance(source, (str, os.PathLike)) else "<bytes>"
     opts = ExtractionOptions(file=source_name, prefix=prefix, const=const_dict,
-                             data_start_row=data_start_row, profile=profile, relations=relations)
+                             data_start_row=data_start_row, profile=profile, relations=relations,
+                             table_markers=table_markers)
 
     # 1. baca semua sheet
     grids = load_grids(source)
@@ -1195,7 +1261,30 @@ def extract_workbook(
         break                                           # satu sheet metadata dipakai
 
     # 2-4, 7-9. sheet data
-    results = [process_data_sheet(g, meta, opts, resolved_prefix, len(data_grids) > 1) for g in data_grids]
+    skipped: list[dict] = []
+    if table_markers:
+        units: list[tuple[Optional[str], Grid]] = []
+        for g in data_grids:
+            units.extend(split_by_markers(g, table_markers))
+        multi = len(units) > 1
+        results = []
+        seen: dict[tuple[str, str], int] = {}
+        for label, sub in units:
+            key = (sub.name, slugify(label or ""))
+            seen[key] = seen.get(key, 0) + 1
+            if seen[key] > 1:                       # nama tabel harus unik
+                label = f"{label or sub.name}_{seen[key]}"
+            try:
+                results.append(process_data_sheet(sub, meta, opts, resolved_prefix, multi, table_label=label))
+            except ValueError as exc:
+                skipped.append(dict(
+                    sheet_name=sub.name, category="struktur", severity="warn", target=str(label),
+                    finding=f"Segmen tabel dilewati: {exc}",
+                    recommendation="Pastikan penanda menunjuk tabel data (punya kolom label & ukuran), "
+                                   "atau hapus penanda ini."))
+    else:
+        results = [process_data_sheet(g, meta, opts, resolved_prefix, len(data_grids) > 1)
+                   for g in data_grids]
     sheet_rows = [r.sheet_row for r in results] + sheet_rows
 
     # --- susun tabel keluaran ---
@@ -1228,7 +1317,7 @@ def extract_workbook(
         tables[f"{resolved_prefix}_profile"] = pd.concat([r.profile for r in results], ignore_index=True)
     if relations:
         tables[f"{resolved_prefix}_relation"] = pd.concat([r.relation for r in results], ignore_index=True)
-    rec_df = pd.DataFrame([x for r in results for x in r.recs])
+    rec_df = pd.DataFrame([x for r in results for x in r.recs] + skipped)
     sev = {"high": 0, "warn": 1, "info": 2}
     if not rec_df.empty:
         rec_df = rec_df.sort_values("severity", key=lambda s: s.map(sev), kind="stable").reset_index(drop=True)
@@ -1325,6 +1414,9 @@ def parse_args():
     p.add_argument("--const", action="append", default=[], metavar="KEY=VALUE",
                    help="kolom konstanta tambahan, boleh berulang (mis. --const provinsi=Gorontalo)")
     p.add_argument("--data-start-row", type=int, help="paksa baris awal data (1-based) bila deteksi salah")
+    p.add_argument("--table-marker", action="append", default=[], metavar="TEKS",
+                   help="penanda teks awal tiap tabel di dalam satu sheet (boleh berulang), "
+                        "mis. --table-marker 'Tabel 1' --table-marker 'Tabel 2'")
     p.add_argument("--output", action="extend", nargs="+", metavar="NAMA",
                    help="tabel yang dikeluarkan; pisahkan dengan koma atau spasi. Pilihan: "
                         + ", ".join(OUTPUT_CHOICES) + ", all. Default: data. "
@@ -1370,6 +1462,7 @@ def main() -> None:
         profile="profile" in outputs,
         relations=True,
         outputs=outputs,
+        table_markers=args.table_marker or None,
     )
     _print_summary(result)
     written = write_tables(result.tables, args.out_dir, args.format)

@@ -25,6 +25,10 @@ class SourceUnavailable(IngestionError):
     """Target URL unreachable, HTTP 5xx, timeout (exit 4)."""
 
 
+class ItemNotFound(SourceUnavailable):
+    """Target item does not exist (HTTP 404). Subclass so exit code stays 4."""
+
+
 EXIT_CODE_BY_EXCEPTION = (
     (ConfigError, ExitCode.CONFIG_ERROR),
     (AuthError, ExitCode.AUTH_ERROR),
