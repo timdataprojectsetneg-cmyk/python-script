@@ -7,7 +7,6 @@ and NiFi ``PutDatabaseRecord`` performs the load, so no DB credentials live here
 from __future__ import annotations
 
 from typing import Any, Dict, Iterable
-from uuid import uuid4
 import importlib
 import json
 from datetime import datetime, date
@@ -320,40 +319,4 @@ class DltPostgresLoader(BaseLoader):
             raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
         pipeline = dlt.pipeline(pipeline_name=f"ingestion_{self.config.get('usecase')}", destination=postgres_destination(credentials=_postgres_credentials()), dataset_name=schema)
         pipeline.run(dlt.resource(rows, name=table, write_disposition="merge" if method == "upsert" else "replace", primary_key=keys or None))
-        return len(rows)
-
-
-class ElasticLoader(BaseLoader):
-    def load(self, records: Iterable[Dict[str, Any]]) -> int:
-        rows = list(records)
-        if not rows:
-            return 0
-        try:
-            from elasticsearch import Elasticsearch, helpers
-        except ImportError as exc:
-            raise ConfigError("DEV Elastic load requires the 'elasticsearch' package") from exc
-
-        client = Elasticsearch(
-            get_raw("DEV__ELASTIC_URL", "http://localhost:9200"),
-            api_key=get_raw("DEV__ELASTIC_API_KEY") or None,
-        )
-        index = self.config.get("es_index") or self.config.get("table") or self.config.get("source")
-        method = _load_method(self.config)
-        keys = _unique_keys(self.config)
-        if method == "upsert" and not keys:
-            raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
-
-        if method == "replace":
-            client.indices.delete(index=index, ignore_unavailable=True)
-            ids = [str(uuid4()) for _ in rows]
-        else:
-            ids = [
-                str(row.get("_id") or "|".join(str(row.get(key, "")) for key in keys))
-                for row in rows
-            ]
-        actions = [
-            {"_index": index, "_id": doc_id, "_source": row}
-            for doc_id, row in zip(ids, rows)
-        ]
-        helpers.bulk(client, actions)
         return len(rows)

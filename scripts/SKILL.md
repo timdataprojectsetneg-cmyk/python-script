@@ -141,6 +141,52 @@ python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
    (never in `core/`).
 5. Verify: `python -m ingestion run --usecase <uc> --source <src> --limit 5`.
 
+## Example prompts
+
+Setiap permintaan dikerjakan **per modul `usecase/publisher/source`** dan
+**tidak menyentuh `core/` atau modul source lain**, sehingga satu source tidak
+akan konflik dengan source lain. Semua kode kustom hidup di dalam folder source
+itu sendiri (`extractor.py`, `models.py`, `normalizer.py`). Flow selalu 3 langkah:
+
+| Tahap | Pilihan |
+|---|---|
+| **extractor** | scrapping (landing page → ambil link), download/baca Excel, download PDF → MinIO, panggil API |
+| **normalize** | validasi Pydantic lewat `models.py` (field dari `docs/dictionary_<usecase>_<source>.md`) |
+| **loaders** | postgres, elastic, minio |
+
+### Template
+
+```
+Kerjakan source <usecase>/<publisher>/<source>
+(folder: scripts/ingestion/usecases/<usecase>/<publisher>/<source>).
+Semua kode kustom HANYA di folder source ini — jangan ubah core/ atau source lain.
+
+1. extractor.py (class Extractor): <scrapping URL landing lalu ambil link excel |
+   download & baca Excel | download PDF ke MinIO | panggil API> — <detail selektor/kolom/header>.
+2. models.py (class Record): validasi via Pydantic; map kolom sumber → field kanonik
+   (AliasChoices). Acuan field: docs/dictionary_<usecase>_<source>.md
+   (hasilkan dengan: python -m ingestion docs --usecase <uc> --env dev).
+3. loader: <postgres | elastic | minio>.
+
+Verifikasi: python -m ingestion run --usecase <uc> --source <source> --limit 5
+```
+
+### Contoh — `ketenagakerjaan/kemnaker/data_mogok_kerja`
+
+```
+Kerjakan source bigaction/python-script/scripts/ingestion/usecases/ketenagakerjaan/kemnaker/data_mogok_kerja.
+Semua kode kustom HANYA di folder ini — jangan ubah core/ atau source lain.
+
+1. extractor : scrapping URL, kemudian membaca Excel.
+2. normalize : validasi dengan models.py
+   (bigaction/python-script/scripts/ingestion/usecases/ketenagakerjaan/kemnaker/data_mogok_kerja/models.py),
+   field di-consume dari markdown docs/dictionary_ketenagakerjaan_data_mogok_kerja.md
+   lewat `python -m ingestion docs --usecase ketenagakerjaan --source data_mogok_kerja --env dev`.
+3. loaders : insert PostgreSQL.
+
+Verifikasi: python -m ingestion run --usecase ketenagakerjaan --source data_mogok_kerja --limit 5
+```
+
 ## Extractor patterns & gotchas
 
 - **Excel (satudata SPA)**: the source sets `DOWNLOAD_SELECTOR` (e.g.
