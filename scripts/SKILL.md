@@ -24,6 +24,30 @@ Location: `bigaction/python-script/scripts/` (package `ingestion/`; entrypoints
 4. **Unit tests are optional**; a pytest suite lives in `scripts/tests/unit`
    (`pytest scripts/tests/unit`).
 
+## Ingestion pipeline (3 steps)
+
+Every `python -m ingestion run` executes **three steps in order**, wired in
+`cli.py` (`execute_run`):
+
+```
+extractor.py  ──▶  normalizer.py  (Pydantic models.py)  ──▶  loader
+  (extract)          (normalize / validate)                  (load)
+```
+
+1. **Extract** — `resolve_extractor_class(...).extract()` in
+   `<source>/extractor.py` yields raw records (`dict`, NDJSON-shaped). The
+   extractor owns the whole retrieval chain (scrape → download → parse).
+2. **Normalize** — `resolve_normalizer()` uses `<source>/normalizer.py`
+   (`class Normalizer`) when present, otherwise `GenericNormalizer`. The generic
+   normalizer cleans each record and, when `<source>/models.py` exposes
+   `class Record`, validates it with Pydantic
+   (`Record(**record).model_dump()`); records that fail validation are logged and
+   skipped. **`models.py` is the schema contract for this step.**
+3. **Load** — PROD (default) emits NDJSON to stdout for NiFi
+   (`PutDatabaseRecord`); DEV (`--env dev`) writes directly via
+   `PostgresLoader`/`ElasticLoader` (`--use-dlt` switches to dlt). PROD Python
+   holds no DB credentials.
+
 ## Folder convention
 
 ```
