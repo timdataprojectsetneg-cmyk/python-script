@@ -1,8 +1,7 @@
 """DEV-only Elasticsearch loader supporting insert (replace) and update (upsert).
 
-Used with ``--mode dev --env dev --target elastic``; in production Python emits
-NDJSON and NiFi owns the sink. The connection is a single URI that may embed
-credentials.
+Used with ``--mode dev --env dev``; in production Python emits NDJSON and NiFi
+owns the sink. The connection is a single URI that may embed credentials.
 
 Configuration (``.env.dev``):
 
@@ -11,16 +10,24 @@ Configuration (``.env.dev``):
     ELASTIC__VERIFY_CERTS = true            # optional, default true
     ELASTIC__INDEX        = <default index> # optional; config es_index/table/source wins
 
-Load method (``METHOD``): ``replace`` (default) deletes the index and bulk-inserts
-every record; ``upsert`` bulk-updates documents by an id derived from
-``UNIQUE_KEY`` with ``doc_as_upsert`` (insert when missing, update when present).
-``upsert`` requires ``UNIQUE_KEY``.
+Load method (``METHOD``):
+
+- ``replace`` (default) overwrites documents **by a stable id** without deleting
+  the index. The id comes from ``UNIQUE_KEY`` when set, otherwise from a hash of
+  the record content, so re-runs are idempotent (no duplicates) and no
+  ``delete_index``/``manage`` privilege is required. Note: rows that disappear
+  from the source are not purged (deleting the index is what needed the extra
+  privilege).
+- ``upsert`` bulk-updates documents by an id derived from ``UNIQUE_KEY`` with
+  ``doc_as_upsert`` (insert when missing, update when present). ``upsert``
+  requires ``UNIQUE_KEY``.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable
-from uuid import uuid4
+import hashlib
+import json
+from typing import Any, Dict, Iterable, List
 
 from ...config import get_raw, get_uri
 from ...exceptions import ConfigError
@@ -46,8 +53,39 @@ def _elastic_options() -> Dict[str, Any]:
     return options
 
 
+def _doc_id(row: Dict[str, Any], keys: List[str]) -> str:
+    """Stable document id: from UNIQUE_KEY, else a hash of the record content."""
+    if keys:
+        return "|".join(str(row.get(key, "")) for key in keys)
+    payload = json.dumps(row, sort_keys=True, default=str, ensure_ascii=False)
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+
+def _build_actions(
+    rows: List[Dict[str, Any]], index: str, method: str, keys: List[str]
+) -> List[Dict[str, Any]]:
+    """Bulk actions for the given method, without ever deleting the index."""
+    if method == "upsert":
+        if not keys:
+            raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
+        return [
+            {
+                "_op_type": "update",
+                "_index": index,
+                "_id": _doc_id(row, keys),
+                "doc": row,
+                "doc_as_upsert": True,
+            }
+            for row in rows
+        ]
+    return [
+        {"_op_type": "index", "_index": index, "_id": _doc_id(row, keys), "_source": row}
+        for row in rows
+    ]
+
+
 class ElasticLoader(BaseLoader):
-    """DEV Elasticsearch loader: ``replace`` (insert) or ``upsert`` (update)."""
+    """DEV Elasticsearch loader: ``replace`` (overwrite by id) or ``upsert``."""
 
     def load(self, records: Iterable[Dict[str, Any]]) -> int:
         rows = list(records)
@@ -68,26 +106,8 @@ class ElasticLoader(BaseLoader):
             raise ConfigError("Missing ELASTIC__INDEX / es_index for the elastic load target")
         method = _load_method(self.config)
         keys = _unique_keys(self.config)
-        if method == "upsert" and not keys:
-            raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
+        actions = _build_actions(rows, index, method, keys)
 
         client = Elasticsearch(**_elastic_options())
-        if method == "replace":
-            client.indices.delete(index=index, ignore_unavailable=True)
-            actions = [
-                {"_op_type": "index", "_index": index, "_id": str(uuid4()), "_source": row}
-                for row in rows
-            ]
-        else:
-            actions = [
-                {
-                    "_op_type": "update",
-                    "_index": index,
-                    "_id": "|".join(str(row.get(key, "")) for key in keys),
-                    "doc": row,
-                    "doc_as_upsert": True,
-                }
-                for row in rows
-            ]
         helpers.bulk(client, actions)
         return len(rows)
