@@ -18,4 +18,4 @@ pillow==12.3.0
 rapidocr-onnxruntime 1.4.4
 # DEV-only / optional (uncomment for local development)
 # dlt[postgres]>=1.0.0
-# elasticsearch>=8.0.0
+elasticsearch>=8.0.0,<9

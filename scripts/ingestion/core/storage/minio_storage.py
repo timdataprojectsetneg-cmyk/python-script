@@ -8,6 +8,11 @@ Configuration — either a single URI, or the discrete ``MINIO__*`` keys:
     MINIO__SECRET_KEY = <secret>
     MINIO__BUCKET     = setneg-raw
     MINIO__SECURE     = false
+
+TLS: if the server does not serve its full chain (common with internal CAs),
+point the client at the CA bundle — ``MINIO__CA_CERT=/path/ca.pem`` (or
+``?ca_cert=/path/ca.pem`` in ``MINIO_URI``). To skip verification entirely (dev
+only) set ``MINIO__TLS_VERIFY=false`` (or ``?verify=false``).
 """
 
 from __future__ import annotations
@@ -24,7 +29,8 @@ from ..base.storage import BaseStorage
 def _parse_minio_uri(uri: str) -> Dict[str, Any]:
     """Parse ``minio://access:secret@host:port/bucket?secure=true``."""
     parsed = urlparse(uri)
-    secure = str(parse_qs(parsed.query).get("secure", ["false"])[0]).lower() in ("1", "true", "yes")
+    query = parse_qs(parsed.query)
+    secure = str(query.get("secure", ["false"])[0]).lower() in ("1", "true", "yes")
     host = parsed.hostname or ""
     if parsed.port:
         host = f"{host}:{parsed.port}"
@@ -34,7 +40,17 @@ def _parse_minio_uri(uri: str) -> Dict[str, Any]:
         "secret_key": unquote(parsed.password or ""),
         "bucket": (parsed.path or "").lstrip("/"),
         "secure": secure,
+        "tls_verify": (str(query["verify"][0]).lower() not in ("0", "false", "no"))
+        if "verify" in query
+        else None,
+        "ca_cert": query.get("ca_cert", [None])[0],
     }
+
+
+def _as_bool(value: Any, default: bool) -> bool:
+    if value is None:
+        return default
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
 
 
 def split_minio_ref(uri: str) -> tuple[str, str]:
@@ -61,11 +77,25 @@ class MinioStorage(BaseStorage):
         if secure_raw is None:
             secure_raw = str(get_raw("MINIO__SECURE", "false")).lower() in ("1", "true", "yes")
         self.secure = bool(secure_raw)
+        self.tls_verify = _as_bool(
+            parsed.get("tls_verify"), _as_bool(get_raw("MINIO__TLS_VERIFY"), True)
+        )
+        self.ca_cert = parsed.get("ca_cert") or get_raw("MINIO__CA_CERT")
         self.bucket = (
             (self.config or {}).get("minio_bucket")
             or parsed.get("bucket")
             or get_raw("MINIO__BUCKET")
         )
+
+    def _http_client(self):
+        """Custom TLS client when a CA bundle or verification-off is configured."""
+        if self.tls_verify and not self.ca_cert:
+            return None  # default certifi trust
+        import urllib3
+
+        if not self.tls_verify:
+            return urllib3.PoolManager(cert_reqs="CERT_NONE", assert_hostname=False)
+        return urllib3.PoolManager(cert_reqs="CERT_REQUIRED", ca_certs=self.ca_cert)
 
     def _client(self):
         try:
@@ -79,6 +109,7 @@ class MinioStorage(BaseStorage):
             access_key=self.access_key,
             secret_key=self.secret_key,
             secure=self.secure,
+            http_client=self._http_client(),
         )
 
     def _ensure_bucket(self, client) -> None:

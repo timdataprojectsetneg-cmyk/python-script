@@ -108,6 +108,30 @@ def _extract(
     return extractor.extract()
 
 
+def _declared_targets(config: Dict[str, Any]) -> List[str]:
+    """Sinks a source actually declares, inferred from its target config keys."""
+    declared: List[str] = []
+    if config.get("es_index"):
+        declared.append("elastic")
+    if config.get("minio_bucket") or config.get("minio_prefix"):
+        declared.append("minio")
+    if config.get("postgre_table") or config.get("postgre_schema") or config.get("table"):
+        declared.append("postgres")
+    return declared
+
+
+def _effective_targets(requested: List[str], declared: List[str]) -> List[str]:
+    """Intersect requested sinks with the ones the source declares.
+
+    A declared source never loads to a sink it does not target (e.g. a
+    PostgreSQL-only source must not be pushed into Elasticsearch just because a
+    global URI is set). Undeclared sources keep the requested sinks.
+    """
+    if not declared:
+        return requested
+    return [t for t in requested if t in declared] or ["none"]
+
+
 def execute_run(
     usecase: str,
     publisher: str,
@@ -118,7 +142,18 @@ def execute_run(
     targets: Optional[List[str]] = None,
 ) -> int:
     config = load_config(usecase, publisher, source)
-    effective_targets = [t.lower() for t in (targets or [config.get("target") or "none"])]
+
+    requested = [t.lower() for t in targets] if targets else []
+    if not requested:
+        requested = [
+            t.strip().lower()
+            for t in str(config.get("target") or "postgres").split(",")
+            if t.strip()
+        ]
+    # Only load to sinks the source declares; a global URI must not push a
+    # non-Elasticsearch source into Elasticsearch (and vice versa).
+    declared = _declared_targets(config)
+    effective_targets = _effective_targets(requested, declared)
     targets_label = ",".join(effective_targets)
 
     logger.info("Starting ingestion")

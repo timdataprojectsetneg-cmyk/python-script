@@ -71,7 +71,10 @@ KNOWN_KEYS = (
     "MINIO_BUCKET",
     "MINIO_PREFIX",
     "OBJECT_KEY",
+    "MINIO_OBJECT",
     "SAVE_RAW",
+    "SQL",
+    "QUERY",
     "POSTGRE_SCHEMA",
     "POSTGRE_TABLE",
     "ES_INDEX",
@@ -218,9 +221,18 @@ def load_config(
 
     cfg.setdefault("target", "postgres")
 
-    if require_url and not (cfg.get("url") or cfg.get("pdf_url") or cfg.get("source_file")):
+    if require_url and not (
+        cfg.get("url")
+        or cfg.get("pdf_url")
+        or cfg.get("source_file")
+        or cfg.get("sql")
+        or cfg.get("query")
+        or cfg.get("object_key")
+        or cfg.get("minio_object")
+    ):
         raise ConfigError(
-            f"Missing required configuration: {env_key(usecase, publisher, source, 'URL')}"
+            f"Missing required configuration: {env_key(usecase, publisher, source, 'URL')} "
+            "(or PDF_URL/SOURCE_FILE/SQL/QUERY/OBJECT_KEY for non-URL sources)"
         )
 
     return cfg
