@@ -45,6 +45,18 @@ def base_module(usecase: str, publisher: str, source: str) -> str:
     return f"ingestion.usecases.{usecase}.{publisher}.{source}"
 
 
+def list_usecases() -> List[str]:
+    """Use case folders under ``ingestion/usecases``."""
+    directory = _package_path("ingestion.usecases")
+    if not directory or not directory.is_dir():
+        return []
+    return sorted(
+        item.name
+        for item in directory.iterdir()
+        if item.is_dir() and not item.name.startswith("_") and item.name != "__pycache__"
+    )
+
+
 def list_publishers(usecase: str) -> List[str]:
     """Publisher folders under a use case."""
     directory = _package_path(f"ingestion.usecases.{usecase}")

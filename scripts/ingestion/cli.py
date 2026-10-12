@@ -72,6 +72,96 @@ def _apply_env(profile: Optional[str]) -> None:
         )
 
 
+def _apply_extra_vars(raw: Optional[str]) -> List[str]:
+    """Inject ``--extra-vars`` JSON into the environment (source-specific keys).
+
+    Example: ``--extra-vars '{"BPS_WEBAPI_KEY":"..."}'`` makes the key readable
+    by extractors via ``config.get_raw("BPS_WEBAPI_KEY")``. Values override the
+    environment profile. Only key names are logged, never values.
+    """
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ConfigError(f"--extra-vars is not valid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ConfigError('--extra-vars must be a JSON object, e.g. \'{"KEY":"value"}\'')
+    injected: List[str] = []
+    for key, value in data.items():
+        if value is None:
+            continue
+        os.environ[str(key)] = str(value)
+        injected.append(str(key))
+    return injected
+
+
+def _list_entities(kind: str, usecase: Optional[str], publisher: Optional[str]) -> None:
+    """Print use case / publisher / source inventory (``python -m ingestion docs --list``)."""
+    from .usecases.registry import list_publishers, list_sources, list_usecases
+
+    usecases = [usecase] if usecase else list_usecases()
+    tree: Dict[str, Dict[str, List[str]]] = {}
+    for uc in usecases:
+        publishers = list_publishers(uc)
+        if publisher:
+            publishers = [p for p in publishers if p == publisher]
+        tree[uc] = {p: list_sources(uc, p) for p in publishers}
+
+    n_usecases = len(tree)
+    n_publishers = sum(len(p) for p in tree.values())
+    n_sources = sum(len(s) for p in tree.values() for s in p.values())
+
+    if kind == "usecases":
+        print(f"USECASES ({n_usecases})")
+        for uc, publishers in tree.items():
+            sources = sum(len(s) for s in publishers.values())
+            print(f"  {uc:<26} publishers={len(publishers):<3} sources={sources}")
+        return
+
+    if kind == "publishers":
+        if usecase:
+            print(f"PUBLISHERS in '{usecase}' ({n_publishers})")
+            for pub, sources in tree.get(usecase, {}).items():
+                print(f"  {pub:<26} sources={len(sources)}")
+            return
+        print(f"PUBLISHERS ({n_publishers})")
+        for uc, publishers in tree.items():
+            if not publishers:
+                continue
+            print(f"  [{uc}]")
+            for pub, sources in publishers.items():
+                print(f"    {pub:<24} sources={len(sources)}")
+        return
+
+    if kind == "sources":
+        if publisher and not usecase:
+            print(f"SOURCES under publisher '{publisher}' (across usecases) ({n_sources})")
+            for uc, publishers in tree.items():
+                for src in publishers.get(publisher, []):
+                    print(f"  {uc}/{publisher}/{src}")
+            return
+        label = f" in '{usecase}'" if usecase else ""
+        print(f"SOURCES{label} ({n_sources})")
+        for uc, publishers in tree.items():
+            for pub, sources in publishers.items():
+                for src in sources:
+                    print(f"  {uc}/{pub}/{src}")
+        return
+
+    # kind == "all": summary + full tree
+    print("SUMMARY")
+    print(f"  usecases={n_usecases} publishers={n_publishers} sources={n_sources}")
+    print()
+    for uc, publishers in tree.items():
+        sources = sum(len(s) for s in publishers.values())
+        print(f"{uc}  ({len(publishers)} publishers, {sources} sources)")
+        for pub, srcs in publishers.items():
+            print(f"  {pub}  ({len(srcs)} sources)")
+            for src in srcs:
+                print(f"    - {src}")
+
+
 def _emit_ndjson(records: Iterable[Dict[str, Any]]) -> int:
     count = 0
     for record in records:
@@ -251,6 +341,12 @@ def cli(env_profile: Optional[str]) -> None:
 @click.option("--minio-uri", default=None, help="MinIO URI (implies the minio target)")
 @click.option("--limit", default=0, type=int, help="Limit records (debug)")
 @click.option("--use-dlt", is_flag=True, default=False, help="Use dlt for DEV PostgreSQL loading")
+@click.option(
+    "--extra-vars",
+    default=None,
+    help='Extra per-run variables as a JSON object, e.g. \'{"BPS_WEBAPI_KEY":"..."}\'. '
+    "Injected into the process env so extractors can read them (overrides the env profile).",
+)
 @click.option("--env", "env_profile", default=None, help=ENV_OPTION_HELP)
 @click.option("--log-level", default="INFO", show_default=True)
 def run(
@@ -263,6 +359,7 @@ def run(
     minio_uri: Optional[str],
     limit: int,
     use_dlt: bool,
+    extra_vars: Optional[str],
     env_profile: Optional[str],
     log_level: str,
 ) -> None:
@@ -277,15 +374,21 @@ def run(
         # profile carries local database credentials. A global connection URI
         # (PG_URI / ELASTICSEARCH_URL / MINIO_URI) also enables the loader step
         # without --env dev, loading to every sink whose URI is set.
-        from .config import URI_TARGETS, get_env_profile, load_uri_targets
+        from .config import URI_TARGETS, get_env_profile, load_env, load_uri_targets
 
-        # --pg-uri/--elasticsearch-url/--minio-uri imply the matching target.
+        # Load the env profile first, then let explicit CLI URIs win over it
+        # (profile files are loaded with override=True).
+        load_env(usecase)
         for name, uri in (("postgres", pg_uri), ("elastic", elasticsearch_url), ("minio", minio_uri)):
             if uri:
                 os.environ[URI_TARGETS[name]] = uri
 
         active_profile = (get_env_profile() or "").strip().lower()
         uri_targets = sorted(load_uri_targets())
+
+        injected = _apply_extra_vars(extra_vars)
+        if injected:
+            logger.info("Injected extra variables: %s", ", ".join(injected))
         if active_profile == "dev":
             if mode == "prod":
                 logger.info("--env dev selected; enabling DEV loader")
@@ -330,9 +433,17 @@ def run(
 
 
 @cli.command()
-@click.option("--usecase", required=True, help="Use case name, e.g. ketenagakerjaan")
+@click.option("--usecase", default=None, help="Use case name, e.g. ketenagakerjaan (optional with --list)")
 @click.option("--publisher", default=None, help="Only generate dictionaries for sources under this publisher")
 @click.option("--source", "source_name", default=None, help="Only generate the dictionary for this source")
+@click.option(
+    "--list",
+    "list_kind",
+    default=None,
+    type=click.Choice(["usecases", "publishers", "sources", "all"]),
+    help="List inventory instead of generating docs: usecases | publishers | sources | all "
+    "(combine with --usecase/--publisher to filter).",
+)
 @click.option("--output", default="./docs", show_default=True, help="Output directory for Markdown docs")
 @click.option(
     "--catalog",
@@ -358,6 +469,7 @@ def docs(
     usecase: str,
     publisher: str,
     source_name: str,
+    list_kind: str,
     output: str,
     catalog: str,
     scaffold: bool,
@@ -371,9 +483,18 @@ def docs(
     Always writes ``usecase_<usecase>.md``. Writes ``dictionary_<usecase>_<source>.md``
     for eligible sources, or only those under ``--publisher`` / the one given by
     ``--source``. With ``--scaffold``, creates the module folders/files.
+
+    With ``--list``, prints an inventory instead: ``--list usecases``,
+    ``--list publishers --usecase X``, ``--list sources --publisher Y``,
+    or ``--list all`` for a summary.
     """
     setup_logging(log_level)
     try:
+        if list_kind:
+            _list_entities(list_kind, usecase, publisher)
+            sys.exit(ExitCode.SUCCESS)
+        if not usecase:
+            raise ConfigError("--usecase is required (or use --list to browse the inventory)")
         _apply_env(env_profile)
         _generate_docs(
             usecase,

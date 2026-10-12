@@ -1,5 +1,8 @@
 """Tests for the BPS WebAPI extractors (CPI + Inflasi MoM)."""
 
+import pytest
+
+from ingestion.exceptions import ConfigError
 from ingestion.usecases.ketenagakerjaan.bps._webapi import BpsWebApiExtractor, to_float
 from ingestion.usecases.ketenagakerjaan.bps.bps_consumer_price_index.extractor import (
     Extractor as CpiExtractor,
@@ -18,6 +21,13 @@ def test_extractors_subclass_shared_base():
     assert issubclass(MomExtractor, BpsWebApiExtractor)
     assert CpiExtractor.ENTITY_FIELD == "provinsi"
     assert MomExtractor.ENTITY_FIELD == "kota_inflasi"
+
+
+def test_extract_requires_api_key(monkeypatch):
+    monkeypatch.delenv("BPS_WEBAPI_KEY", raising=False)
+    monkeypatch.delenv("BPS_API_KEY", raising=False)
+    with pytest.raises(ConfigError):
+        list(CpiExtractor({"url": "https://webapi.bps.go.id/x/th/126/key/WebAPI_KEY"}).extract())
 
 
 def test_to_float():

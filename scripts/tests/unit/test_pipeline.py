@@ -1,5 +1,7 @@
 """Tests for the extractor pipeline."""
 
+import os
+
 import pytest
 
 from ingestion import cli
@@ -60,3 +62,51 @@ def test_effective_targets_intersects_declared():
     assert cli._effective_targets(["elastic"], ["postgres"]) == ["none"]
     # Undeclared source keeps the requested sinks.
     assert cli._effective_targets(requested, []) == requested
+
+
+def test_apply_extra_vars_injects_env(monkeypatch):
+    monkeypatch.delenv("BPS_WEBAPI_KEY", raising=False)
+    try:
+        injected = cli._apply_extra_vars('{"BPS_WEBAPI_KEY": "abc"}')
+        assert injected == ["BPS_WEBAPI_KEY"]
+
+        from ingestion.usecases.ketenagakerjaan.bps.bps_inflasi_mom.extractor import (
+            Extractor,
+        )
+
+        extractor = Extractor({"url": "https://webapi.bps.go.id/x/th/126/key/WebAPI_KEY"})
+        assert extractor._api_key() == "abc"
+    finally:
+        os.environ.pop("BPS_WEBAPI_KEY", None)
+
+
+def test_apply_extra_vars_noop_when_empty():
+    assert cli._apply_extra_vars(None) == []
+    assert cli._apply_extra_vars("") == []
+
+
+def test_apply_extra_vars_rejects_invalid_json():
+    with pytest.raises(ConfigError):
+        cli._apply_extra_vars("{not json}")
+    with pytest.raises(ConfigError):
+        cli._apply_extra_vars('["a", "b"]')
+
+
+def test_list_entities_usecases(capsys):
+    cli._list_entities("usecases", None, None)
+    out = capsys.readouterr().out
+    assert "USECASES" in out
+    assert "ketenagakerjaan" in out
+
+
+def test_list_entities_sources_by_publisher(capsys):
+    cli._list_entities("sources", None, "bps")
+    out = capsys.readouterr().out
+    assert "ketenagakerjaan/bps/bps_inflasi_mom" in out
+
+
+def test_list_entities_all_summary(capsys):
+    cli._list_entities("all", None, None)
+    out = capsys.readouterr().out
+    assert "SUMMARY" in out
+    assert "usecases=" in out

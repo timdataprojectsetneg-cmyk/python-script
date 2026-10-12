@@ -21,7 +21,7 @@ from typing import Any, Dict, Iterator, List, Optional
 
 from ....config import get_raw
 from ....core.base.extractor import BaseExtractor
-from ....exceptions import SourceUnavailable
+from ....exceptions import ConfigError, SourceUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +161,11 @@ class BpsWebApiExtractor(BaseExtractor):
 
     def extract(self) -> Iterator[Dict[str, Any]]:
         key = self._api_key()
+        if not key:
+            raise ConfigError(
+                "Missing BPS WebAPI key. Set BPS_WEBAPI_KEY (loaded from .env.dev with "
+                "--env dev) or the source's ...__API_KEY."
+            )
         years = self._target_years()
         if years:
             for year in years:
