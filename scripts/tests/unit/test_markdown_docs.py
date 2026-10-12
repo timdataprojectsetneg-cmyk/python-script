@@ -69,6 +69,24 @@ def test_env_lines_are_flat_without_access():
     assert all("__EXCEL__" not in line and "__API__" not in line for line in lines)
 
 
+def test_env_lines_prefer_resource_url():
+    sources = [
+        {
+            "source_name": "Kasus Perselisihan",
+            "publisher": "Kemnaker",
+            "source_link": "https://satudata.kemnaker.go.id/data/kumpulan-data/3674",
+            "resource_url": "https://satudata.kemnaker.go.id/api/v1/data/list_data?search=Kasus",
+            "data_access": "Download Excel",
+            "eligible": True,
+        }
+    ]
+    lines = env_lines("ketenagakerjaan", sources)
+    assert (
+        "KETENAGAKERJAAN__KEMNAKER__KASUS_PERSELISIHAN__URL="
+        "https://satudata.kemnaker.go.id/api/v1/data/list_data?search=Kasus"
+    ) in lines
+
+
 def test_render_usecase_markdown_targets():
     sources = [
         {

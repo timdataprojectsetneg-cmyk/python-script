@@ -3,6 +3,7 @@
 from ingestion.sharepoint.client import SharePointClient
 from ingestion.sharepoint.metadata_parser import (
     derive_module_name,
+    effective_url,
     is_eligible,
     is_source_row,
     parse_catalog_row,
@@ -105,3 +106,26 @@ def test_long_name_slug_and_override():
 
 def test_source_slug_defaults_to_derived_name():
     assert source_slug({"source_name": "Kasus Perselisihan"}) == "kasus_perselisihan"
+
+
+def test_effective_url_prefers_resource_url():
+    row = {
+        "Source Name": "Kasus Perselisihan",
+        "Publisher": "Kemnaker",
+        "Source Link": "https://satudata.kemnaker.go.id/data/kumpulan-data/3674",
+        "Resource URL": "https://satudata.kemnaker.go.id/api/v1/data/list_data?search=Kasus",
+        "Data Access": "Download Excel",
+    }
+    source = parse_catalog_row(row)
+    assert source["resource_url"] == "https://satudata.kemnaker.go.id/api/v1/data/list_data?search=Kasus"
+    assert source["source_link"] == "https://satudata.kemnaker.go.id/data/kumpulan-data/3674"
+    assert effective_url(source) == source["resource_url"]
+    assert is_source_row(source)
+
+
+def test_effective_url_falls_back_to_source_link():
+    source = parse_catalog_row(
+        {"Source Name": "X", "Source Link": "https://a", "Data Access": "API"}
+    )
+    assert source["resource_url"] is None
+    assert effective_url(source) == "https://a"

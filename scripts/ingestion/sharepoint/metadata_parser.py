@@ -13,6 +13,7 @@ CATALOG_COLUMNS = {
     "publisher": ["Publisher", "penerbit", "instansi"],
     "data_dictionary": ["Data Dictionary", "kamus data"],
     "source_link": ["Source Link", "link sumber", "link"],
+    "resource_url": ["Resource URL", "Resource Url", "resource url", "resource"],
     "data_access": ["Data Access", "akses data", "access"],
     "update_frequency": ["Update Frequency", "frekuensi", "frequency"],
     "is_official": ["Is Official", "official", "resmi"],
@@ -78,6 +79,7 @@ def parse_catalog_row(row: Dict[str, Any]) -> Dict[str, Any]:
     links = row.get("_links") or {}
     source["data_dictionary_link"] = _pick_link(links, ["Data Dictionary", "kamus data"])
     source["source_link"] = source.get("source_link") or _pick_link(links, ["Source Link", "link sumber"])
+    source["resource_url"] = source.get("resource_url") or _pick_link(links, ["Resource URL", "resource"])
 
     # Normalized load targets.
     source["minio_bucket"] = source.get("raw_minio_bucket")
@@ -109,7 +111,17 @@ def is_source_row(source: Dict[str, Any]) -> bool:
     """Keep real data-source rows; drop section titles and empty filler rows."""
     if not source.get("source_name"):
         return False
-    return bool(source.get("source_link") or source.get("data_access") or source.get("update_frequency"))
+    return bool(
+        source.get("source_link")
+        or source.get("resource_url")
+        or source.get("data_access")
+        or source.get("update_frequency")
+    )
+
+
+def effective_url(source: Dict[str, Any]) -> Any:
+    """URL to ingest from: ``Resource URL`` when set, else ``Source Link``."""
+    return source.get("resource_url") or source.get("source_link")
 
 
 def source_slug(source: Dict[str, Any]) -> str:

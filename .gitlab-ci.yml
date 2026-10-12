@@ -16,6 +16,8 @@ Build Development:
   stage: build
   services:
     - docker:19.03.12-dind
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
   script:
     # TODO: We need to rsync then scp to all nodes, but for now we just do it on one node (bigaction-core-0)
     - sudo rsync -av ./scripts/ /data/nifi-scripts/

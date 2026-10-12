@@ -18,6 +18,7 @@ from .metadata_parser import (
     TARGET_FIELDS,
     derive_access,
     derive_module_name,
+    effective_url,
     is_eligible,
     publisher_slug,
     source_slug,
@@ -99,7 +100,7 @@ def env_lines(
         publisher = publisher_slug(source)
         slug = source_slug(source)
         prefix = f"{usecase_slug}__{publisher}__{slug}".upper()
-        lines.append(f"{prefix}__URL={source.get('source_link') or ''}")
+        lines.append(f"{prefix}__URL={effective_url(source) or ''}")
         schema, postgre_table = split_postgre(source.get("raw_postgre_table"))
         targets = (
             ("POSTGRE_SCHEMA", schema),
@@ -131,12 +132,12 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
         "",
         "## Sources",
         "",
-        "| # | Source Name | Publisher | Data Access | Update Frequency | Is Official | Eligible | Last Update | Source Link | Data Dictionary |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "| # | Source Name | Publisher | Data Access | Update Frequency | Is Official | Eligible | Last Update | Source Link | Resource URL | Data Dictionary |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for index, source in enumerate(sources, 1):
         out.append(
-            "| {i} | {name} | {pub} | {access} | {freq} | {official} | {eligible} | {updated} | {link} | {dict} |".format(
+            "| {i} | {name} | {pub} | {access} | {freq} | {official} | {eligible} | {updated} | {link} | {resource} | {dict} |".format(
                 i=index,
                 name=_cell(source.get("source_name")),
                 pub=_cell(source.get("publisher")),
@@ -146,6 +147,7 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
                 eligible=_cell(source.get("eligible")),
                 updated=_cell(source.get("last_update")),
                 link=_link_cell(source.get("source_link"), source.get("source_link")),
+                resource=_link_cell(source.get("resource_url"), source.get("resource_url")),
                 dict=_link_cell(source.get("data_dictionary"), source.get("data_dictionary_link")),
             )
         )
