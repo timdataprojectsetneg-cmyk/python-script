@@ -71,6 +71,7 @@ KNOWN_KEYS = (
     "MINIO_BUCKET",
     "MINIO_PREFIX",
     "OBJECT_KEY",
+    "SAVE_RAW",
     "POSTGRE_SCHEMA",
     "POSTGRE_TABLE",
     "ES_INDEX",
@@ -156,6 +157,36 @@ def get(usecase: str, publisher: str, source: str, key: str, default: Any = None
 def get_raw(key: str, default: Any = None) -> Any:
     load_env()
     return os.environ.get(key, default)
+
+
+# Global connection URIs. When any is set, ``python -m ingestion run`` also runs
+# the loader step (no ``--env dev`` required) and loads to every sink whose URI
+# is present.
+URI_TARGETS = {
+    "postgres": "PG_URI",
+    "elastic": "ELASTICSEARCH_URL",
+    "minio": "MINIO_URI",
+}
+
+
+def get_uri(key: str, default: Any = None) -> Any:
+    """Case-insensitive lookup of a global connection URI env var."""
+    load_env()
+    for candidate in (key, key.lower(), key.upper()):
+        value = os.environ.get(candidate)
+        if value:
+            return value
+    return default
+
+
+def load_uri_targets() -> Dict[str, str]:
+    """Return ``{target: uri}`` for every connection URI that is set."""
+    targets: Dict[str, str] = {}
+    for target, key in URI_TARGETS.items():
+        value = get_uri(key)
+        if value:
+            targets[target] = value
+    return targets
 
 
 def load_config(

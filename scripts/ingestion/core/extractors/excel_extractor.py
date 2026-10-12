@@ -14,7 +14,7 @@ import math
 import re
 from io import BytesIO
 from typing import Any, Dict, Iterator, List
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -102,7 +102,9 @@ class ExcelExtractor(BaseExtractor):
         from_step = self.config.get("download_url")
         if from_step:
             return str(from_step)
-        url = self.url
+        url = self.url or ""
+        if url.lower().startswith("minio://"):
+            return url
         if url.lower().endswith((".xlsx", ".xls", ".xlsm")):
             return url
         return self._find_download_url(self._fetch_page_html())
@@ -117,6 +119,23 @@ class ExcelExtractor(BaseExtractor):
             if decoded != url:
                 return self.http.get(decoded, timeout=120)
             raise
+
+    def _read_bytes(self, url: str) -> bytes:
+        """Read the workbook bytes from MinIO (``minio://bucket/key``) or HTTP."""
+        if url.lower().startswith("minio://"):
+            from ..storage.minio_storage import MinioStorage, split_minio_ref
+
+            bucket, key = split_minio_ref(url)
+            storage = MinioStorage(self.config)
+            if bucket:
+                storage.bucket = bucket
+            return storage.download_bytes(key)
+        return self._download(url).content
+
+    @staticmethod
+    def _filename_from_url(url: str) -> str:
+        name = urlparse(url).path.rsplit("/", 1)[-1]
+        return name or "download.xlsx"
 
     def _parse_excel(self, content: bytes) -> List[Dict[str, Any]]:
         import pandas as pd
@@ -178,6 +197,8 @@ class ExcelExtractor(BaseExtractor):
 
     def extract(self) -> Iterator[Dict[str, Any]]:
         download_url = self._resolve_download_url()
-        resp = self._download(download_url)
-        for record in self._parse_excel(resp.content):
+        content = self._read_bytes(download_url)
+        if not download_url.lower().startswith("minio://"):
+            self.save_raw_to_minio(content, self._filename_from_url(download_url))
+        for record in self._parse_excel(content):
             yield self._apply_column_map(record)

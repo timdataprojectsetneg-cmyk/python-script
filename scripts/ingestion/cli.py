@@ -27,7 +27,6 @@ from .usecases.registry import resolve_extractor_class, resolve_normalizer
 logger = logging.getLogger("ingestion")
 
 MODE_CHOICES = ["dev", "prod"]
-TARGET_CHOICES = ["none", "postgres", "elastic"]
 
 # Header-row hints used to locate the header inside sheets with title/blank rows.
 CATALOG_HEADER_HINTS = ["Source Name", "Nama Sumber", "Nama Source"]
@@ -91,6 +90,10 @@ def _dev_load(
         from .core.loaders.elastic_loader import ElasticLoader
 
         return ElasticLoader(config).load(records)
+    if target == "minio":
+        from .core.loaders.minio_loader import MinioLoader
+
+        return MinioLoader(config).load(records)
     from .core.loaders.postgres_loader import DltPostgresLoader, PostgresLoader
 
     loader = DltPostgresLoader if use_dlt else PostgresLoader
@@ -110,24 +113,25 @@ def execute_run(
     publisher: str,
     source: str,
     mode: str = "prod",
-    target: Optional[str] = None,
     limit: int = 0,
     use_dlt: bool = False,
+    targets: Optional[List[str]] = None,
 ) -> int:
     config = load_config(usecase, publisher, source)
-    effective_target = (target or config.get("target") or "none").lower()
+    effective_targets = [t.lower() for t in (targets or [config.get("target") or "none"])]
+    targets_label = ",".join(effective_targets)
 
     logger.info("Starting ingestion")
     logger.info("Usecase: %s", config["usecase"])
     logger.info("Publisher: %s", config["publisher"])
     logger.info("Source: %s", config["source"])
-    logger.info("Mode: %s (target=%s)", mode, effective_target)
-    if mode == "prod" and effective_target != "none":
+    logger.info("Mode: %s (target=%s)", mode, targets_label)
+    if mode == "prod" and effective_targets != ["none"]:
         # Production deliberately has no database credentials. The NDJSON
         # stream is consumed by NiFi, which owns the PostgreSQL connection.
         logger.info(
             "Production target '%s' is downstream-only; emitting NDJSON for NiFi (no PostgreSQL connection)",
-            effective_target,
+            targets_label,
         )
 
     normalizer = resolve_normalizer(config["usecase"], config["publisher"], config["source"], config)
@@ -138,13 +142,16 @@ def execute_run(
         records = (rec for i, rec in enumerate(records) if i < limit)
 
     if mode == "dev":
-        count = _dev_load(records, config, effective_target, use_dlt=use_dlt)
+        rows = list(records)
+        count = len(rows)
+        for sink in effective_targets:
+            _dev_load(iter(rows), config, sink, use_dlt=use_dlt)
     else:
         count = _emit_ndjson(records)
 
-    output = "ndjson" if mode == "prod" else effective_target
+    output = "ndjson" if mode == "prod" else targets_label
     destination = ""
-    if effective_target == "postgres":
+    if "postgres" in effective_targets:
         from .config import get_raw
         from .core.loaders.postgres_loader import _split_schema_table
 
@@ -158,7 +165,7 @@ def execute_run(
         "Ingestion completed (records=%s, mode=%s, target=%s, output=%s%s)",
         count,
         mode,
-        effective_target,
+        targets_label,
         output,
         destination,
     )
@@ -204,7 +211,9 @@ def cli(env_profile: Optional[str]) -> None:
 @click.option("--publisher", default=None, help="Run all sources under this publisher")
 @click.option("--source", default=None, help="Source name, e.g. kasus_perselisihan")
 @click.option("--mode", default="prod", type=click.Choice(MODE_CHOICES), show_default=True)
-@click.option("--target", default=None, type=click.Choice(TARGET_CHOICES), help="DEV load target override")
+@click.option("--pg-uri", default=None, help="PostgreSQL URI (implies the postgres target)")
+@click.option("--elasticsearch-url", default=None, help="Elasticsearch URI (implies the elastic target)")
+@click.option("--minio-uri", default=None, help="MinIO URI (implies the minio target)")
 @click.option("--limit", default=0, type=int, help="Limit records (debug)")
 @click.option("--use-dlt", is_flag=True, default=False, help="Use dlt for DEV PostgreSQL loading")
 @click.option("--env", "env_profile", default=None, help=ENV_OPTION_HELP)
@@ -214,7 +223,9 @@ def run(
     publisher: str,
     source: str,
     mode: str,
-    target: str,
+    pg_uri: Optional[str],
+    elasticsearch_url: Optional[str],
+    minio_uri: Optional[str],
     limit: int,
     use_dlt: bool,
     env_profile: Optional[str],
@@ -227,24 +238,38 @@ def run(
     setup_logging(log_level)
     try:
         _apply_env(env_profile)
-        # The environment profile is the deployment boundary: only the
-        # development profile carries local database credentials. Production
-        # and the default profile are extract/normalize-only and emit NDJSON.
-        from .config import get_env_profile
+        # The environment profile is the deployment boundary: the development
+        # profile carries local database credentials. A global connection URI
+        # (PG_URI / ELASTICSEARCH_URL / MINIO_URI) also enables the loader step
+        # without --env dev, loading to every sink whose URI is set.
+        from .config import URI_TARGETS, get_env_profile, load_uri_targets
+
+        # --pg-uri/--elasticsearch-url/--minio-uri imply the matching target.
+        for name, uri in (("postgres", pg_uri), ("elastic", elasticsearch_url), ("minio", minio_uri)):
+            if uri:
+                os.environ[URI_TARGETS[name]] = uri
 
         active_profile = (get_env_profile() or "").strip().lower()
+        uri_targets = sorted(load_uri_targets())
         if active_profile == "dev":
             if mode == "prod":
                 logger.info("--env dev selected; enabling DEV loader")
             mode = "dev"
+        elif uri_targets:
+            logger.info("Connection URI detected (%s); enabling loaders", ", ".join(uri_targets))
+            mode = "dev"
         elif mode == "dev":
-            raise ConfigError("Database loading requires --env dev")
+            raise ConfigError(
+                "Loading requires --env dev or a connection URI "
+                "(--pg-uri/--elasticsearch-url/--minio-uri, or PG_URI/ELASTICSEARCH_URL/MINIO_URI)"
+            )
+        targets = uri_targets or None
         pairs = _resolve_run_targets(usecase, publisher, source)
         logger.info("Targets: %s", ", ".join(f"{pub}/{src}" for pub, src in pairs))
         code = ExitCode.SUCCESS
         for pub, src in pairs:
             try:
-                execute_run(usecase, pub, src, mode, target, limit, use_dlt)
+                execute_run(usecase, pub, src, mode, limit, use_dlt, targets)
             except Exception as exc:  # noqa: BLE001 - continue the remaining sources
                 code = exit_code_for(exc)
                 logger.error(

@@ -11,12 +11,30 @@ import importlib
 import json
 from datetime import datetime, date
 
-from ...config import HTTP_METHODS, get_raw
+from ...config import HTTP_METHODS, get_raw, get_uri
 from ...exceptions import ConfigError
 from ..base.loader import BaseLoader
 
 
+def _creds_from_uri(uri: str) -> Dict[str, Any]:
+    """Parse a ``postgresql://user:pass@host:port/db`` URI into dlt creds."""
+    from urllib.parse import unquote, urlparse
+
+    parsed = urlparse(uri)
+    return {
+        "drivername": (parsed.scheme or "postgresql").split("+")[0],
+        "database": (parsed.path or "").lstrip("/"),
+        "username": unquote(parsed.username or ""),
+        "password": unquote(parsed.password or ""),
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or 5432,
+    }
+
+
 def _postgres_credentials() -> Dict[str, Any]:
+    uri = get_uri("PG_URI")
+    if uri:
+        return _creds_from_uri(uri)
     host = get_raw("DEV__POSTGRES_HOST", "localhost")
     port = int(get_raw("DEV__POSTGRES_PORT", 5432))
     db = get_raw("DEV__POSTGRES_DB", "ingestion_dev")

@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable
 from uuid import uuid4
 
-from ...config import get_raw
+from ...config import get_raw, get_uri
 from ...exceptions import ConfigError
 from ..base.loader import BaseLoader
 from .postgres_loader import _load_method, _unique_keys
@@ -30,7 +30,12 @@ from .postgres_loader import _load_method, _unique_keys
 
 def _elastic_options() -> Dict[str, Any]:
     """Client options from the ``ELASTIC__*`` env (URI may embed credentials)."""
-    uri = get_raw("ELASTIC__URI") or get_raw("DEV__ELASTIC_URL") or "http://localhost:9200"
+    uri = (
+        get_raw("ELASTIC__URI")
+        or get_uri("ELASTICSEARCH_URL")
+        or get_raw("DEV__ELASTIC_URL")
+        or "http://localhost:9200"
+    )
     options: Dict[str, Any] = {
         "hosts": [uri],
         "verify_certs": str(get_raw("ELASTIC__VERIFY_CERTS", "true")).lower() in ("1", "true", "yes"),

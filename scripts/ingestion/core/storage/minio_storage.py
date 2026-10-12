@@ -1,7 +1,8 @@
 """MinIO / S3 object storage backend.
 
-Configuration (non-confidential in ``.env``, credentials via NiFi secrets):
+Configuration — either a single URI, or the discrete ``MINIO__*`` keys:
 
+    MINIO_URI         = minio://access:secret@host:9000/bucket?secure=true
     MINIO__ENDPOINT   = minio.example.local:9000
     MINIO__ACCESS_KEY = <secret>
     MINIO__SECRET_KEY = <secret>
@@ -13,21 +14,56 @@ from __future__ import annotations
 
 import io
 from typing import Any, Dict
+from urllib.parse import parse_qs, unquote, urlparse
 
-from ...config import get_raw
+from ...config import get_raw, get_uri
 from ...exceptions import ConfigError, IngestionError
 from ..base.storage import BaseStorage
+
+
+def _parse_minio_uri(uri: str) -> Dict[str, Any]:
+    """Parse ``minio://access:secret@host:port/bucket?secure=true``."""
+    parsed = urlparse(uri)
+    secure = str(parse_qs(parsed.query).get("secure", ["false"])[0]).lower() in ("1", "true", "yes")
+    host = parsed.hostname or ""
+    if parsed.port:
+        host = f"{host}:{parsed.port}"
+    return {
+        "endpoint": host,
+        "access_key": unquote(parsed.username or ""),
+        "secret_key": unquote(parsed.password or ""),
+        "bucket": (parsed.path or "").lstrip("/"),
+        "secure": secure,
+    }
+
+
+def split_minio_ref(uri: str) -> tuple[str, str]:
+    """Split an object reference ``minio://bucket/key`` into ``(bucket, key)``.
+
+    The connection (endpoint/credentials) still comes from ``MINIO_URI`` or the
+    ``MINIO__*`` keys; only the object location is taken from this reference.
+    """
+    parsed = urlparse(uri)
+    bucket = parsed.hostname or ""
+    key = (parsed.path or "").lstrip("/")
+    return bucket, key
 
 
 class MinioStorage(BaseStorage):
     def __init__(self, config: Dict[str, Any] | None = None):
         super().__init__(config)
-        self.endpoint = get_raw("MINIO__ENDPOINT")
-        self.access_key = get_raw("MINIO__ACCESS_KEY")
-        self.secret_key = get_raw("MINIO__SECRET_KEY")
-        self.secure = str(get_raw("MINIO__SECURE", "false")).lower() in ("1", "true", "yes")
+        uri = get_uri("MINIO_URI")
+        parsed: Dict[str, Any] = _parse_minio_uri(uri) if uri else {}
+        self.endpoint = parsed.get("endpoint") or get_raw("MINIO__ENDPOINT")
+        self.access_key = parsed.get("access_key") or get_raw("MINIO__ACCESS_KEY")
+        self.secret_key = parsed.get("secret_key") or get_raw("MINIO__SECRET_KEY")
+        secure_raw = parsed.get("secure")
+        if secure_raw is None:
+            secure_raw = str(get_raw("MINIO__SECURE", "false")).lower() in ("1", "true", "yes")
+        self.secure = bool(secure_raw)
         self.bucket = (
             (self.config or {}).get("minio_bucket")
+            or parsed.get("bucket")
             or get_raw("MINIO__BUCKET")
         )
 
@@ -72,6 +108,21 @@ class MinioStorage(BaseStorage):
             "etag": getattr(result, "etag", None),
             "size": len(data),
         }
+
+    def download_bytes(self, object_key: str) -> bytes:
+        """Read an object's bytes (used to ingest a file that already lives in MinIO)."""
+        client = self._client()
+        if not self.bucket:
+            raise ConfigError("Missing MINIO__BUCKET")
+        try:
+            response = client.get_object(self.bucket, object_key)
+            try:
+                return response.read()
+            finally:
+                response.close()
+                response.release_conn()
+        except Exception as exc:  # pragma: no cover - network dependent
+            raise IngestionError(f"MinIO download failed for {object_key}: {exc}") from exc
 
     def exists(self, object_key: str) -> bool:
         client = self._client()

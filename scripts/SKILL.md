@@ -79,7 +79,8 @@ KETENAGAKERJAAN__GOODSTATS__UMK_SUMUT__SOURCE_FILE=./data/umk_sumut.html
 ```
 
 Common keys: `URL`, `TABLE`, `SCHEMA`, `POSTGRE_SCHEMA`, `POSTGRE_TABLE`,
-`ES_INDEX`, `MINIO_BUCKET`, `API_KEY`, `TOKEN`, `PAGINATION_TYPE`,
+`ES_INDEX`, `MINIO_BUCKET`, `MINIO_PREFIX`, `OBJECT_KEY`, `SAVE_RAW`,
+`API_KEY`, `TOKEN`, `PAGINATION_TYPE`,
 `PAGINATION_PARAM`, `DATA_PATH`, `ITEM_SELECTOR`, `FIELDS`, `DOWNLOAD_SELECTOR`,
 `DOWNLOAD_URL`, `SOURCE_FILE`, `SHEET`, `HEADER_ROW`, `METHOD`,
 `UNIQUE_KEY`, `HTTP_METHOD`, `IMPERSONATE`.
@@ -93,6 +94,16 @@ still honored when it is a verb like `GET`/`POST`).
 
 Global (non-namespaced) secrets live directly in `.env.dev` and are read with
 `config.get_raw("KEY")`, e.g. `BPS_WEBAPI_KEY` for the BPS WebAPI extractors.
+
+Global **connection URIs** (names matched case-insensitively). When any is set,
+`python -m ingestion run` also runs the loader step — **no `--env dev` needed** —
+and loads to every sink whose URI is present:
+
+```
+PG_URI=postgresql://user:password@host:5432/db
+ELASTICSEARCH_URL=https://user:password@host:9200
+MINIO_URI=minio://access:secret@host:9000/bucket?secure=true
+```
 
 ## CLI
 
@@ -113,8 +124,10 @@ python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
 ```
 
 - The source's single `extractor.py` owns the whole retrieval pipeline.
-- DEV loading requires `--env dev` (sets `--mode dev`); `--target` picks the DEV
-  sink and `--use-dlt` uses dlt instead of the direct writer.
+- Loading happens when a connection URI is present
+  (`--pg-uri`/`--elasticsearch-url`/`--minio-uri` or the `PG_URI`/
+  `ELASTICSEARCH_URL`/`MINIO_URI` env) or with `--env dev`; each URI = one sink.
+  `--use-dlt` uses dlt instead of the direct writer.
 - `--scaffold` creates missing folders/files; `--scaffold-overwrite` replaces
   existing scaffold files, limited to the `--source`/`--publisher` scope (or the
   whole usecase when neither is given).
@@ -235,10 +248,51 @@ catalog; Data Dictionary files resolve as
 `{SHAREPOINT__DICTIONARY_BASE_PATH}/Data Dictionary - {sheet}/{name}`. Secrets
 (`TENANT_ID`, `CLIENT_ID`, `CLIENT_SECRET`) go in `.env.dev`.
 
+## Combining source & sinks
+
+Source (extractor) and sinks (loaders) are independent; each connection URI adds
+a sink, and the same normalized records go to every sink.
+
+- **MinIO → Postgres** (file already in MinIO): set
+  `{...}__URL=minio://<bucket>/<key>.xlsx` (connection from `MINIO_URI` or
+  `MINIO__*`), then pass `--pg-uri`/`PG_URI` to insert. `ExcelExtractor` reads the
+  object bytes directly instead of HTTP.
+- **Scrape → download → MinIO + Postgres**: set `{...}__SAVE_RAW=true` so the
+  downloaded raw file lands in MinIO (`<minio_prefix|source>/<filename>`), and
+  pass `--minio-uri` + `--pg-uri` to land the file and insert the records.
+- **Multiple sinks**: pass several URIs (`--pg-uri`, `--minio-uri`,
+  `--elasticsearch-url`, or the matching env vars); each one is loaded.
+
 ## NiFi wiring
 
-`ExecuteStreamCommand`: command path the venv python, args
-`run_ingestion.py run --usecase ${USECASE} --source ${SOURCE} --mode prod`,
-`Ignore STDIN=false`; stdout NDJSON → `ConvertRecord`/`JsonTreeReader` →
-`PutDatabaseRecord` + `DBCPConnectionPool`. Route on `exit.code` (0 ok,
-1/4 retry, 2/3 alert). See `scripts/nifi/README.md`.
+`ExecuteStreamCommand` runs the Python entrypoint. Pass connection URIs **either**
+as CLI options (recommended: works directly with NiFi Parameters `#{pg.uri}`)
+**or** as process environment variables.
+
+NiFi `ExecuteStreamCommand` properties (Parameters from the Parameter Context,
+referenced with `#{...}`):
+
+- Command Path: the venv python
+- Command Arguments:
+  `run_ingestion.py run --usecase #{usecase} --source #{source} --pg-uri #{pg.uri} --minio-uri #{minio.uri}`
+- `Ignore STDIN=true` (the `run` command does not read stdin)
+
+Notes:
+
+- `--pg-uri` / `--elasticsearch-url` / `--minio-uri` **imply their target** (there
+  is no `--target`). When any is given the run **also loads** — no `--env dev`
+  required. To restrict to a subset, pass only the URIs you want.
+- Same URIs also work as env vars `PG_URI`, `ELASTICSEARCH_URL`, `MINIO_URI`
+  (case-insensitive). Set them on the NiFi service to keep secrets out of argv.
+- Keep secrets out of the repo: use sensitive Parameters (`#{pg.uri}`), pass via
+  service env, or an inline `env` wrapper.
+- When NiFi owns the load instead, drop the URIs and consume stdout NDJSON →
+  `ConvertRecord`/`JsonTreeReader` → `PutDatabaseRecord` + `DBCPConnectionPool`.
+- Route on `exit.code` (0 ok, 1/4 retry, 2/3 alert). See `scripts/nifi/README.md`.
+
+Concrete `ExecuteStreamCommand` Command Arguments:
+
+```
+run_ingestion.py run --usecase #{usecase} --source #{source} \
+  --pg-uri #{pg.uri} --minio-uri #{minio.uri}
+```
