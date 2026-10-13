@@ -1,11 +1,12 @@
 """Unit tests for Markdown doc rendering."""
 
-from ingestion.sharepoint.metadata_parser import derive_access, resolve_sheet_name
-from ingestion.sharepoint.markdown_docs import (
+from ingestion.catalog.metadata_parser import derive_access, resolve_sheet_name
+from ingestion.catalog.markdown_docs import (
     dictionary_filename,
     env_lines,
     render_dictionary_markdown,
     render_usecase_markdown,
+    usecase_dir,
     usecase_filename,
 )
 
@@ -26,11 +27,9 @@ def test_resolve_sheet_name():
 
 
 def test_filenames():
-    assert usecase_filename("ketenagakerjaan") == "usecase_ketenagakerjaan.md"
-    assert (
-        dictionary_filename("ketenagakerjaan", "Kasus Perselisihan")
-        == "dictionary_ketenagakerjaan_kasus_perselisihan.md"
-    )
+    assert usecase_dir("ketenagakerjaan") == "ketenagakerjaan"
+    assert usecase_filename("ketenagakerjaan") == "usecase.md"
+    assert dictionary_filename("Kasus Perselisihan") == "dictionary_kasus_perselisihan.md"
 
 
 SOURCES = [

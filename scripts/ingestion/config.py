@@ -142,7 +142,10 @@ def load_env(usecase: Optional[str] = None) -> None:
 
     if not usecase or load_dotenv is None:
         return
-    fragment = os.path.join(_env_dir(), "docs", f"usecase_{usecase.strip().lower()}.env")
+    from .catalog.metadata_parser import derive_module_name
+
+    folder = derive_module_name(usecase)
+    fragment = os.path.join(_env_dir(), "docs", folder, "usecase.env")
     if fragment not in _loaded_usecase_files and os.path.exists(fragment):
         load_dotenv(fragment, override=False)
         _loaded_usecase_files.add(fragment)

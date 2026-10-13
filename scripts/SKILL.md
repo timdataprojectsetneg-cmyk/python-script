@@ -1,6 +1,6 @@
 ---
 name: nifi-python-ingestion
-description: Use when working on the NiFi + Python generic ingestion framework (bigaction/python-script/scripts) — adding or editing use cases, publishers, sources or extractors, configuring env vars, generating SharePoint/module docs, scaffolding modules, or wiring NiFi ExecuteStreamCommand. Covers the folder conventions, {USECASE}__{PUBLISHER}__{SOURCE}__{KEY} env format, the run/docs/capture CLIs, and common source-specific quirks (satudata SPA, %2520 download URLs, Cloudflare/SOURCE_FILE, PDF→MinIO).
+description: Use when working on the NiFi + Python generic ingestion framework (bigaction/python-script/scripts) — adding or editing use cases, publishers, sources or extractors, configuring env vars, generating catalog docs (SharePoint or spreadsheet, per-use-case under docs/<usecase>/), scaffolding modules, or wiring NiFi ExecuteStreamCommand. Covers the folder conventions, {USECASE}__{PUBLISHER}__{SOURCE}__{KEY} env format, connection URIs (PG_URI/ELASTICSEARCH_URL/MINIO_URI), the run/docs/capture CLIs, and common source-specific quirks (satudata SPA, %2520 download URLs, Cloudflare/SOURCE_FILE, PDF→MinIO).
 ---
 
 # NiFi + Python Generic Ingestion
@@ -44,9 +44,11 @@ extractor.py  ──▶  normalizer.py  (Pydantic models.py)  ──▶  loader
    (`Record(**record).model_dump()`); records that fail validation are logged and
    skipped. **`models.py` is the schema contract for this step.**
 3. **Load** — PROD (default) emits NDJSON to stdout for NiFi
-   (`PutDatabaseRecord`); DEV (`--env dev`) writes directly via
-   `PostgresLoader`/`ElasticLoader` (`--use-dlt` switches to dlt). PROD Python
-   holds no DB credentials.
+   (`PutDatabaseRecord`). Loading **also** runs when a connection URI is present
+   (`PG_URI`/`ELASTICSEARCH_URL`/`MINIO_URI` or `--pg-uri`/`--elasticsearch-url`/
+   `--minio-uri`) — each URI = one sink — written via
+   `PostgresLoader`/`ElasticLoader`/`MinioLoader` (`--use-dlt` switches postgres
+   to dlt). PROD Python holds no DB credentials.
 
 ## Folder convention
 
@@ -67,6 +69,15 @@ ingestion/usecases/<usecase>/<publisher>/<source>/normalizer.py  # class Normali
 Relative imports: from any source module (`extractor.py`, `normalizer.py`,
 `models.py`) use **`.....core...`** (five dots). Sibling modules use `from .models
 import Record`.
+
+## Install
+
+- **PROD** (extract + normalize, NDJSON to stdout; no DB clients):
+  `pip install -r requirements.txt`.
+- **DEV** (loaders postgres/elastic/minio, DB sources, catalog/docs tooling):
+  `pip install -r requirements-dev.txt` — it `-r requirements.txt` and adds
+  `dlt[postgres]`, `psycopg2-binary`, `elasticsearch`, `sqlalchemy`,
+  `google-api-python-client`, `google-auth`.
 
 ## Environment variables
 
@@ -101,9 +112,16 @@ and loads to every sink whose URI is present:
 
 ```
 PG_URI=postgresql://user:password@host:5432/db
-ELASTICSEARCH_URL=https://user:password@host:9200
+ELASTICSEARCH_URL=http://user:password@host:9200
 MINIO_URI=minio://access:secret@host:9000/bucket?secure=true
 ```
+
+- `ELASTICSEARCH_URL` must match the server scheme (`http` for ES 8 on :9200
+  unless TLS is on). The client pins to `elasticsearch>=8,<9` for an ES 8 server.
+- MinIO TLS (server missing its chain / internal CA): `MINIO__CA_CERT=/path/bundle.pem`
+  (or `?ca_cert=...`); dev-only skip via `?verify=false` / `MINIO__TLS_VERIFY=false`.
+- Discrete `MINIO__*` / `DEV__POSTGRES_*` / `ELASTIC__*` still work as fallbacks
+  when no URI is set.
 
 ## CLI
 
@@ -112,15 +130,20 @@ MINIO_URI=minio://access:secret@host:9000/bucket?secure=true
 python -m ingestion run --usecase ketenagakerjaan --source kasus_perselisihan
 # Run every source under a publisher
 python -m ingestion run --usecase ketenagakerjaan --publisher kemnaker
-# DEV direct-write vs PROD NDJSON
+# PROD NDJSON vs direct load (URI present enables loading; each URI = one sink)
 python -m ingestion run --usecase ... --source ... --mode dev --env dev
+python -m ingestion run --usecase ... --source ... --pg-uri "$PG_URI" --minio-uri "$MINIO_URI"
+# Pass a secret/extra source key (JSON) from the orchestrator
+python -m ingestion run --usecase ... --source ... --env dev --extra-vars '{"BPS_WEBAPI_KEY":"..."}'
 
-# Docs from SharePoint catalog + Data Dictionary; optional scaffolding
+# Docs from the catalog (DOCS_SOURCE: spreadsheet|sharepoint); grouped per use case
 python -m ingestion docs --usecase ketenagakerjaan --env dev
 python -m ingestion docs --usecase ketenagakerjaan --publisher kemnaker
 python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
 python -m ingestion docs --usecase ketenagakerjaan --env dev --scaffold
 python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan" --scaffold-overwrite
+python -m ingestion docs --list    # bare = all; inventory only, no env/credentials needed
+python -m ingestion docs --list sources --usecase ketenagakerjaan
 ```
 
 - The source's single `extractor.py` owns the whole retrieval pipeline.
@@ -142,7 +165,7 @@ python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
    `--scaffold` also refreshes each `models.py` from the dictionary while keeping
    hand-written code; or copy the example source.
 2. Fill `models.py` (`class Record`) from the generated
-   `docs/dictionary_<usecase>_<source>.md`; map source column names to canonical
+   `docs/<usecase>/dictionary_<source>.md`; map source column names to canonical
    fields with Pydantic `validation_alias=AliasChoices(...)`; add
    `@model_validator(mode="before")` for value transforms (e.g. period→year).
 3. Implement `extractor.py` (`class Extractor`) — subclass the generic base
@@ -164,7 +187,7 @@ itu sendiri (`extractor.py`, `models.py`, `normalizer.py`). Flow selalu 3 langka
 | Tahap | Pilihan |
 |---|---|
 | **extractor** | scrapping (landing page → ambil link), download/baca Excel, download PDF → MinIO, panggil API |
-| **normalize** | validasi Pydantic lewat `models.py` (field dari `docs/dictionary_<usecase>_<source>.md`) |
+| **normalize** | validasi Pydantic lewat `models.py` (field dari `docs/<usecase>/dictionary_<source>.md`) |
 | **loaders** | postgres, elastic, minio |
 
 ### Template
@@ -177,7 +200,7 @@ Semua kode kustom HANYA di folder source ini — jangan ubah core/ atau source l
 1. extractor.py (class Extractor): <scrapping URL landing lalu ambil link excel |
    download & baca Excel | download PDF ke MinIO | panggil API> — <detail selektor/kolom/header>.
 2. models.py (class Record): validasi via Pydantic; map kolom sumber → field kanonik
-   (AliasChoices). Acuan field: docs/dictionary_<usecase>_<source>.md
+   (AliasChoices). Acuan field: docs/<usecase>/dictionary_<source>.md
    (hasilkan dengan: python -m ingestion docs --usecase <uc> --env dev).
 3. loader: <postgres | elastic | minio>.
 
@@ -193,7 +216,7 @@ Semua kode kustom HANYA di folder ini — jangan ubah core/ atau source lain.
 1. extractor : scrapping URL, kemudian membaca Excel.
 2. normalize : validasi dengan models.py
    (bigaction/python-script/scripts/ingestion/usecases/ketenagakerjaan/kemnaker/data_mogok_kerja/models.py),
-   field di-consume dari markdown docs/dictionary_ketenagakerjaan_data_mogok_kerja.md
+   field di-consume dari markdown docs/ketenagakerjaan/dictionary_data_mogok_kerja.md
    lewat `python -m ingestion docs --usecase ketenagakerjaan --source data_mogok_kerja --env dev`.
 3. loaders : insert PostgreSQL.
 
@@ -224,12 +247,19 @@ Verifikasi: python -m ingestion run --usecase ketenagakerjaan --source data_mogo
 
 ## `docs` command behavior
 
-- Writes `docs/usecase_<usecase>.md` (Sources table + Targets table) and
-  `docs/dictionary_<usecase>_<source>.md` per source.
+Docs are grouped **per use case** under `docs/<usecase>/` (the flat layout grew
+too large). The catalog source is `DOCS_SOURCE` (`spreadsheet` | `sharepoint`),
+read from `.env.<profile>` — so run docs with `--env dev` (or set `DOCS_SOURCE`
+in `.env`). `docs --list` prints an inventory **without generating anything and
+without any credentials/env** (bare `--list` = `all`; or
+`--list usecases|publishers|sources|all`).
+
+- Writes `docs/<usecase>/usecase.md` (Sources table + Targets table) and
+  `docs/<usecase>/dictionary_<source>.md` per source.
 - Dictionary reading **starts** at the header row containing
   `Label, Tipe Data, Satuan, Deskripsi` and **ends** at the first fully-empty
   row; column names are normalized to lower snake_case (`name`).
-- Also writes `docs/usecase_<usecase>.env` with
+- Also writes `docs/<usecase>/usecase.env` with
   `POSTGRE_SCHEMA`, `POSTGRE_TABLE` (`schema.table`), `ES_INDEX`, `MINIO_BUCKET`.
 - Only `Eligible = true` sources are structured/scaffolded/env-emitted;
   `--include-ineligible` overrides for dictionaries.
@@ -238,8 +268,8 @@ Verifikasi: python -m ingestion run --usecase ketenagakerjaan --source data_mogo
   preserving hand-written code (imports, extra classes, methods, custom field
   aliases). `--scaffold-overwrite` fully replaces existing scaffold files, also
   limited to that scope.
-- `docs/usecase_<usecase>.env` is auto-loaded by `load_env()` when running that
-  usecase (the generated fragment stays under `docs/`).
+- `docs/<usecase>/usecase.env` is auto-loaded by `load_env()` when running that
+  use case.
 
 ## SharePoint
 

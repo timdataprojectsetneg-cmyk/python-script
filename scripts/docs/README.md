@@ -1,20 +1,23 @@
 # Reference Docs
 
-Markdown generated from the SharePoint use case catalog and Data Dictionary files.
+Markdown generated from the use case catalog (SharePoint or spreadsheet) and
+Data Dictionary files. Docs are grouped **per use case** (`docs/<usecase>/`).
 
 Generate with:
 
 ```bash
-python -m ingestion.cli docs --usecase ketenagakerjaan
-python -m ingestion.cli docs --usecase ketenagakerjaan --source-name "Kasus Perselisihan"
+python -m ingestion.cli docs --usecase ketenagakerjaan --env dev
+python -m ingestion.cli docs --usecase ketenagakerjaan --source-name "Kasus Perselisihan" --env dev
 ```
 
-Outputs:
+Catalog source is selected by `DOCS_SOURCE` (loaded from `.env.<profile>`):
+`spreadsheet` (default here) or `sharepoint`.
 
-- `usecase_<usecase>.md` — catalog table, proposed module structure, env vars
-  (blueprint for scaffolding a use case's folders/files).
-- `dictionary_<usecase>_<source>.md` — field table + generated Pydantic model
-  (blueprint for the source's `models.py`).
+Outputs (per use case):
 
-These files are generated artifacts; regenerate them from SharePoint rather than
-editing by hand.
+- `docs/<usecase>/usecase.md` — catalog table, proposed module structure.
+- `docs/<usecase>/usecase.env` — generated per-source env vars.
+- `docs/<usecase>/dictionary_<source>.md` — field table + generated Pydantic
+  model (blueprint for the source's `models.py`).
+
+These files are generated artifacts; regenerate them rather than editing by hand.

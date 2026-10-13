@@ -4,6 +4,7 @@
 - Masukkan seluruh file python kamu kedalam folder `scripts`
 - Untuk menambahkan package, silahkan lakukan `pip freeze > requirements.txt`
 - Kemudian, push ke branch yang terhubung dengan pipeline CI/CD (lihat `.gitlab-ci.yml`; job _Build Development_ men-sync `scripts/` dan meng-install `requirements.txt`) dan tunggu hingga instalasi package baru selesai.
+- Dependencies dipisah: `requirements.txt` (**prod** — extract + normalize) dan `requirements-dev.txt` (**dev** — loaders/DB sources/docs tooling; berisi `-r requirements.txt`). Untuk package DEV, jangan di-`pip freeze` ke `requirements.txt` — masukkan ke `requirements-dev.txt` agar image prod tetap ramping.
 
 ## Bigaction Configuration ##
 Untuk mengimplementasi script dalam __Bigaction__, silahkan ikuti petunjuk dibawah:
@@ -20,7 +21,7 @@ Selain script standalone, folder `scripts` berisi framework ingestion generik (p
 
 - Dokumentasi lengkap: `scripts/SKILL.md`.
 - Menjalankan satu source: `python -m ingestion run --usecase <uc> --source <src> --env dev`.
-- Generate docs/scaffold dari SharePoint: `python -m ingestion docs --usecase <uc> --env dev --scaffold`.
+- Generate docs/scaffold dari katalog (SharePoint/spreadsheet): `python -m ingestion docs --usecase <uc> --env dev --scaffold`.
 - Wiring NiFi: `scripts/nifi/README.md`.
 
 ## Environment Variables ##

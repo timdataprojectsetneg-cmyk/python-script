@@ -60,7 +60,7 @@ def error_location(exc: BaseException, run_from: str | None = None) -> str:
 
 def _apply_env(profile: Optional[str]) -> None:
     """Activate the ``--env`` profile and ensure the file exists."""
-    from .config import env_profile_file, get_env_profile, set_env_profile
+    from .config import env_profile_file, get_env_profile, load_env, set_env_profile
 
     if profile:
         set_env_profile(profile)
@@ -70,6 +70,11 @@ def _apply_env(profile: Optional[str]) -> None:
             f"Env profile '.env.{active}' not found. Create it (keep it out of the repo) "
             f"or drop --env."
         )
+    # Load the selected profile before callers inspect process-level settings
+    # such as DOCS_SOURCE. Previously docs command read os.environ directly
+    # while .env.dev had only been selected, causing an unintended SharePoint
+    # fallback even when DOCS_SOURCE=spreadsheet was configured.
+    load_env()
 
 
 def _apply_extra_vars(raw: Optional[str]) -> List[str]:
@@ -440,8 +445,11 @@ def run(
     "--list",
     "list_kind",
     default=None,
+    is_flag=False,
+    flag_value="all",
     type=click.Choice(["usecases", "publishers", "sources", "all"]),
-    help="List inventory instead of generating docs: usecases | publishers | sources | all "
+    help="List inventory instead of generating docs — no credentials/env needed. "
+    "Bare --list = all; or --list usecases|publishers|sources|all "
     "(combine with --usecase/--publisher to filter).",
 )
 @click.option("--output", default="./docs", show_default=True, help="Output directory for Markdown docs")
@@ -478,11 +486,12 @@ def docs(
     env_profile: Optional[str],
     log_level: str,
 ) -> None:
-    """Generate Markdown docs from the SharePoint catalog and Data Dictionary.
+    """Generate Markdown docs from the catalog (SharePoint or spreadsheet).
 
-    Always writes ``usecase_<usecase>.md``. Writes ``dictionary_<usecase>_<source>.md``
-    for eligible sources, or only those under ``--publisher`` / the one given by
-    ``--source``. With ``--scaffold``, creates the module folders/files.
+    Docs are grouped per use case under ``docs/<usecase>/``: always writes
+    ``usecase.md`` and ``usecase.env``, plus ``dictionary_<source>.md`` for
+    eligible sources (or only those under ``--publisher`` / the one given by
+    ``--source``). With ``--scaffold``, creates the module folders/files.
 
     With ``--list``, prints an inventory instead: ``--list usecases``,
     ``--list publishers --usecase X``, ``--list sources --publisher Y``,
@@ -550,16 +559,25 @@ def _generate_docs(
     include_ineligible: bool = False,
     publisher: Optional[str] = None,
 ) -> None:
-    from .sharepoint.client import SharePointClient
-    from .sharepoint.markdown_docs import (
+    docs_source = os.environ.get("DOCS_SOURCE", "sharepoint").strip().lower()
+    if docs_source == "spreadsheet":
+        from .spreadsheet.client import SpreadsheetClient
+        client = SpreadsheetClient()
+    elif docs_source == "sharepoint":
+        from .sharepoint.client import SharePointClient
+        client = SharePointClient()
+    else:
+        raise ConfigError("DOCS_SOURCE must be 'sharepoint' or 'spreadsheet'")
+    from .catalog.markdown_docs import (
         dictionary_filename,
         env_lines,
         render_dictionary_markdown,
         render_usecase_markdown,
+        usecase_dir,
         usecase_filename,
         write_markdown,
     )
-    from .sharepoint.metadata_parser import (
+    from .catalog.metadata_parser import (
         derive_module_name,
         is_eligible,
         is_source_row,
@@ -571,7 +589,6 @@ def _generate_docs(
         source_slug,
     )
 
-    client = SharePointClient()
     catalog_ref = client.catalog_ref(catalog)
     logger.info("Catalog reference: %s", catalog_ref)
 
@@ -595,15 +612,18 @@ def _generate_docs(
     eligible = [s for s in sources if is_eligible(s)]
     logger.info("Sources: %s total, %s eligible", len(sources), len(eligible))
 
+    # Docs are grouped per use case: docs/<usecase>/...
+    docs_dir = Path(output) / usecase_dir(usecase)
+    docs_dir.mkdir(parents=True, exist_ok=True)
+
     usecase_path = write_markdown(
         render_usecase_markdown(usecase, sources, catalog_ref),
-        output,
+        str(docs_dir),
         usecase_filename(usecase),
     )
     logger.info("Wrote %s (%s sources)", usecase_path, len(sources))
 
-    env_path = Path(output) / f"{usecase_filename(usecase)[:-3]}.env"
-    env_path.parent.mkdir(parents=True, exist_ok=True)
+    env_path = docs_dir / "usecase.env"
     preserved = _preserve_env_values(env_path, ("METHOD", "UNIQUE_KEY"))
     env_path.write_text(
         "\n".join(env_lines(usecase, sources, preserved=preserved)) + "\n", encoding="utf-8"
@@ -611,11 +631,10 @@ def _generate_docs(
     logger.info("Wrote %s (env vars for eligible sources)", env_path)
 
     # Dictionary markdown is generated per source; remove stale ineligible
-    # dictionaries so the docs directory reflects the current catalog.
+    # dictionaries so the use case folder reflects the current catalog.
     eligible_slugs = {source_slug(source) for source in eligible}
-    usecase_slug = usecase_filename(usecase)[len("usecase_") : -len(".md")]
-    for stale in Path(output).glob(f"dictionary_{usecase_slug}_*.md"):
-        slug = stale.stem.removeprefix(f"dictionary_{usecase_slug}_")
+    for stale in docs_dir.glob("dictionary_*.md"):
+        slug = stale.stem.removeprefix("dictionary_")
         if slug not in eligible_slugs:
             stale.unlink()
             logger.info("Removed ineligible documentation: %s", stale)
@@ -681,13 +700,13 @@ def _generate_docs(
         )
         path = write_markdown(
             render_dictionary_markdown(usecase, sname, schema, source, module_path),
-            output,
-            dictionary_filename(usecase, slug),
+            str(docs_dir),
+            dictionary_filename(slug),
         )
         logger.info("Wrote %s (%s fields)", path, len(schema))
 
     if scaffold:
-        from .sharepoint.scaffold import remove_ineligible_sources, scaffold_usecase
+        from .catalog.scaffold import remove_ineligible_sources, scaffold_usecase
 
         scaffold_root = "ingestion/usecases"
         scaffold_targets = [s for s in targets if is_eligible(s)]

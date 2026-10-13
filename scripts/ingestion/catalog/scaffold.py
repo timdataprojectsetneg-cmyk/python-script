@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .metadata_parser import derive_access, derive_module_name, publisher_slug, source_slug, to_pydantic_source
 
+__all__ = ["merge_models_source", "remove_ineligible_sources", "scaffold_usecase"]
+
 EXTRACTOR_BASES = {
     "excel": ("ExcelExtractor", "core.extractors.excel_extractor"),
     "api": ("ApiExtractor", "core.extractors.api_extractor"),
@@ -31,7 +33,7 @@ def _models_source(source_name: str, schema: List[Dict[str, Any]]) -> str:
         header
         + "from pydantic import BaseModel, ConfigDict\n\n\n"
         + "class Record(BaseModel):\n"
-        + '    """TODO: fill fields from docs/dictionary_<usecase>_<source>.md."""\n\n'
+        + '    """TODO: fill fields from docs/<usecase>/dictionary_<source>.md."""\n\n'
         + "    model_config = ConfigDict(extra=\"ignore\", populate_by_name=True)\n"
     )
 

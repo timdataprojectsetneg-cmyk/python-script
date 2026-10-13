@@ -1,9 +1,11 @@
-"""Render SharePoint catalog / Data Dictionary data as Markdown reference docs.
+"""Render catalog / Data Dictionary data as Markdown reference docs.
 
-Outputs (written to the ``docs/`` folder by the ``docs`` CLI command):
+Docs are grouped **per use case** (the folder grows quickly otherwise). Outputs,
+written under ``docs/`` by the ``docs`` CLI command:
 
-- ``usecase_<usecase>.md``                        — source catalog + proposed module structure
-- ``dictionary_<usecase>_<source>.md``            — field dictionary + generated Pydantic model
+- ``docs/<usecase>/usecase.md``             — source catalog + proposed module structure
+- ``docs/<usecase>/usecase.env``            — generated per-source env vars
+- ``docs/<usecase>/dictionary_<source>.md`` — field dictionary + generated Pydantic model
 
 These documents are intended as the working reference for scaffolding a use
 case's folder/file structure and for writing its Pydantic models.
@@ -27,13 +29,23 @@ from .metadata_parser import (
     to_snake_case,
 )
 
+__all__ = [
+    "dictionary_filename", "env_lines", "render_dictionary_markdown",
+    "render_usecase_markdown", "usecase_dir", "usecase_filename", "write_markdown",
+]
+
+
+def usecase_dir(usecase: str) -> str:
+    """Per-usecase docs folder name (e.g. ``ketenagakerjaan``)."""
+    return derive_module_name(usecase)
+
 
 def usecase_filename(usecase: str) -> str:
-    return f"usecase_{derive_module_name(usecase)}.md"
+    return "usecase.md"
 
 
-def dictionary_filename(usecase: str, source: str) -> str:
-    return f"dictionary_{derive_module_name(usecase)}_{derive_module_name(source)}.md"
+def dictionary_filename(source: str) -> str:
+    return f"dictionary_{derive_module_name(source)}.md"
 
 
 def _cell(value: Any) -> str:
@@ -169,7 +181,7 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
         "## Next steps",
         "",
         f"1. Scaffold eligible sources: `python -m ingestion.cli docs --usecase {usecase_slug} --scaffold`",
-        "2. For each source, open `docs/dictionary_<usecase>_<source>.md` and copy the Pydantic model into `models.py`.",
+        f"2. For each source, open `docs/{usecase_slug}/dictionary_<source>.md` and copy the Pydantic model into `models.py`.",
         "3. Implement `normalizer.py` (or rely on the generic normalizer validating against `Record`).",
         "4. Implement `<source>/extractor.py` (class `Extractor`), subclassing the generic base.",
         "5. Register the source environment variables and run in DEV mode.",

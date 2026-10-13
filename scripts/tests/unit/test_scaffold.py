@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from ingestion.sharepoint.metadata_parser import publisher_slug, source_slug, to_pydantic_source
-from ingestion.sharepoint.scaffold import (
+from ingestion.catalog.metadata_parser import publisher_slug, source_slug, to_pydantic_source
+from ingestion.catalog.scaffold import (
     merge_models_source,
     remove_ineligible_sources,
     scaffold_usecase,

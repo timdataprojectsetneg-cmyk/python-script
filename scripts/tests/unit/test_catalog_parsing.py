@@ -1,7 +1,7 @@
 """Tests for catalog sheet header detection, parsing and filtering."""
 
 from ingestion.sharepoint.client import SharePointClient
-from ingestion.sharepoint.metadata_parser import (
+from ingestion.catalog.metadata_parser import (
     derive_module_name,
     effective_url,
     is_eligible,

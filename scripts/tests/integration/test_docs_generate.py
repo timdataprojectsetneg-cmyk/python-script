@@ -62,10 +62,11 @@ def test_generate_docs_all(monkeypatch, tmp_path):
     out = tmp_path / "docs"
     _generate_docs("ketenagakerjaan", None, str(out), None)
 
-    assert (out / "usecase_ketenagakerjaan.md").exists()
-    assert (out / "dictionary_ketenagakerjaan_kasus_perselisihan.md").exists()
-    assert (out / "dictionary_ketenagakerjaan_data_mogok_kerja.md").exists()
-    assert "Jenis_Perselisihan" in (out / "dictionary_ketenagakerjaan_kasus_perselisihan.md").read_text()
+    uc = out / "ketenagakerjaan"
+    assert (uc / "usecase.md").exists()
+    assert (uc / "dictionary_kasus_perselisihan.md").exists()
+    assert (uc / "dictionary_data_mogok_kerja.md").exists()
+    assert "Jenis_Perselisihan" in (uc / "dictionary_kasus_perselisihan.md").read_text()
 
 
 def test_generate_docs_single_source(monkeypatch, tmp_path):
@@ -73,9 +74,10 @@ def test_generate_docs_single_source(monkeypatch, tmp_path):
     out = tmp_path / "docs"
     _generate_docs("ketenagakerjaan", "Data Mogok Kerja", str(out), None)
 
-    assert (out / "usecase_ketenagakerjaan.md").exists()
-    assert (out / "dictionary_ketenagakerjaan_data_mogok_kerja.md").exists()
-    assert not (out / "dictionary_ketenagakerjaan_kasus_perselisihan.md").exists()
+    uc = out / "ketenagakerjaan"
+    assert (uc / "usecase.md").exists()
+    assert (uc / "dictionary_data_mogok_kerja.md").exists()
+    assert not (uc / "dictionary_kasus_perselisihan.md").exists()
 
 
 def test_generate_docs_prefers_file_id(monkeypatch, tmp_path):

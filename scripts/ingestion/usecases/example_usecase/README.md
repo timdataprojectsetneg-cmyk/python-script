@@ -23,7 +23,7 @@ usecases/<usecase>/<publisher>/<source>/
    derived from the catalog: `Kemnaker` -> `kemnaker`, `Kasus Perselisihan` ->
    `kasus_perselisihan`).
 2. Define the Pydantic schema in `models.py` (class **`Record`**) mirroring the
-   SharePoint Data Dictionary. `sharepoint.metadata_parser.to_pydantic_source()`
+   catalog Data Dictionary. `catalog.metadata_parser.to_pydantic_source()`
    can generate a starting point.
 3. Implement `normalizer.py` (class **`Normalizer`**) if custom mapping is needed.
    If omitted, the generic normalizer is used and validates against `Record`.

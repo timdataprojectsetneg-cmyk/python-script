@@ -1,6 +1,6 @@
 """Tests for Data Dictionary matrix parsing and snake_case column names."""
 
-from ingestion.sharepoint.metadata_parser import (
+from ingestion.catalog.metadata_parser import (
     parse_dictionary_matrix,
     to_pydantic_source,
     to_snake_case,

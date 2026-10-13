@@ -3,7 +3,7 @@
 from datetime import date, datetime
 
 from ingestion.core.loaders.postgres_loader import _column_type, _json_dumps
-from ingestion.sharepoint.metadata_parser import to_pydantic_source
+from ingestion.catalog.metadata_parser import to_pydantic_source
 
 
 def test_to_pydantic_source_maps_date_and_datetime():
