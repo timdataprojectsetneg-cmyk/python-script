@@ -94,14 +94,20 @@ Common keys: `URL`, `TABLE`, `SCHEMA`, `POSTGRE_SCHEMA`, `POSTGRE_TABLE`,
 `API_KEY`, `TOKEN`, `PAGINATION_TYPE`,
 `PAGINATION_PARAM`, `DATA_PATH`, `ITEM_SELECTOR`, `FIELDS`, `DOWNLOAD_SELECTOR`,
 `DOWNLOAD_URL`, `SOURCE_FILE`, `SHEET`, `HEADER_ROW`, `METHOD`,
-`UNIQUE_KEY`, `HTTP_METHOD`, `IMPERSONATE`.
+`UNIQUE_KEY`, `HTTP_METHOD`, `IMPERSONATE`, `SOURCE_LINK`.
 
 Load method (DEV `postgres`/`elastic` target): `METHOD` is `replace` (default)
 or `upsert`; `upsert` requires `UNIQUE_KEY` (comma/semicolon-separated, one or
-one or
-more columns, default empty). `replace` truncates/recreates the target before
-writing. For API sources the HTTP verb is `HTTP_METHOD` (legacy: `METHOD` is
-still honored when it is a verb like `GET`/`POST`).
+more columns, default empty). `replace` **drops the table before recreating it**,
+so column types and comments always track the current dictionary/extractor result
+(a plain truncate would leave stale metadata). For API sources the HTTP verb is
+`HTTP_METHOD` (legacy: `METHOD` is still honored when it is a verb like `GET`/`POST`).
+
+The loader sets metadata comments on every load: column comments come from the
+Record model's `Field(description=...)`, and the table comment is `SOURCE_LINK`
+(falling back to `URL`) from the generated env, e.g.
+`COMMENT ON TABLE schema.table IS 'https://.../sumber'`. Regenerate the env with
+`docs` after the catalog gains the Source Link column so `SOURCE_LINK` is emitted.
 
 Global (non-namespaced) secrets live directly in `.env.dev` and are read with
 `config.get_raw("KEY")`, e.g. `BPS_WEBAPI_KEY` for the BPS WebAPI extractors.

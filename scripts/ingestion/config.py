@@ -33,6 +33,7 @@ _profile: Optional[str] = None
 # Keys that are safe/expected at the {USECASE}__{PUBLISHER}__{SOURCE}__ level.
 KNOWN_KEYS = (
     "URL",
+    "SOURCE_LINK",
     "SCHEMA",
     "TABLE",
     "TARGET",

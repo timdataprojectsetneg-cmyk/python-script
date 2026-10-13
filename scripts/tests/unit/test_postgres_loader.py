@@ -1,6 +1,59 @@
-"""PostgreSQL loader helpers: upsert batch de-duplication."""
+"""PostgreSQL loader helpers: upsert batch de-duplication and table prep."""
 
-from ingestion.core.loaders.postgres_loader import _dedupe_rows
+from psycopg2 import sql
+
+from ingestion.core.loaders.postgres_loader import _dedupe_rows, _prepare_table
+
+
+def _as_sql(node) -> str:
+    """Flatten a psycopg2.sql object to text without a live connection."""
+    if isinstance(node, sql.Composed):
+        return "".join(_as_sql(part) for part in node.seq)
+    if isinstance(node, sql.Identifier):
+        return ".".join(node._wrapped)
+    if isinstance(node, sql.Literal):
+        return repr(node._wrapped)
+    if isinstance(node, sql.SQL):
+        return node._wrapped
+    return str(node)
+
+
+class _FakeCursor:
+    def __init__(self):
+        self.statements = []
+
+    def execute(self, statement, params=None):
+        self.statements.append(_as_sql(statement))
+
+
+ROWS = [{"nomor_perkara": "A", "nilai": 5}]
+
+
+def test_prepare_table_replace_drops_then_creates_with_comment():
+    cur = _FakeCursor()
+
+    _prepare_table(
+        cur, sql, "raw_x", "data_y", ["nomor_perkara", "nilai"], ROWS, [],
+        "replace", {"nomor_perkara": "Nomor perkara."}, "https://example.org/sumber",
+    )
+
+    assert cur.statements[0] == "DROP TABLE IF EXISTS raw_x.data_y"
+    assert any(s.startswith("CREATE TABLE IF NOT EXISTS raw_x.data_y") for s in cur.statements)
+    assert "COMMENT ON TABLE raw_x.data_y IS 'https://example.org/sumber'" in cur.statements
+
+
+def test_prepare_table_upsert_keeps_table_and_ensures_unique_index():
+    cur = _FakeCursor()
+
+    _prepare_table(
+        cur, sql, "raw_x", "data_y", ["nomor_perkara", "nilai"], ROWS, ["nomor_perkara"],
+        "upsert", {}, "",
+    )
+
+    assert not any(s.startswith("DROP TABLE") for s in cur.statements)
+    assert any(s.startswith("CREATE UNIQUE INDEX IF NOT EXISTS") for s in cur.statements)
+    assert not any(s.startswith("COMMENT ON TABLE") for s in cur.statements)
+
 
 
 def test_dedupe_keeps_last_occurrence():

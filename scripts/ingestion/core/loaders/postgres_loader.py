@@ -193,7 +193,6 @@ def _ensure_table(
     columns: list[str],
     rows: list[Dict[str, Any]],
     keys: list[str],
-    comments: Dict[str, str],
 ) -> None:
     """Create a missing table from the Pydantic fields and observed values."""
     observed = list(dict.fromkeys(column for row in rows for column in row))
@@ -204,7 +203,19 @@ def _ensure_table(
     if keys:
         definitions.append(sql.SQL("PRIMARY KEY ({})").format(sql.SQL(", ").join(sql.Identifier(key) for key in keys)))
     cur.execute(sql.SQL("CREATE TABLE IF NOT EXISTS {}.{} ({})").format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(", ").join(definitions)))
-    for column in ordered:
+
+
+def _apply_comments(
+    cur: Any,
+    sql: Any,
+    schema: str,
+    table: str,
+    columns: list[str],
+    comments: Dict[str, str],
+    table_comment: str = "",
+) -> None:
+    """Refresh metadata comments from the dictionary (column + table)."""
+    for column in columns:
         comment = comments.get(column)
         if comment:
             cur.execute(
@@ -215,6 +226,14 @@ def _ensure_table(
                     sql.Literal(comment),
                 )
             )
+    if table_comment:
+        cur.execute(
+            sql.SQL("COMMENT ON TABLE {}.{} IS {}").format(
+                sql.Identifier(schema),
+                sql.Identifier(table),
+                sql.Literal(table_comment),
+            )
+        )
 
 
 def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list[str]) -> None:
@@ -234,6 +253,34 @@ def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list
             sql.SQL(", ").join(sql.Identifier(key) for key in keys),
         )
     )
+
+
+def _prepare_table(
+    cur: Any,
+    sql: Any,
+    schema: str,
+    table: str,
+    columns: list[str],
+    rows: list[Dict[str, Any]],
+    keys: list[str],
+    method: str,
+    comments: Dict[str, str],
+    table_comment: str,
+) -> Any:
+    """Create/refresh the target table and its comments for the current load.
+
+    ``replace`` drops the table first so column types and comments are rebuilt
+    from the current model/extractor result; ``upsert`` keeps the existing table
+    but refreshes comments and ensures the unique index.
+    """
+    qualified = sql.SQL("{}.{}").format(sql.Identifier(schema), sql.Identifier(table))
+    if method == "replace":
+        cur.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(qualified))
+    _ensure_table(cur, sql, schema, table, columns, rows, keys)
+    _apply_comments(cur, sql, schema, table, columns, comments, table_comment)
+    if method == "upsert":
+        _ensure_unique_index(cur, sql, schema, table, keys)
+    return qualified
 
 
 class PostgresLoader(BaseLoader):
@@ -281,15 +328,13 @@ class PostgresLoader(BaseLoader):
             columns.append(timestamp_column)
         if not columns:
             return 0
+        table_comment = str(self.config.get("source_link") or self.config.get("url") or "").strip()
         conn = psycopg2.connect(host=creds["host"], port=creds["port"], dbname=creds["database"], user=creds["username"], password=creds["password"])
         try:
             with conn, conn.cursor() as cur:
-                qualified = sql.SQL("{}.{}").format(sql.Identifier(schema), sql.Identifier(table))
-                _ensure_table(cur, sql, schema, table, columns, rows, keys, comments)
-                if method == "upsert":
-                    _ensure_unique_index(cur, sql, schema, table, keys)
-                if method == "replace":
-                    cur.execute(sql.SQL("TRUNCATE TABLE {}" ).format(qualified))
+                qualified = _prepare_table(
+                    cur, sql, schema, table, columns, rows, keys, method, comments, table_comment
+                )
                 column_sql = sql.SQL(", ").join(sql.Identifier(column) for column in columns)
                 values = [
                     [

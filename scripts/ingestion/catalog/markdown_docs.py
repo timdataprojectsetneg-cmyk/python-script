@@ -113,6 +113,7 @@ def env_lines(
         slug = source_slug(source)
         prefix = f"{usecase_slug}__{publisher}__{slug}".upper()
         lines.append(f"{prefix}__URL={effective_url(source) or ''}")
+        lines.append(f"{prefix}__SOURCE_LINK={source.get('source_link') or effective_url(source) or ''}")
         schema, postgre_table = split_postgre(source.get("raw_postgre_table"))
         targets = (
             ("POSTGRE_SCHEMA", schema),
