@@ -25,10 +25,11 @@ Environment:
 
 from __future__ import annotations
 
+import base64
 import math
 import re
 from typing import Any, Dict, List, Optional
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 import requests
 
@@ -44,6 +45,8 @@ GUID_RE = re.compile(
 )
 OPAQUE_ID_RE = re.compile(r"^[A-Za-z0-9_\-!]{16,}$")
 _ORDINAL_RE = re.compile(r"^\s*\d+[.)]\s+")
+_COPY_SUFFIX_RE = re.compile(r"\s*\(\d+\)(?=\.[^./\\]*$|$)")
+_NAV_SHEET_RE = re.compile(r"^15_\{00000000-0001-0000-([0-9A-Fa-f]{2})00-000000000000\}$")
 
 
 def is_item_id(ref: str) -> bool:
@@ -158,12 +161,15 @@ class SharePointClient:
         """Find a child matching ``filename``, tolerant of an ordinal prefix.
 
         Names are compared after ignoring an optional leading ordinal (``1. ``,
-        ``2) ``), so a file renamed for ordering (``1. Foo.xlsx``) still matches
-        ``Foo.xlsx`` without updating the catalog. An exact name wins; otherwise
-        the shortest equivalent name is chosen (deterministic on collisions).
+        ``2) ``) and a trailing copy suffix (`` (1)``), so a file renamed for
+        ordering (``1. Foo.xlsx``) or by an upload copy (``Foo (1).xlsx``) still
+        matches ``Foo.xlsx`` without updating the catalog. An exact name wins;
+        otherwise the shortest equivalent name is chosen (deterministic on
+        collisions).
         """
         def normalize(name: Any) -> str:
-            return _ORDINAL_RE.sub("", str(name).strip()).strip().casefold()
+            text = _ORDINAL_RE.sub("", str(name).strip()).strip()
+            return _COPY_SUFFIX_RE.sub("", text).strip().casefold()
 
         target = normalize(filename)
         if not target:
@@ -244,6 +250,78 @@ class SharePointClient:
         parts.append(f"Data Dictionary - {sheet}")
         parts.append(name)
         return "/".join(parts)
+
+    @staticmethod
+    def share_url_to_path(url: str) -> Optional[str]:
+        """Decode a SharePoint share URL into a drive-relative path.
+
+        ``.../Shared Documents/<path>`` (or ``/Documents/<path>``) becomes
+        ``<path>`` with the leading slash stripped, since the site default library
+        root is the shared documents library. Returns ``None`` when the URL has no
+        known library marker.
+        """
+        if not url or "://" not in url:
+            return None
+        path = unquote(urlsplit(url).path)
+        for marker in ("/Shared Documents/", "/Documents/"):
+            idx = path.lower().find(marker.lower())
+            if idx != -1:
+                return path[idx + len(marker):].strip("/") or None
+        return None
+
+    def resolve_share_url(self, url: str) -> Optional[str]:
+        """Resolve a share URL to an ``id:`` ref via the Graph ``/shares`` API.
+
+        Used when the URL cannot be decoded into a drive path. Returns ``None`` on
+        any error (HTTP >= 400) so the caller can fall back.
+        """
+        if not url or "://" not in url:
+            return None
+        token = base64.urlsafe_b64encode(url.encode("utf-8")).decode("ascii").rstrip("=")
+        api = f"{GRAPH_BASE}/shares/u!{token}/driveItem?$select=id,name,parentReference"
+        resp = requests.get(api, headers=self._headers(), timeout=30)
+        if resp.status_code >= 400:
+            return None
+        item_id = (resp.json() or {}).get("id")
+        return f"id:{item_id}" if item_id else None
+
+    def resolve_dictionary_link(self, link: str, sheet: str) -> Optional[str]:
+        """Resolve a Data Dictionary hyperlink to a file reference.
+
+        A hyperlink is preferred over the cell text because the text is only a
+        display name. Non-URL values are treated as an item id or explicit path,
+        else resolved as a bare filename via :meth:`dictionary_ref`. URLs are
+        decoded to a drive path first, then resolved via the Graph ``/shares`` API.
+        """
+        link = (link or "").strip()
+        if not link:
+            return None
+        if "://" not in link:
+            return link if (is_item_id(link) or "/" in link) else self.dictionary_ref(link, sheet)
+        return self.share_url_to_path(link) or self.resolve_share_url(link)
+
+    @staticmethod
+    def link_sheet_hint(url: str) -> Optional[int]:
+        """Best-effort 0-based sheet index encoded in a share URL's ``nav`` anchor.
+
+        Section links created from the Excel viewer carry a ``nav`` token whose
+        decoded GUID encodes the target sheet ordinal (e.g. ``…-0300-…`` -> sheet
+        index 2). Returns ``None`` when the anchor is absent or not in that form,
+        so callers can fall back to name matching.
+        """
+        if not url or "://" not in url:
+            return None
+        nav = (parse_qs(urlsplit(url).query).get("nav") or [None])[0]
+        if not nav:
+            return None
+        try:
+            decoded = base64.b64decode(nav + "=" * (-len(nav) % 4)).decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            return None
+        match = _NAV_SHEET_RE.match(decoded)
+        if not match:
+            return None
+        return int(match.group(1), 16) - 1
 
     def list_sheets(self, ref: str) -> List[str]:
         from io import BytesIO

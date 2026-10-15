@@ -274,6 +274,11 @@ without any credentials/env** (bare `--list` = `all`; or
 - Dictionary reading **starts** at the header row containing
   `Label, Tipe Data, Satuan, Deskripsi` and **ends** at the first fully-empty
   row; column names are normalized to lower snake_case (`name`).
+- One worksheet may stack several dictionary tables: a later table titled
+  `Data Dictionary <field>` (with or without a colon) becomes the nested fields
+  of that JSON column, e.g. `Data Dictionary Putusan` fills `putusan`. A shared
+  workbook may lead with an empty `Summary` sheet; the first sheet holding a
+  dictionary is used instead.
 - Also writes `docs/<usecase>/usecase.env` with
   `POSTGRE_SCHEMA`, `POSTGRE_TABLE` (`schema.table`), `ES_INDEX`, `MINIO_BUCKET`.
 - Only `Eligible = true` sources are structured/scaffolded/env-emitted;
@@ -292,6 +297,13 @@ Read-only via Microsoft Graph. `SHAREPOINT__FILE_ID` (or `CATALOG_PATH`) for the
 catalog; Data Dictionary files resolve as
 `{SHAREPOINT__DICTIONARY_BASE_PATH}/Data Dictionary - {sheet}/{name}`. Secrets
 (`TENANT_ID`, `CLIENT_ID`, `CLIENT_SECRET`) go in `.env.dev`.
+
+Dictionary resolution order (first that works): the cell **hyperlink** when the
+catalog has one (decoded to a drive path, else resolved via Graph `/shares`),
+then an **item id / explicit path**, then the **cell name** per sheet above.
+A link is shared by every source with the same `Data Dictionary` cell text
+(e.g. all UMK rows reuse UMK Aceh's link), and the link's `nav` anchor selects
+the target worksheet when the source name matches no sheet.
 
 ## Combining source & sinks
 

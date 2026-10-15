@@ -8,7 +8,7 @@
 - Data access: `api`
 - Update frequency: Yearly
 - Eligible: `True`
-- Data Dictionary file: [Data Dictionary - Ketenagakerjaan - Hubungan Industrial dan Pengupahan.xlsx](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20Pengupahan.xlsx?d=w44c390bae78b45c7b1e33bdcfe15c94f&csf=1&web=1&e=ZGuELM&nav=MTVfe0NBMUE1NjZFLTQ5MDUtNDZBMi05QTBELTlGMDkzNkM0RTJCNn0)
+- Data Dictionary file: [Data Dictionary - Ketenagakerjaan - Hubungan Industrial dan Pengupahan.xlsx](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/1.%20Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20Pengupahan%20(1).xlsx?d=wff0dbd62d68e4b14823be60d69d2b660&csf=1&web=1&e=K5AnJD&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0xRTAwLTAwMDAwMDAwMDAwMH0)
 - Target module: `ingestion/usecases/ketenagakerjaan/kemnaker/satu_data_kemnaker/models.py`
 
 ## Fields

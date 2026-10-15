@@ -171,6 +171,17 @@ def test_match_child_prefers_exact_then_shortest_suffix(client):
     assert client._match_child(prefixed_only, "Data Dictionary - Foo.xlsx")["id"] == "b"
 
 
+def test_match_child_tolerates_copy_suffix(client):
+    children = [
+        {"name": "1. Data Dictionary - Ketenagakerjaan - Pengupahan (1).xlsx", "id": "a"},
+        {"name": "Unrelated.xlsx", "id": "b"},
+    ]
+    match = client._match_child(
+        children, "Data Dictionary - Ketenagakerjaan - Pengupahan.xlsx"
+    )
+    assert match is not None and match["id"] == "a"
+
+
 def test_download_file_falls_back_to_suffix_match(client, monkeypatch):
     client.drive_id = None
     client.site_id = "contoso.sharepoint.com,sites/SetnegTeam"
@@ -235,5 +246,82 @@ def test_download_file_does_not_fall_back_on_non_404(client, monkeypatch):
     with pytest.raises(SourceUnavailable):
         client.download_file("Folder/Data Dictionary.xlsx")
     assert called["children"] is False
+
+
+SHARE_URL = (
+    "https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/"
+    "Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/"
+    "1.%20Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20"
+    "Pengupahan%20(1).xlsx?d=wff0dbd62d68e4b14823be60d69d2b660&csf=1&web=1&e=9oSUW4"
+    "&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMzAwLTAwMDAwMDAwMDAwMH0"
+)
+
+
+def test_share_url_to_path_decodes_library_path(client):
+    assert client.share_url_to_path(SHARE_URL) == (
+        "Sitroom-2026/PROJECT/DATA/1 - Discover/Data Dictionary - Ketenagakerjaan/"
+        "1. Data Dictionary - Ketenagakerjaan - Hubungan Industrial dan Pengupahan (1).xlsx"
+    )
+
+
+def test_share_url_to_path_without_marker_or_url(client):
+    assert client.share_url_to_path("https://example.com/foo/bar.xlsx") is None
+    assert client.share_url_to_path("not a url") is None
+    assert client.share_url_to_path("") is None
+
+
+def test_resolve_dictionary_link_prefers_path_over_shares(client, monkeypatch):
+    called = {"shares": False}
+
+    def fake_shares(url):
+        called["shares"] = True
+        return "id:SHOULD_NOT_BE_USED"
+
+    monkeypatch.setattr(client, "resolve_share_url", fake_shares)
+    ref = client.resolve_dictionary_link(SHARE_URL, "Ketenagakerjaan")
+    assert ref == (
+        "Sitroom-2026/PROJECT/DATA/1 - Discover/Data Dictionary - Ketenagakerjaan/"
+        "1. Data Dictionary - Ketenagakerjaan - Hubungan Industrial dan Pengupahan (1).xlsx"
+    )
+    assert called["shares"] is False
+
+
+def test_resolve_dictionary_link_falls_back_to_shares(client, monkeypatch):
+    monkeypatch.setattr(client, "resolve_share_url", lambda url: "id:01SHAREDITEM")
+    assert (
+        client.resolve_dictionary_link("https://example.com/no/marker.xlsx", "X")
+        == "id:01SHAREDITEM"
+    )
+
+
+def test_resolve_dictionary_link_non_url(client):
+    # Bare filename resolves per-sheet; ids and explicit paths pass through.
+    assert client.resolve_dictionary_link("Dict.xlsx", "Ketenagakerjaan") == (
+        "Sitroom-2026/PROJECT/DATA/1 - Discover/Data Dictionary - Ketenagakerjaan/Dict.xlsx"
+    )
+    assert client.resolve_dictionary_link("01ABCDEF23GHIJKL45MNOPQR", "X") == (
+        "01ABCDEF23GHIJKL45MNOPQR"
+    )
+    assert client.resolve_dictionary_link("Folder/Dict.xlsx", "X") == "Folder/Dict.xlsx"
+    assert client.resolve_dictionary_link("", "X") is None
+
+
+def test_link_sheet_hint_decodes_nav_anchor(client):
+    # ``nav`` GUID encodes the target sheet ordinal (0300 -> index 2).
+    assert client.link_sheet_hint(SHARE_URL) == 2
+    nav_10 = SHARE_URL.replace(
+        "MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMzAwLTAwMDAwMDAwMDAwMH0",
+        "MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wQTAwLTAwMDAwMDAwMDAwMH0",
+    )
+    assert client.link_sheet_hint(nav_10) == 9
+    # Non-sequential / absent anchors yield None.
+    assert client.link_sheet_hint("https://example.com/x.xlsx") is None
+    assert client.link_sheet_hint("") is None
+    random_nav = SHARE_URL.replace(
+        "MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMzAwLTAwMDAwMDAwMDAwMH0",
+        "MTVfe0YxNzJBNUE3LTA2M0EtNEM2RS05NkJDLTIzRTE5NkE0N0NFRH0",
+    )
+    assert client.link_sheet_hint(random_nav) is None
+
 
 

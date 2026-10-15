@@ -81,3 +81,25 @@ def test_to_pydantic_source_json_nested():
     assert 'putusan: Putusan | None = Field(default=None, alias="putusan"' in source
     assert 'description="Nomor perkara"' in source
     assert "nomor_perkara: str | None" in source
+
+
+# One sheet may stack several dictionary tables; the trailing table titled
+# "Data Dictionary <field>" (no colon) describes the JSON column of the first.
+NO_COLON_NESTED_MATRIX = [
+    ["Data Dictionary", None, None, None],
+    ["Label", "Tipe Data", "Satuan", "Deskripsi"],
+    ["nomor_perkara", "String", "-", "Nomor perkara"],
+    ["putusan", "json", None, None],
+    ["link_file", "String", None, "link url pdf"],
+    [],
+    ["Data Dictionary Putusan", None, None, None],
+    ["Label", "Tipe Data", "Satuan", "Deskripsi"],
+    ["Nomor_Perkara", "String", "-", "Nomor putusan"],
+    ["Tahun", "Integer", "-", "Tahun perkara"],
+]
+
+
+def test_parse_dictionary_matrix_multiple_tables_in_one_sheet():
+    schema = parse_dictionary_matrix(NO_COLON_NESTED_MATRIX)
+    assert [field["name"] for field in schema] == ["nomor_perkara", "putusan", "link_file"]
+    assert [sub["name"] for sub in schema[1]["fields"]] == ["nomor_perkara", "tahun"]

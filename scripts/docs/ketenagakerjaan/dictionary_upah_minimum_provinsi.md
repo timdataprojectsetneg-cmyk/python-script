@@ -8,7 +8,7 @@
 - Data access: `excel`
 - Update frequency: Yearly
 - Eligible: `True`
-- Data Dictionary file: [Data Dictionary - Ketenagakerjaan - Hubungan Industrial dan Pengupahan.xlsx](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20Pengupahan.xlsx?d=w44c390bae78b45c7b1e33bdcfe15c94f&csf=1&web=1&e=y38ycW&nav=MTVfe0E2ODc2NTVDLTExQzAtNDQ4Qi1BRkQ4LTNDMzk1N0M4Qzk5Q30)
+- Data Dictionary file: [Data Dictionary - Ketenagakerjaan - UMP](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/1.%20Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20Pengupahan%20(1).xlsx?d=wff0dbd62d68e4b14823be60d69d2b660&csf=1&web=1&e=agCbn6&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wQTAwLTAwMDAwMDAwMDAwMH0)
 - Target module: `ingestion/usecases/ketenagakerjaan/kemnaker/upah_minimum_provinsi/models.py`
 
 ## Fields
@@ -16,7 +16,7 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | Provinsi | `provinsi` | String | - | Nama provinsi. |
-| Nilai_UMP | `nilai_ump` | Decimal | Rupiah | Besaran UMP dalam Rupiah. |
+| Upah_Minimum | `upah_minimum` | Decimal | Rupiah | Besaran UMP tahun 2026. |
 
 ## Generated Pydantic model
 
@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 
 class UpahMinimumProvinsiRecord(BaseModel):
     provinsi: str | None = Field(default=None, alias="Provinsi", description="Nama provinsi.")
-    nilai_ump: float | None = Field(default=None, alias="Nilai_UMP", description="Besaran UMP dalam Rupiah.")
+    upah_minimum: float | None = Field(default=None, alias="Upah_Minimum", description="Besaran UMP tahun 2026.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

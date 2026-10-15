@@ -8,27 +8,27 @@
 - Data access: `api`
 - Update frequency: Monthly
 - Eligible: `True`
-- Data Dictionary file: [Data Dictionary - Ketenagakerjaan - Hubungan Industrial dan Pengupahan.xlsx](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20Pengupahan.xlsx?d=w44c390bae78b45c7b1e33bdcfe15c94f&csf=1&web=1&e=zh2F9K&nav=MTVfezczOUE2QjcxLTA5QzktNDNGRS04NUFELUY1RDk3RjRENzIyMX0)
+- Data Dictionary file: [Data Dictionary - Ketenagakerjaan - BPS Inflasi MoM](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/1.%20Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20Pengupahan%20(1).xlsx?d=wff0dbd62d68e4b14823be60d69d2b660&csf=1&web=1&e=inVlDn&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wRjAwLTAwMDAwMDAwMDAwMH0)
 - Target module: `ingestion/usecases/ketenagakerjaan/bps/bps_inflasi_mom/models.py`
 
 ## Fields
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Kota_Inflasi | `kota_inflasi` | String | - | Nama kabupaten/kota yang menjadi titik pantau inflasi BPS (mengikuti daftar kota IHK yang dipakai BPS untuk hitung inflasi; bukan seluruh kabupaten/kota di Indonesia, hanya kota-kota sampel yang punya pos pemantauan harga BPS - isinya campuran kategori KAB dan KOTA). |
-| Januari | `januari` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| februari | `februari` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| maret | `maret` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| april | `april` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| mei | `mei` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| juni | `juni` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| juli | `juli` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| agustus | `agustus` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| september | `september` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| oktober | `oktober` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| november | `november` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| desember | `desember` | Decimal | Persen | Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda "-" berarti data bulan tersebut belum dirilis BPS. |
-| Tahun | `tahun` | Decimal | Persen | Akumulasi inflasi tahun kalender (year-to-date, dari Januari s.d. bulan terakhir yang tersedia) - BUKAN inflasi year-on-year (data y-o-y ada di sheet terpisah "BPS Inflasi YOY"). Perlu dikonfirmasi ke definisi asli BPS untuk memastikan. |
+| Kota_Inflasi | `kota_inflasi` | String | - | Kab/kota titik pantau IHK BPS (INDONESIA = nasional). |
+| Januari | `januari` | Decimal | Persen | Inflasi m-to-m bulan Januari 2026; "-" = belum rilis. |
+| Februari | `februari` | Decimal | Persen | Inflasi m-to-m bulan Februari 2026; "-" = belum rilis. |
+| Maret | `maret` | Decimal | Persen | Inflasi m-to-m bulan Maret 2026; "-" = belum rilis. |
+| April | `april` | Decimal | Persen | Inflasi m-to-m bulan April 2026; "-" = belum rilis. |
+| Mei | `mei` | Decimal | Persen | Inflasi m-to-m bulan Mei 2026; "-" = belum rilis. |
+| Juni | `juni` | Decimal | Persen | Inflasi m-to-m bulan Juni 2026; "-" = belum rilis. |
+| Juli | `juli` | Decimal | Persen | Inflasi m-to-m bulan Juli 2026; "-" = belum rilis. |
+| Agustus | `agustus` | Decimal | Persen | Inflasi m-to-m bulan Agustus 2026; "-" = belum rilis. |
+| September | `september` | Decimal | Persen | Inflasi m-to-m bulan September 2026; "-" = belum rilis. |
+| Oktober | `oktober` | Decimal | Persen | Inflasi m-to-m bulan Oktober 2026; "-" = belum rilis. |
+| November | `november` | Decimal | Persen | Inflasi m-to-m bulan November 2026; "-" = belum rilis. |
+| Desember | `desember` | Decimal | Persen | Inflasi m-to-m bulan Desember 2026; "-" = belum rilis. |
+| Tahunan | `tahunan` | Decimal | Persen | Inflasi tahun kalender (terisi setelah Desember). |
 
 ## Generated Pydantic model
 
@@ -37,20 +37,20 @@ from pydantic import BaseModel, Field
 
 
 class BpsInflasiMomRecord(BaseModel):
-    kota_inflasi: str | None = Field(default=None, alias="Kota_Inflasi", description="Nama kabupaten/kota yang menjadi titik pantau inflasi BPS (mengikuti daftar kota IHK yang dipakai BPS untuk hitung inflasi; bukan seluruh kabupaten/kota di Indonesia, hanya kota-kota sampel yang punya pos pemantauan harga BPS - isinya campuran kategori KAB dan KOTA).")
-    januari: float | None = Field(default=None, alias="Januari", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    februari: float | None = Field(default=None, alias="februari", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    maret: float | None = Field(default=None, alias="maret", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    april: float | None = Field(default=None, alias="april", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    mei: float | None = Field(default=None, alias="mei", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    juni: float | None = Field(default=None, alias="juni", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    juli: float | None = Field(default=None, alias="juli", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    agustus: float | None = Field(default=None, alias="agustus", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    september: float | None = Field(default=None, alias="september", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    oktober: float | None = Field(default=None, alias="oktober", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    november: float | None = Field(default=None, alias="november", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    desember: float | None = Field(default=None, alias="desember", description="Persentase perubahan inflasi bulanan (month-to-month/m-to-m) untuk kota tersebut pada bulan yang bersangkutan, dihitung dari perubahan Indeks Harga Konsumen (IHK) bulan berjalan dibanding bulan sebelumnya. Tanda \"-\" berarti data bulan tersebut belum dirilis BPS.")
-    tahun: float | None = Field(default=None, alias="Tahun", description="Akumulasi inflasi tahun kalender (year-to-date, dari Januari s.d. bulan terakhir yang tersedia) - BUKAN inflasi year-on-year (data y-o-y ada di sheet terpisah \"BPS Inflasi YOY\"). Perlu dikonfirmasi ke definisi asli BPS untuk memastikan.")
+    kota_inflasi: str | None = Field(default=None, alias="Kota_Inflasi", description="Kab/kota titik pantau IHK BPS (INDONESIA = nasional).")
+    januari: float | None = Field(default=None, alias="Januari", description="Inflasi m-to-m bulan Januari 2026; \"-\" = belum rilis.")
+    februari: float | None = Field(default=None, alias="Februari", description="Inflasi m-to-m bulan Februari 2026; \"-\" = belum rilis.")
+    maret: float | None = Field(default=None, alias="Maret", description="Inflasi m-to-m bulan Maret 2026; \"-\" = belum rilis.")
+    april: float | None = Field(default=None, alias="April", description="Inflasi m-to-m bulan April 2026; \"-\" = belum rilis.")
+    mei: float | None = Field(default=None, alias="Mei", description="Inflasi m-to-m bulan Mei 2026; \"-\" = belum rilis.")
+    juni: float | None = Field(default=None, alias="Juni", description="Inflasi m-to-m bulan Juni 2026; \"-\" = belum rilis.")
+    juli: float | None = Field(default=None, alias="Juli", description="Inflasi m-to-m bulan Juli 2026; \"-\" = belum rilis.")
+    agustus: float | None = Field(default=None, alias="Agustus", description="Inflasi m-to-m bulan Agustus 2026; \"-\" = belum rilis.")
+    september: float | None = Field(default=None, alias="September", description="Inflasi m-to-m bulan September 2026; \"-\" = belum rilis.")
+    oktober: float | None = Field(default=None, alias="Oktober", description="Inflasi m-to-m bulan Oktober 2026; \"-\" = belum rilis.")
+    november: float | None = Field(default=None, alias="November", description="Inflasi m-to-m bulan November 2026; \"-\" = belum rilis.")
+    desember: float | None = Field(default=None, alias="Desember", description="Inflasi m-to-m bulan Desember 2026; \"-\" = belum rilis.")
+    tahunan: float | None = Field(default=None, alias="Tahunan", description="Inflasi tahun kalender (terisi setelah Desember).")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

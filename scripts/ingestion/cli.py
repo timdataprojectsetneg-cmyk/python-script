@@ -735,25 +735,59 @@ def _generate_docs(
     else:
         targets = sources if include_ineligible else eligible
 
+    # A dictionary link may be shared by several sources: rows with the same
+    # "Data Dictionary" cell text reuse the link from the first row that has one
+    # (e.g. all UMK rows reuse UMK Aceh's link).
+    link_by_text: Dict[str, str] = {}
+    for source in sources:
+        text = str(source.get("data_dictionary") or "").strip()
+        link = str(source.get("data_dictionary_link") or "").strip()
+        if text and link and text not in link_by_text:
+            link_by_text[text] = link
+
     schemas: Dict[str, Any] = {}
     for source in targets:
         sname = source["source_name"]
         slug = source_slug(source)
         dictionary = source.get("data_dictionary")
-        if not dictionary:
+        dict_link = source.get("data_dictionary_link") or link_by_text.get(
+            str(dictionary or "").strip()
+        )
+        if not (dictionary or dict_link):
             logger.warning("No Data Dictionary for %s; skipping", sname)
             continue
 
-        dict_ref = client.dictionary_ref(dictionary, sheet)
+        dict_ref = (
+            client.resolve_dictionary_link(dict_link, sheet) if dict_link else None
+        ) or client.dictionary_ref(dictionary, sheet)
         try:
             dict_sheets = client.list_sheets(dict_ref)
-            dict_sheet = resolve_sheet_name(dict_sheets, sname) or (
-                dict_sheets[0] if dict_sheets else None
+            dict_sheet = resolve_sheet_name(dict_sheets, sname)
+            if not dict_sheet and dict_link:
+                hint = client.link_sheet_hint(dict_link)
+                if hint is not None and 0 <= hint < len(dict_sheets):
+                    dict_sheet = dict_sheets[hint]
+            dict_sheet = dict_sheet or (dict_sheets[0] if dict_sheets else None)
+            # One sheet may hold several dictionary tables: the record fields and,
+            # under a ``Data Dictionary <field>`` title, the fields of a JSON
+            # column such as ``putusan``. ``parse_dictionary_matrix`` reads them all.
+            schema = (
+                parse_dictionary_matrix(client.read_matrix(dict_ref, dict_sheet))
+                if dict_sheet
+                else []
             )
-            dict_matrix = (
-                client.read_matrix(dict_ref, dict_sheet) if dict_sheet else []
-            )
-            schema = parse_dictionary_matrix(dict_matrix)
+            # A shared workbook may lead with an empty sheet (e.g. ``Summary``);
+            # fall back to the first sheet that actually holds a dictionary.
+            if not schema:
+                for candidate in dict_sheets:
+                    if candidate == dict_sheet:
+                        continue
+                    candidate_schema = parse_dictionary_matrix(
+                        client.read_matrix(dict_ref, candidate)
+                    )
+                    if candidate_schema:
+                        dict_sheet, schema = candidate, candidate_schema
+                        break
             schemas[slug] = schema
             if not schema:
                 logger.warning("No dictionary fields parsed for %s (sheet '%s')", sname, dict_sheet)
