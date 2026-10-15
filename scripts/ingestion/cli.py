@@ -9,11 +9,13 @@ Usage:
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
 import sys
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
@@ -167,12 +169,13 @@ def _list_entities(kind: str, usecase: Optional[str], publisher: Optional[str]) 
                 print(f"    - {src}")
 
 
-def _emit_ndjson(records: Iterable[Dict[str, Any]]) -> int:
+def _emit_ndjson(records: Iterable[Dict[str, Any]], stream: Optional[Any] = None) -> int:
+    out = stream if stream is not None else sys.stdout
     count = 0
     for record in records:
-        sys.stdout.write(json.dumps(record, default=str, ensure_ascii=False) + "\n")
+        out.write(json.dumps(record, default=str, ensure_ascii=False) + "\n")
         count += 1
-    sys.stdout.flush()
+    out.flush()
     return count
 
 
@@ -235,6 +238,7 @@ def execute_run(
     limit: int = 0,
     use_dlt: bool = False,
     targets: Optional[List[str]] = None,
+    out: Optional[Any] = None,
 ) -> int:
     config = load_config(usecase, publisher, source)
 
@@ -277,7 +281,7 @@ def execute_run(
         for sink in effective_targets:
             _dev_load(iter(rows), config, sink, use_dlt=use_dlt)
     else:
-        count = _emit_ndjson(records)
+        count = _emit_ndjson(records, out)
 
     output = "ndjson" if mode == "prod" else targets_label
     destination = ""
@@ -300,6 +304,31 @@ def execute_run(
         destination,
     )
     return ExitCode.SUCCESS
+
+
+def _run_source_task(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Run one source in a worker thread and capture its NDJSON output.
+
+    Returns a result dict so the parent can print outputs in selection order and
+    aggregate exit codes.
+    """
+    usecase = payload["usecase"]
+    publisher = payload["publisher"]
+    source = payload["source"]
+
+    buf = io.StringIO()
+    try:
+        execute_run(
+            usecase, publisher, source, payload["mode"], payload["limit"],
+            payload["use_dlt"], payload["targets"], out=buf,
+        )
+        return {"pair": (publisher, source), "code": int(ExitCode.SUCCESS),
+                "output": buf.getvalue(), "error": None, "ingestion_error": True}
+    except Exception as exc:  # noqa: BLE001 - mapped to exit codes by design
+        return {"pair": (publisher, source), "code": exit_code_for(exc),
+                "output": buf.getvalue(),
+                "error": f"{type(exc).__name__} at {error_location(exc)}: {exc}",
+                "ingestion_error": isinstance(exc, IngestionError)}
 
 
 def _resolve_run_targets(
@@ -347,6 +376,13 @@ def cli(env_profile: Optional[str]) -> None:
 @click.option("--limit", default=0, type=int, help="Limit records (debug)")
 @click.option("--use-dlt", is_flag=True, default=False, help="Use dlt for DEV PostgreSQL loading")
 @click.option(
+    "--thread",
+    "thread_workers",
+    type=int,
+    default=0,
+    help="Run sources concurrently with N threads (only when >1 source is selected).",
+)
+@click.option(
     "--extra-vars",
     default=None,
     help='Extra per-run variables as a JSON object, e.g. \'{"BPS_WEBAPI_KEY":"..."}\'. '
@@ -364,6 +400,7 @@ def run(
     minio_uri: Optional[str],
     limit: int,
     use_dlt: bool,
+    thread_workers: int,
     extra_vars: Optional[str],
     env_profile: Optional[str],
     log_level: str,
@@ -410,20 +447,52 @@ def run(
         pairs = _resolve_run_targets(usecase, publisher, source)
         logger.info("Targets: %s", ", ".join(f"{pub}/{src}" for pub, src in pairs))
         code = ExitCode.SUCCESS
-        for pub, src in pairs:
-            try:
-                execute_run(usecase, pub, src, mode, limit, use_dlt, targets)
-            except Exception as exc:  # noqa: BLE001 - continue the remaining sources
-                code = exit_code_for(exc)
-                logger.error(
-                    "Ingestion failed for %s/%s (%s) at %s: %s",
-                    pub,
-                    src,
-                    type(exc).__name__,
-                    error_location(exc),
-                    exc,
-                    exc_info=not isinstance(exc, IngestionError),
-                )
+        if thread_workers > 1 and len(pairs) > 1:
+            logger.info("Running %s sources with %s thread workers", len(pairs), thread_workers)
+            payloads = [
+                {
+                    "usecase": usecase,
+                    "publisher": pub,
+                    "source": src,
+                    "mode": mode,
+                    "limit": limit,
+                    "use_dlt": use_dlt,
+                    "targets": targets,
+                }
+                for pub, src in pairs
+            ]
+            results: List[Dict[str, Any]] = []
+            with ThreadPoolExecutor(max_workers=thread_workers) as executor:
+                futures = [executor.submit(_run_source_task, payload) for payload in payloads]
+                for future in as_completed(futures):
+                    results.append(future.result())
+            order = {pair: index for index, pair in enumerate(pairs)}
+            results.sort(key=lambda result: order.get(result["pair"], 0))
+            for result in results:
+                if result["output"]:
+                    sys.stdout.write(result["output"])
+                    sys.stdout.flush()
+                if result["error"]:
+                    code = max(int(code), int(result["code"]))
+                    failed_pub, failed_src = result["pair"]
+                    logger.error(
+                        "Ingestion failed for %s/%s: %s", failed_pub, failed_src, result["error"]
+                    )
+        else:
+            for pub, src in pairs:
+                try:
+                    execute_run(usecase, pub, src, mode, limit, use_dlt, targets)
+                except Exception as exc:  # noqa: BLE001 - continue the remaining sources
+                    code = exit_code_for(exc)
+                    logger.error(
+                        "Ingestion failed for %s/%s (%s) at %s: %s",
+                        pub,
+                        src,
+                        type(exc).__name__,
+                        error_location(exc),
+                        exc,
+                        exc_info=not isinstance(exc, IngestionError),
+                    )
     except Exception as exc:  # noqa: BLE001 - mapped to exit codes by design
         code = exit_code_for(exc)
         logger.debug("Ingestion traceback", exc_info=True)

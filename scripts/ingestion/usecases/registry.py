@@ -15,13 +15,16 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
 from ..core.base.extractor import BaseExtractor
 from ..core.base.normalizer import BaseNormalizer
-from ..core.normalizers.generic_normalizer import GenericNormalizer
+from ..core.normalizers.generic_normalizer import GenericNormalizer, PassthroughNormalizer
 from ..exceptions import ConfigError
+
+logger = logging.getLogger("ingestion")
 
 
 def _import(module_path: str) -> Optional[Any]:
@@ -112,4 +115,14 @@ def resolve_normalizer(usecase: str, publisher: str, source: str, config: Dict[s
     if model_mod is None:
         model_mod = _import(f"ingestion.usecases.{usecase}.models")
     model = getattr(model_mod, "Record", None) if model_mod else None
+    if model is None:
+        # No normalizer and no Pydantic Record/dictionary: skip normalization.
+        logger.warning(
+            "No normalizer/Record (dictionary/model) for %s/%s/%s — skipping normalization "
+            "(extractor → load, records passed through as-is)",
+            usecase,
+            publisher,
+            source,
+        )
+        return PassthroughNormalizer(config)
     return GenericNormalizer(config, model=model)

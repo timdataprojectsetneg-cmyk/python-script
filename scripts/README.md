@@ -82,6 +82,8 @@ python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisiha
 
 # Run every source under a publisher
 python -m ingestion.cli run --usecase ketenagakerjaan --publisher kemnaker --mode prod
+# Run all selected sources concurrently (threads recommended: I/O-bound)
+python -m ingestion.cli run --usecase ketenagakerjaan --publisher kemnaker --thread 4
 
 # DEV: load directly. Loading is enabled by --env dev and/or a connection URI;
 # each URI adds a sink. There is no --target.

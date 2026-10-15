@@ -43,6 +43,9 @@ extractor.py  ──▶  normalizer.py  (Pydantic models.py)  ──▶  loader
    `class Record`, validates it with Pydantic
    (`Record(**record).model_dump()`); records that fail validation are logged and
    skipped. **`models.py` is the schema contract for this step.**
+   If a source has **neither** a `Normalizer` nor a `Record` (no dictionary/model),
+   normalization is **skipped** (records pass through: extractor → load) and a
+   WARNING is logged.
 3. **Load** — PROD (default) emits NDJSON to stdout for NiFi
    (`PutDatabaseRecord`). Loading **also** runs when a connection URI is present
    (`PG_URI`/`ELASTICSEARCH_URL`/`MINIO_URI` or `--pg-uri`/`--elasticsearch-url`/
@@ -136,6 +139,8 @@ MINIO_URI=minio://access:secret@host:9000/bucket?secure=true
 python -m ingestion run --usecase ketenagakerjaan --source kasus_perselisihan
 # Run every source under a publisher
 python -m ingestion run --usecase ketenagakerjaan --publisher kemnaker
+# Run all selected sources concurrently (I/O-bound → threads is the good default)
+python -m ingestion run --usecase ketenagakerjaan --publisher kemnaker --thread 4
 # PROD NDJSON vs direct load (URI present enables loading; each URI = one sink)
 python -m ingestion run --usecase ... --source ... --mode dev --env dev
 python -m ingestion run --usecase ... --source ... --pg-uri "$PG_URI" --minio-uri "$MINIO_URI"
@@ -157,6 +162,10 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
   (`--pg-uri`/`--elasticsearch-url`/`--minio-uri` or the `PG_URI`/
   `ELASTICSEARCH_URL`/`MINIO_URI` env) or with `--env dev`; each URI = one sink.
   `--use-dlt` uses dlt instead of the direct writer.
+- **Concurrency (multiple sources)**: when more than one source is selected (e.g.
+  `--usecase X --publisher Y`), `--thread N` runs them with a thread pool — the
+  pipeline is I/O-bound, so threads is the right choice. Output is captured per
+  source and emitted in selection order, so PROD NDJSON stays valid.
 - `--scaffold` creates missing folders/files; `--scaffold-overwrite` replaces
   existing scaffold files, limited to the `--source`/`--publisher` scope (or the
   whole usecase when neither is given).

@@ -46,3 +46,14 @@ class GenericNormalizer(BaseNormalizer):
             except ValidationError as exc:
                 logger.warning("Validation failed, record skipped: %s", exc)
                 continue
+
+
+class PassthroughNormalizer(BaseNormalizer):
+    """Skip normalization: pass extracted records straight to the loader.
+
+    Used when a source defines neither ``normalizer.py`` nor a ``Record`` model
+    (dictionary). The registry logs a warning when this happens.
+    """
+
+    def normalize(self, records: Iterator[Dict[str, Any]]) -> Iterator[Dict[str, Any]]:
+        return records
