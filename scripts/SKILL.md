@@ -139,6 +139,8 @@ MINIO_URI=minio://access:secret@host:9000/bucket?secure=true
 python -m ingestion run --usecase ketenagakerjaan --source kasus_perselisihan
 # Run every source under a publisher
 python -m ingestion run --usecase ketenagakerjaan --publisher kemnaker
+# Run a publisher but skip some sources (comma-separated)
+python -m ingestion run --usecase ketenagakerjaan --publisher bps --exclude bps_inflasi_yoy,bps_inflasi_mom
 # Run all selected sources concurrently (I/O-bound → threads is the good default)
 python -m ingestion run --usecase ketenagakerjaan --publisher kemnaker --thread 4
 # PROD NDJSON vs direct load (URI present enables loading; each URI = one sink)
@@ -166,6 +168,9 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
   `--usecase X --publisher Y`), `--thread N` runs them with a thread pool — the
   pipeline is I/O-bound, so threads is the right choice. Output is captured per
   source and emitted in selection order, so PROD NDJSON stays valid.
+- `run --exclude a,b` drops comma-separated sources from the `--publisher`/
+  `--source` selection (name or slug, substring-tolerant), so
+  `run --usecase X --publisher Y --exclude s1,s2` skips those sources.
 - `--scaffold` creates missing folders/files; `--scaffold-overwrite` replaces
   existing scaffold files, limited to the `--source`/`--publisher` scope (or the
   whole usecase when neither is given).
@@ -304,6 +309,20 @@ then an **item id / explicit path**, then the **cell name** per sheet above.
 A link is shared by every source with the same `Data Dictionary` cell text
 (e.g. all UMK rows reuse UMK Aceh's link), and the link's `nav` anchor selects
 the target worksheet when the source name matches no sheet.
+
+## Spreadsheet
+
+Read-only via the Google Sheets API using a service-account JSON
+(`SPREADSHEET__CREDENTIALS_JSON`); `SPREADSHEET__FILE_ID` (or
+`GOOGLE__SPREADSHEET_ID`) for the catalog. The `Data Dictionary` cell hyperlink
+(a Google Sheets URL) is captured from the grid data and the linked workbook is
+read, so one tab may hold several dictionary tables (a `Data Dictionary <field>`
+table fills that JSON column) — same behavior as SharePoint.
+
+The linked workbook **must be shared with the service account** (`client_email`
+in the credentials JSON, e.g. `python-sheets-reader@<project>.iam.gserviceaccount.com`).
+A link that opens in your browser is not enough: API calls run as the
+service-account identity, so an unshared workbook fails with `HttpError 403`.
 
 ## Combining source & sinks
 

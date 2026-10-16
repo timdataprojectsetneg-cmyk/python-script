@@ -223,3 +223,63 @@ def test_generate_docs_shares_dictionary_link_across_sources(monkeypatch, tmp_pa
     assert refs.count(LINK_PATH) == 2
 
 
+GOOGLE_DICT_URL = (
+    "https://docs.google.com/spreadsheets/d/DICTWORKBOOKID00000000/edit?gid=0#gid=0"
+)
+
+SPREADSHEET_MATRIX = [
+    ["Data Dictionary", None, None, None],
+    ["Label", "Tipe Data", "Satuan", "Deskripsi"],
+    ["Nomor_Perkara", "String", "-", "Nomor putusan"],
+    ["Putusan", "Json", "URL", "Detail putusan (lihat tabel berikut)"],
+    [],
+    ["Data Dictionary Putusan", None, None, None],
+    ["Label", "Tipe Data", "Satuan", "Deskripsi"],
+    ["Tingkat_Proses", "String", "-", "Tingkat proses"],
+]
+
+
+def test_generate_docs_spreadsheet_multiple_tables_in_one_sheet(monkeypatch, tmp_path):
+    monkeypatch.setenv("DOCS_SOURCE", "spreadsheet")
+    from ingestion.spreadsheet.client import SpreadsheetClient
+
+    catalog_row = dict(
+        LINK_ROW,
+        **{
+            "Source Name": "Direktori Putusan PHI",
+            "_links": {"Data Dictionary": GOOGLE_DICT_URL},
+        },
+    )
+    resolved = []
+
+    def resolve_dictionary_link(self, link, sheet):
+        resolved.append(link)
+        return "DICTWORKBOOKID00000000"
+
+    monkeypatch.setattr(
+        SpreadsheetClient, "catalog_ref", lambda self, override=None: "CATALOGWORKBOOK"
+    )
+    monkeypatch.setattr(
+        SpreadsheetClient,
+        "list_sheets",
+        lambda self, ref: ["Ketenagakerjaan"] if ref == "CATALOGWORKBOOK" else ["Direktori Putusan PHI"],
+    )
+    monkeypatch.setattr(
+        SpreadsheetClient, "read_sheet", lambda self, ref, sheet, **kw: [catalog_row]
+    )
+    monkeypatch.setattr(
+        SpreadsheetClient, "read_matrix", lambda self, ref, sheet: SPREADSHEET_MATRIX
+    )
+    monkeypatch.setattr(SpreadsheetClient, "resolve_dictionary_link", resolve_dictionary_link)
+    monkeypatch.setattr(SpreadsheetClient, "link_sheet_hint", lambda self, url: None)
+
+    _generate_docs("ketenagakerjaan", None, str(tmp_path / "docs"), None)
+
+    content = (
+        tmp_path / "docs" / "ketenagakerjaan" / "dictionary_direktori_putusan_phi.md"
+    ).read_text()
+    assert resolved == [GOOGLE_DICT_URL]
+    assert "### JSON field: `putusan`" in content
+    assert "Tingkat_Proses" in content
+
+

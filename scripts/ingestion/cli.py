@@ -332,26 +332,43 @@ def _run_source_task(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _resolve_run_targets(
-    usecase: str, publisher: Optional[str], source: Optional[str]
+    usecase: str, publisher: Optional[str], source: Optional[str], exclude: Optional[str] = None
 ) -> List[tuple]:
-    """Return (publisher, source) pairs to run, from --publisher and/or --source."""
+    """Return (publisher, source) pairs to run, from --publisher and/or --source.
+
+    ``exclude`` is a comma-separated list of source names to drop from the result.
+    """
     from .usecases.registry import find_publisher, list_sources
 
     pairs: List[tuple] = []
     if publisher and source:
         pairs.append((publisher, source))
-        return pairs
-    if publisher:
+    elif publisher:
         sources = list_sources(usecase, publisher)
         if not sources:
             raise ConfigError(f"Publisher '{publisher}' has no sources")
-        return [(publisher, item) for item in sources]
-    if source:
+        pairs = [(publisher, item) for item in sources]
+    elif source:
         found = find_publisher(usecase, source)
         if not found:
             raise ConfigError(f"Source '{source}' not found under use case '{usecase}'")
-        return [(found, source)]
-    raise ConfigError("Provide --publisher and/or --source")
+        pairs = [(found, source)]
+    else:
+        raise ConfigError("Provide --publisher and/or --source")
+
+    if exclude:
+        from .catalog.metadata_parser import normalize_name
+
+        tokens = [normalize_name(token) for token in exclude.split(",") if token.strip()]
+        kept: List[tuple] = []
+        for pub, src in pairs:
+            name = normalize_name(src)
+            if any(token == name or token in name for token in tokens):
+                logger.info("Excluding source '%s' (--exclude)", src)
+            else:
+                kept.append((pub, src))
+        pairs = kept
+    return pairs
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -369,6 +386,11 @@ def cli(env_profile: Optional[str]) -> None:
 @click.option("--usecase", required=True, help="Use case name, e.g. ketenagakerjaan")
 @click.option("--publisher", default=None, help="Run all sources under this publisher")
 @click.option("--source", default=None, help="Source name, e.g. kasus_perselisihan")
+@click.option(
+    "--exclude",
+    default=None,
+    help="Comma-separated source names to skip (e.g. --exclude kasus_perselisihan,data_mogok_kerja)",
+)
 @click.option("--mode", default="prod", type=click.Choice(MODE_CHOICES), show_default=True)
 @click.option("--pg-uri", default=None, help="PostgreSQL URI (implies the postgres target)")
 @click.option("--elasticsearch-url", default=None, help="Elasticsearch URI (implies the elastic target)")
@@ -394,6 +416,7 @@ def run(
     usecase: str,
     publisher: str,
     source: str,
+    exclude: str,
     mode: str,
     pg_uri: Optional[str],
     elasticsearch_url: Optional[str],
@@ -407,7 +430,8 @@ def run(
 ) -> None:
     """Run data ingestion for a usecase by --publisher and/or --source.
 
-    ``--publisher`` runs every source under that publisher.
+    ``--publisher`` runs every source under that publisher; ``--exclude`` skips
+    comma-separated sources from that selection.
     """
     setup_logging(log_level)
     try:
@@ -444,7 +468,7 @@ def run(
                 "(--pg-uri/--elasticsearch-url/--minio-uri, or PG_URI/ELASTICSEARCH_URL/MINIO_URI)"
             )
         targets = uri_targets or None
-        pairs = _resolve_run_targets(usecase, publisher, source)
+        pairs = _resolve_run_targets(usecase, publisher, source, exclude)
         logger.info("Targets: %s", ", ".join(f"{pub}/{src}" for pub, src in pairs))
         code = ExitCode.SUCCESS
         if thread_workers > 1 and len(pairs) > 1:
