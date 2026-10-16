@@ -1,9 +1,13 @@
-"""Scraper access — UMK Gorontalo."""
+"""Extractor — UMK Gorontalo (GoodStats).
+
+The UMK workbook lives in object storage (``s3://``) and is read with DuckDB
+``read_xlsx`` through the shared GoodStats UMK extractor.
+"""
 
 from __future__ import annotations
 
-from .....core.extractors.web_scraper import WebScraper
+from .._umk import UMKExtractor
 
 
-class Extractor(WebScraper):
-    """Implemented per source; falls back to the generic scraper extractor."""
+class Extractor(UMKExtractor):
+    """``Kabupaten/Kota`` + ``UMK <tahun>`` columns → the shared UMK model."""
