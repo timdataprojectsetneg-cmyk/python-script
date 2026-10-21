@@ -34,6 +34,8 @@
 | Q | `q` | Integer | Perusahaan | Perusahaan yang melaporkan PP lapangan usaha kategori Q – Jasa Kesehatan dan Kegiatan Sosial. |
 | R_S_T_U | `r_s_t_u` | Integer | Perusahaan | Perusahaan yang melaporkan PP lapangan usaha kategori R,S,T,U – Jasa Lainnya. |
 | Tidak_Teridentifikasi | `tidak_teridentifikasi` | Integer | Perusahaan | Perusahaan yang melaporkan PP yang lapangan usahanya belum teridentifikasi. |
+| tahun | `tahun` | string | - | Tahun pelaporan |
+| bulan | `bulan` | string | - | Bulan Pelaporan |
 | Jumlah | `jumlah` | Integer | Perusahaan | Total seluruh lapangan usaha. |
 
 ## Generated Pydantic model
@@ -62,6 +64,8 @@ class KemnakerPerusahaanMelaporPpTable2Record(BaseModel):
     q: int | None = Field(default=None, alias="Q", description="Perusahaan yang melaporkan PP lapangan usaha kategori Q – Jasa Kesehatan dan Kegiatan Sosial.")
     r_s_t_u: int | None = Field(default=None, alias="R_S_T_U", description="Perusahaan yang melaporkan PP lapangan usaha kategori R,S,T,U – Jasa Lainnya.")
     tidak_teridentifikasi: int | None = Field(default=None, alias="Tidak_Teridentifikasi", description="Perusahaan yang melaporkan PP yang lapangan usahanya belum teridentifikasi.")
+    tahun: str | None = Field(default=None, alias="tahun", description="Tahun pelaporan")
+    bulan: str | None = Field(default=None, alias="bulan", description="Bulan Pelaporan")
     jumlah: int | None = Field(default=None, alias="Jumlah", description="Total seluruh lapangan usaha.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
