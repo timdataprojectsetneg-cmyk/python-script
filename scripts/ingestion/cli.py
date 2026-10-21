@@ -13,6 +13,7 @@ import io
 import json
 import logging
 import os
+import shutil
 import sys
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -554,13 +555,26 @@ def run(
         "Selects a different workbook than the one configured by the environment."
     ),
 )
-@click.option("--scaffold", is_flag=True, help="Create module folders/files for eligible sources")
+@click.option(
+    "--scaffold",
+    is_flag=True,
+    help="Create module folders/files from the local docs (no catalog sync)",
+)
 @click.option(
     "--scaffold-overwrite",
     is_flag=True,
     help=(
         "Overwrite existing scaffold files (default: skip them). Limited to "
         "--source / --publisher when given, else the whole usecase"
+    ),
+)
+@click.option(
+    "--delete",
+    "delete_usecase",
+    is_flag=True,
+    help=(
+        "Delete the use case docs (usecase.md, usecase.env, dictionary_*.md) and "
+        "module folders/files; limited to --source / --publisher when given"
     ),
 )
 @click.option("--include-ineligible", is_flag=True, help="Also emit dictionaries for ineligible sources")
@@ -575,6 +589,7 @@ def docs(
     catalog: str,
     scaffold: bool,
     scaffold_overwrite: bool,
+    delete_usecase: bool,
     include_ineligible: bool,
     env_profile: Optional[str],
     log_level: str,
@@ -584,7 +599,11 @@ def docs(
     Docs are grouped per use case under ``docs/<usecase>/``: always writes
     ``usecase.md`` and ``usecase.env``, plus ``dictionary_<source>.md`` for
     eligible sources (or only those under ``--publisher`` / the one given by
-    ``--source``). With ``--scaffold``, creates the module folders/files.
+    ``--source``).
+
+    ``--scaffold`` / ``--scaffold-overwrite`` create the module folders/files
+    from those local docs (no catalog sync, no credentials). ``--delete`` removes
+    the use case docs and module folders/files.
 
     With ``--list``, prints an inventory instead: ``--list usecases``,
     ``--list publishers --usecase X``, ``--list sources --publisher Y``,
@@ -597,17 +616,27 @@ def docs(
             sys.exit(ExitCode.SUCCESS)
         if not usecase:
             raise ConfigError("--usecase is required (or use --list to browse the inventory)")
-        _apply_env(env_profile)
-        _generate_docs(
-            usecase,
-            source_name,
-            output,
-            catalog,
-            scaffold,
-            scaffold_overwrite,
-            include_ineligible,
-            publisher,
-        )
+        if delete_usecase:
+            _delete_usecase(usecase, output, source_name, publisher)
+        elif scaffold or scaffold_overwrite:
+            _scaffold_from_docs(
+                usecase,
+                source_name,
+                output,
+                publisher,
+                scaffold_overwrite,
+                include_ineligible,
+            )
+        else:
+            _apply_env(env_profile)
+            _generate_docs(
+                usecase,
+                source_name,
+                output,
+                catalog,
+                include_ineligible,
+                publisher,
+            )
     except Exception as exc:  # noqa: BLE001
         code = exit_code_for(exc)
         logger.debug("Doc generation traceback", exc_info=True)
@@ -647,8 +676,6 @@ def _generate_docs(
     source_name: Optional[str],
     output: str,
     catalog: Optional[str],
-    scaffold: bool = False,
-    scaffold_overwrite: bool = False,
     include_ineligible: bool = False,
     publisher: Optional[str] = None,
 ) -> None:
@@ -832,33 +859,169 @@ def _generate_docs(
         )
         logger.info("Wrote %s (%s fields)", path, len(schema))
 
-    if scaffold:
-        from .catalog.scaffold import remove_ineligible_sources, scaffold_usecase
 
-        scaffold_root = "ingestion/usecases"
-        scaffold_targets = [s for s in targets if is_eligible(s)]
-        if source_name:
-            scope_publishers = {publisher_slug(s) for s in targets}
-            scope_sources = {source_slug(s) for s in targets}
-        elif publisher:
-            scope_publishers = {publisher_slug(s) for s in targets}
-            scope_sources = None
-        else:
-            scope_publishers = None
-            scope_sources = None
-        removed = remove_ineligible_sources(
-            scaffold_root, usecase, scaffold_targets, scope_publishers, scope_sources
-        )
-        for path in removed:
-            logger.info("Removed ineligible scaffold: %s", path)
-        created, skipped = scaffold_usecase(
-            scaffold_root, usecase, scaffold_targets, schemas, overwrite=scaffold_overwrite
-        )
-        for path in created:
-            logger.info("  created %s", path)
-        logger.info(
-            "Scaffold complete: %s created, %s skipped (already existed)", len(created), len(skipped)
-        )
+def _scaffold_from_docs(
+    usecase: str,
+    source_name: Optional[str],
+    output: str,
+    publisher: Optional[str] = None,
+    overwrite: bool = False,
+    include_ineligible: bool = False,
+) -> None:
+    """Create module folders/files from the local docs (no catalog sync).
+
+    The source list comes from ``docs/<usecase>/usecase.md`` and the dictionary
+    schemas from ``docs/<usecase>/dictionary_<source>.md``, both written by a
+    previous ``docs`` run — so scaffolding needs no SharePoint/spreadsheet access.
+    """
+    from .catalog.docs_reader import read_dictionary_schemas, read_usecase_sources
+    from .catalog.markdown_docs import usecase_dir
+    from .catalog.metadata_parser import (
+        is_eligible,
+        normalize_name,
+        publisher_slug,
+        source_slug,
+    )
+    from .catalog.scaffold import SCAFFOLD_ROOT, remove_ineligible_sources, scaffold_usecase
+
+    docs_dir = Path(output) / usecase_dir(usecase)
+    sources = read_usecase_sources(docs_dir)
+    eligible = [source for source in sources if is_eligible(source)]
+    logger.info("Sources from %s: %s total, %s eligible", docs_dir, len(sources), len(eligible))
+
+    if source_name:
+        wanted = normalize_name(source_name)
+        targets = [s for s in sources if normalize_name(s["source_name"]) == wanted]
+        if not targets:
+            targets = [s for s in sources if wanted in normalize_name(s["source_name"])]
+        if not targets:
+            raise ConfigError(f"Source '{source_name}' not found in {docs_dir / 'usecase.md'}")
+        if not include_ineligible:
+            targets = [s for s in targets if is_eligible(s)]
+    elif publisher:
+        wanted = normalize_name(publisher)
+        targets = [s for s in sources if normalize_name(s.get("publisher")) == wanted]
+        if not targets:
+            targets = [s for s in sources if wanted in normalize_name(s.get("publisher"))]
+        if not targets:
+            raise ConfigError(f"Publisher '{publisher}' not found in {docs_dir / 'usecase.md'}")
+        if not include_ineligible:
+            targets = [s for s in targets if is_eligible(s)]
+    else:
+        targets = sources if include_ineligible else eligible
+
+    scaffold_targets = [s for s in targets if is_eligible(s)]
+    if source_name:
+        scope_publishers = {publisher_slug(s) for s in targets}
+        scope_sources = {source_slug(s) for s in targets}
+    elif publisher:
+        scope_publishers = {publisher_slug(s) for s in targets}
+        scope_sources = None
+    else:
+        scope_publishers = None
+        scope_sources = None
+    removed = remove_ineligible_sources(
+        SCAFFOLD_ROOT, usecase, scaffold_targets, scope_publishers, scope_sources
+    )
+    for path in removed:
+        logger.info("Removed ineligible scaffold: %s", path)
+
+    created, skipped = scaffold_usecase(
+        SCAFFOLD_ROOT,
+        usecase,
+        scaffold_targets,
+        read_dictionary_schemas(docs_dir),
+        overwrite=overwrite,
+    )
+    for path in created:
+        logger.info("  created %s", path)
+    logger.info(
+        "Scaffold complete: %s created, %s skipped (already existed)", len(created), len(skipped)
+    )
+
+
+def _delete_usecase(
+    usecase: str,
+    output: str,
+    source_name: Optional[str] = None,
+    publisher: Optional[str] = None,
+) -> None:
+    """Delete a use case's docs and module folders/files.
+
+    With ``--source`` / ``--publisher``, only the matching ``dictionary_<source>.md``
+    and module folders/files are deleted, leaving ``usecase.md`` and ``usecase.env``
+    (and the rest of the use case) in place.
+    """
+    from .catalog.markdown_docs import dictionary_filename, usecase_dir
+    from .catalog.metadata_parser import (
+        derive_module_name,
+        normalize_name,
+        publisher_slug,
+        source_slug,
+    )
+    from .catalog.scaffold import SCAFFOLD_ROOT
+
+    docs_dir = Path(output) / usecase_dir(usecase)
+    root = Path(SCAFFOLD_ROOT) / derive_module_name(usecase)
+    if not source_name and not publisher:
+        _remove_path(docs_dir)
+        _remove_path(root)
+        return
+
+    from .catalog.docs_reader import read_usecase_sources
+
+    field = "source_name" if source_name else "publisher"
+    value = source_name or publisher
+    targets = _match_sources(read_usecase_sources(docs_dir), field, value)
+    if not targets:
+        label = "Source" if source_name else "Publisher"
+        raise ConfigError(f"{label} '{value}' not found in {docs_dir / 'usecase.md'}")
+
+    for source in targets:
+        _remove_path(docs_dir / dictionary_filename(source_slug(source)))
+
+    if publisher:
+        # The whole publisher is in scope, so drop its folder (including __init__.py).
+        for publisher_dir in {root / publisher_slug(source) for source in targets}:
+            _remove_path(publisher_dir)
+        return
+
+    for source in targets:
+        publisher_dir = root / publisher_slug(source)
+        _remove_path(publisher_dir / source_slug(source))
+        if publisher_dir.is_dir() and not any(child.is_dir() for child in publisher_dir.iterdir()):
+            _remove_path(publisher_dir)
+
+
+def _match_sources(
+    sources: List[Dict[str, Any]], field: str, value: str
+) -> List[Dict[str, Any]]:
+    """Sources whose ``field`` (name or slug) equals or contains ``value``."""
+    from .catalog.metadata_parser import normalize_name, publisher_slug, source_slug
+
+    def keys(source: Dict[str, Any]) -> List[str]:
+        if field == "source_name":
+            return [normalize_name(source.get(field)), normalize_name(source_slug(source))]
+        return [normalize_name(source.get(field)), normalize_name(publisher_slug(source))]
+
+    wanted = normalize_name(value)
+    keyed = [(source, keys(source)) for source in sources]
+    exact = [source for source, names in keyed if wanted in names]
+    if exact:
+        return exact
+    return [source for source, names in keyed if any(wanted in name for name in names if name)]
+
+
+def _remove_path(path: Path) -> None:
+    """Delete a file or folder, logging what happened."""
+    if not path.exists():
+        logger.info("Nothing to delete: %s", path)
+        return
+    if path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+    logger.info("Deleted %s", path)
 
 
 def main() -> None:

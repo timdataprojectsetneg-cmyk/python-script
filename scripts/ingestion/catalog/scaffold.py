@@ -1,4 +1,4 @@
-"""Scaffold use case module folders/files from the SharePoint catalog.
+"""Scaffold use case module folders/files for eligible sources.
 
 Only sources with ``Eligible = true`` are scaffolded. Existing files are skipped
 by default; callers can explicitly opt into overwriting them.
@@ -13,7 +13,14 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .metadata_parser import derive_access, derive_module_name, publisher_slug, source_slug, to_pydantic_source
 
-__all__ = ["merge_models_source", "remove_ineligible_sources", "scaffold_usecase"]
+__all__ = [
+    "SCAFFOLD_ROOT",
+    "merge_models_source",
+    "remove_ineligible_sources",
+    "scaffold_usecase",
+]
+
+SCAFFOLD_ROOT = "ingestion/usecases"
 
 EXTRACTOR_BASES = {
     "excel": ("ExcelExtractor", "core.extractors.excel_extractor"),

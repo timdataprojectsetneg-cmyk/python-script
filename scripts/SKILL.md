@@ -153,8 +153,10 @@ python -m ingestion run --usecase ... --source ... --env dev --extra-vars '{"BPS
 python -m ingestion docs --usecase ketenagakerjaan --env dev
 python -m ingestion docs --usecase ketenagakerjaan --publisher kemnaker
 python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
-python -m ingestion docs --usecase ketenagakerjaan --env dev --scaffold
+python -m ingestion docs --usecase ketenagakerjaan --scaffold   # from local docs, no catalog sync
 python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan" --scaffold-overwrite
+python -m ingestion docs --usecase ketenagakerjaan --delete     # remove docs + module folders/files
+python -m ingestion docs --usecase ketenagakerjaan --source "Direktori Putusan PHI" --delete  # one source only
 python -m ingestion docs --list    # bare = all; inventory only, no env/credentials needed
 python -m ingestion docs --list sources --usecase ketenagakerjaan
 ```
@@ -179,9 +181,11 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
 
 ## Adding a source — checklist
 
-1. `python -m ingestion docs --usecase <uc> --scaffold --env dev` (creates
-   folders for **Eligible = true** sources; add `--source`/`--publisher` to limit
-   the scope and `--scaffold-overwrite` to replace existing files in that scope).
+1. `python -m ingestion docs --usecase <uc> --env dev` (writes the docs), then
+   `python -m ingestion docs --usecase <uc> --scaffold` (creates folders for
+   **Eligible = true** sources from those local docs; add `--source`/`--publisher`
+   to limit the scope and `--scaffold-overwrite` to replace existing files in that
+   scope).
    `--scaffold` also refreshes each `models.py` from the dictionary while keeping
    hand-written code; or copy the example source.
 2. Fill `models.py` (`class Record`) from the generated
@@ -288,11 +292,18 @@ without any credentials/env** (bare `--list` = `all`; or
   `POSTGRE_SCHEMA`, `POSTGRE_TABLE` (`schema.table`), `ES_INDEX`, `MINIO_BUCKET`.
 - Only `Eligible = true` sources are structured/scaffolded/env-emitted;
   `--include-ineligible` overrides for dictionaries.
-- `--scaffold` scaffolds only the selected scope (`--source` / `--publisher` /
-  whole usecase) and refreshes `models.py` from the dictionary field-by-field,
-  preserving hand-written code (imports, extra classes, methods, custom field
-  aliases). `--scaffold-overwrite` fully replaces existing scaffold files, also
-  limited to that scope.
+- `--scaffold` / `--scaffold-overwrite` work from the **local** docs
+  (`docs/<usecase>/usecase.md` + `dictionary_*.md`): no catalog sync and no
+  credentials, so run `docs --usecase <uc> --env dev` first. They scaffold only
+  the selected scope (`--source` / `--publisher` / whole usecase) and refresh
+  `models.py` from the dictionary field-by-field, preserving hand-written code
+  (imports, extra classes, methods, custom field aliases);
+  `--scaffold-overwrite` fully replaces existing scaffold files in that scope.
+- `--delete` removes the use case docs (`docs/<usecase>/`) and its module folders
+  (`ingestion/usecases/<usecase>/`), including hand-written code. With
+  `--source` / `--publisher` only the matching `dictionary_<source>.md` and module
+  folders/files are removed; `usecase.md` / `usecase.env` stay untouched (source
+  matching reads them, so the docs must exist).
 - `docs/<usecase>/usecase.env` is auto-loaded by `load_env()` when running that
   use case.
 

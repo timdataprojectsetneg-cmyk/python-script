@@ -21,7 +21,9 @@ Selain script standalone, folder `scripts` berisi framework ingestion generik (p
 
 - Dokumentasi lengkap: `scripts/SKILL.md`.
 - Menjalankan satu source: `python -m ingestion run --usecase <uc> --source <src> --env dev`.
-- Generate docs/scaffold dari katalog (SharePoint/spreadsheet): `python -m ingestion docs --usecase <uc> --env dev --scaffold`.
+- Generate docs dari katalog (SharePoint/spreadsheet): `python -m ingestion docs --usecase <uc> --env dev`.
+- Scaffold module folders/files dari docs lokal (tanpa sync katalog): `python -m ingestion docs --usecase <uc> --scaffold`.
+- Hapus docs + module folders/files usecase: `python -m ingestion docs --usecase <uc> --delete` (batasi ke satu sumber/penerbit dengan `--source` / `--publisher`).
 - Wiring NiFi: `scripts/nifi/README.md`.
 
 ## Environment Variables ##
