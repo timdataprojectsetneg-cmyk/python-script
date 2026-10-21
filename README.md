@@ -23,6 +23,7 @@ Selain script standalone, folder `scripts` berisi framework ingestion generik (p
 - Menjalankan satu source: `python -m ingestion run --usecase <uc> --source <src> --env dev`.
 - Generate docs dari katalog (SharePoint/spreadsheet): `python -m ingestion docs --usecase <uc> --env dev`.
 - Scaffold module folders/files dari docs lokal (tanpa sync katalog): `python -m ingestion docs --usecase <uc> --scaffold`.
+- Sinkron hanya `models.py` dari dictionary: `python -m ingestion docs --usecase <uc> --source <src> --sync-dictionary`.
 - Hapus docs + module folders/files usecase: `python -m ingestion docs --usecase <uc> --delete` (batasi ke satu sumber/penerbit dengan `--source` / `--publisher`).
 - Wiring NiFi: `scripts/nifi/README.md`.
 

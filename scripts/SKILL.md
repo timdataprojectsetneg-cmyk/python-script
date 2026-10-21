@@ -155,6 +155,7 @@ python -m ingestion docs --usecase ketenagakerjaan --publisher kemnaker
 python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
 python -m ingestion docs --usecase ketenagakerjaan --scaffold   # from local docs, no catalog sync
 python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan" --scaffold-overwrite
+python -m ingestion docs --usecase ketenagakerjaan --source satu_data_kemnaker --sync-dictionary  # models.py only
 python -m ingestion docs --usecase ketenagakerjaan --delete     # remove docs + module folders/files
 python -m ingestion docs --usecase ketenagakerjaan --source "Direktori Putusan PHI" --delete  # one source only
 python -m ingestion docs --list    # bare = all; inventory only, no env/credentials needed
@@ -187,7 +188,8 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
    to limit the scope and `--scaffold-overwrite` to replace existing files in that
    scope).
    `--scaffold` also refreshes each `models.py` from the dictionary while keeping
-   hand-written code; or copy the example source.
+   hand-written code; `--sync-dictionary` does that refresh alone; or copy the
+   example source.
 2. Fill `models.py` (`class Record`) from the generated
    `docs/<usecase>/dictionary_<source>.md`; map source column names to canonical
    fields with Pydantic `validation_alias=AliasChoices(...)`; add
@@ -299,6 +301,10 @@ without any credentials/env** (bare `--list` = `all`; or
   `models.py` from the dictionary field-by-field, preserving hand-written code
   (imports, extra classes, methods, custom field aliases);
   `--scaffold-overwrite` fully replaces existing scaffold files in that scope.
+- `--sync-dictionary` refreshes **only** `models.py` for the selected sources from
+  the local `dictionary_<source>.md` (same merge as `--scaffold`, so hand-written
+  code survives). It never creates folders/files: if a module has not been
+  scaffolded yet it logs a warning pointing at `--scaffold`.
 - `--delete` removes the use case docs (`docs/<usecase>/`) and its module folders
   (`ingestion/usecases/<usecase>/`), including hand-written code. With
   `--source` / `--publisher` only the matching `dictionary_<source>.md` and module

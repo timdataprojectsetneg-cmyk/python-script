@@ -208,6 +208,72 @@ def test_delete_scoped_source_not_in_docs(monkeypatch, tmp_path):
     assert "not found" in result.output
 
 
+def test_sync_dictionary_updates_only_models(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    docs_dir = _write_docs(tmp_path)
+    _run(monkeypatch, tmp_path, ["--usecase", "ketenagakerjaan", "--scaffold"])
+    source_dir = tmp_path / "ingestion" / "usecases" / "ketenagakerjaan" / "kemnaker" / "kasus_perselisihan"
+    (source_dir / "extractor.py").write_text("custom extractor", encoding="utf-8")
+    schema = SCHEMA + [
+        {"label": "Tahun", "name": "tahun", "type": "Integer", "satuan": None, "deskripsi": "Tahun"}
+    ]
+    write_markdown(
+        render_dictionary_markdown(
+            "ketenagakerjaan", "Kasus Perselisihan", schema, parse_catalog_row(ROWS[0]), "x/models.py"
+        ),
+        str(docs_dir),
+        dictionary_filename("Kasus Perselisihan"),
+    )
+
+    result = _run(
+        monkeypatch,
+        tmp_path,
+        ["--usecase", "ketenagakerjaan", "--source", "kasus_perselisihan", "--sync-dictionary"],
+    )
+
+    assert result.exit_code == 0, result.output
+    models = (source_dir / "models.py").read_text()
+    assert "tahun" in models
+    assert "nomor_perkara" in models
+    # Nothing else is created or rewritten.
+    assert (source_dir / "extractor.py").read_text() == "custom extractor"
+    assert "tahun" not in (docs_dir / "usecase.md").read_text()
+
+
+def test_sync_dictionary_warns_when_module_not_scaffolded(monkeypatch, tmp_path):
+    _write_docs(tmp_path)
+
+    result = _run(
+        monkeypatch,
+        tmp_path,
+        ["--usecase", "ketenagakerjaan", "--source", "kasus_perselisihan", "--sync-dictionary"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "not created yet" in result.output
+    assert "--scaffold" in result.output
+    assert not (tmp_path / "ingestion" / "usecases" / "ketenagakerjaan").exists()
+
+
+def test_sync_dictionary_conflicts_with_scaffold_and_delete(monkeypatch, tmp_path):
+    _write_docs(tmp_path)
+
+    both = _run(
+        monkeypatch,
+        tmp_path,
+        ["--usecase", "ketenagakerjaan", "--scaffold", "--sync-dictionary"],
+    )
+    assert both.exit_code == 2, both.output
+    assert "Use only one of" in both.output
+
+    with_delete = _run(
+        monkeypatch,
+        tmp_path,
+        ["--usecase", "ketenagakerjaan", "--delete", "--sync-dictionary"],
+    )
+    assert with_delete.exit_code == 2, with_delete.output
+
+
 def test_delete_reports_missing_paths(monkeypatch, tmp_path):
     result = _run(monkeypatch, tmp_path, ["--usecase", "ketenagakerjaan", "--delete"])
 

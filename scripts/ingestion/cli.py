@@ -569,6 +569,15 @@ def run(
     ),
 )
 @click.option(
+    "--sync-dictionary",
+    "sync_dictionary",
+    is_flag=True,
+    help=(
+        "Refresh models.py from the local dictionary docs only (no catalog sync, "
+        "no other files); limited to --source / --publisher when given"
+    ),
+)
+@click.option(
     "--delete",
     "delete_usecase",
     is_flag=True,
@@ -590,6 +599,7 @@ def docs(
     scaffold: bool,
     scaffold_overwrite: bool,
     delete_usecase: bool,
+    sync_dictionary: bool,
     include_ineligible: bool,
     env_profile: Optional[str],
     log_level: str,
@@ -602,8 +612,9 @@ def docs(
     ``--source``).
 
     ``--scaffold`` / ``--scaffold-overwrite`` create the module folders/files
-    from those local docs (no catalog sync, no credentials). ``--delete`` removes
-    the use case docs and module folders/files.
+    from those local docs and ``--sync-dictionary`` refreshes only their
+    ``models.py`` (both work without any catalog sync or credentials).
+    ``--delete`` removes the use case docs and module folders/files.
 
     With ``--list``, prints an inventory instead: ``--list usecases``,
     ``--list publishers --usecase X``, ``--list sources --publisher Y``,
@@ -616,8 +627,18 @@ def docs(
             sys.exit(ExitCode.SUCCESS)
         if not usecase:
             raise ConfigError("--usecase is required (or use --list to browse the inventory)")
+        modes = [
+            "--delete" if delete_usecase else "",
+            "--scaffold" if scaffold or scaffold_overwrite else "",
+            "--sync-dictionary" if sync_dictionary else "",
+        ]
+        chosen = [mode for mode in modes if mode]
+        if len(chosen) > 1:
+            raise ConfigError(f"Use only one of {', '.join(chosen)}")
         if delete_usecase:
             _delete_usecase(usecase, output, source_name, publisher)
+        elif sync_dictionary:
+            _sync_dictionary(usecase, source_name, output, publisher, include_ineligible)
         elif scaffold or scaffold_overwrite:
             _scaffold_from_docs(
                 usecase,
@@ -876,39 +897,12 @@ def _scaffold_from_docs(
     """
     from .catalog.docs_reader import read_dictionary_schemas, read_usecase_sources
     from .catalog.markdown_docs import usecase_dir
-    from .catalog.metadata_parser import (
-        is_eligible,
-        normalize_name,
-        publisher_slug,
-        source_slug,
-    )
+    from .catalog.metadata_parser import is_eligible, publisher_slug, source_slug
     from .catalog.scaffold import SCAFFOLD_ROOT, remove_ineligible_sources, scaffold_usecase
 
     docs_dir = Path(output) / usecase_dir(usecase)
     sources = read_usecase_sources(docs_dir)
-    eligible = [source for source in sources if is_eligible(source)]
-    logger.info("Sources from %s: %s total, %s eligible", docs_dir, len(sources), len(eligible))
-
-    if source_name:
-        wanted = normalize_name(source_name)
-        targets = [s for s in sources if normalize_name(s["source_name"]) == wanted]
-        if not targets:
-            targets = [s for s in sources if wanted in normalize_name(s["source_name"])]
-        if not targets:
-            raise ConfigError(f"Source '{source_name}' not found in {docs_dir / 'usecase.md'}")
-        if not include_ineligible:
-            targets = [s for s in targets if is_eligible(s)]
-    elif publisher:
-        wanted = normalize_name(publisher)
-        targets = [s for s in sources if normalize_name(s.get("publisher")) == wanted]
-        if not targets:
-            targets = [s for s in sources if wanted in normalize_name(s.get("publisher"))]
-        if not targets:
-            raise ConfigError(f"Publisher '{publisher}' not found in {docs_dir / 'usecase.md'}")
-        if not include_ineligible:
-            targets = [s for s in targets if is_eligible(s)]
-    else:
-        targets = sources if include_ineligible else eligible
+    targets = _select_sources(sources, source_name, publisher, include_ineligible, docs_dir)
 
     scaffold_targets = [s for s in targets if is_eligible(s)]
     if source_name:
@@ -938,6 +932,75 @@ def _scaffold_from_docs(
     logger.info(
         "Scaffold complete: %s created, %s skipped (already existed)", len(created), len(skipped)
     )
+
+
+def _sync_dictionary(
+    usecase: str,
+    source_name: Optional[str],
+    output: str,
+    publisher: Optional[str] = None,
+    include_ineligible: bool = False,
+) -> None:
+    """Refresh only ``models.py`` for the selected sources from the local docs."""
+    from .catalog.docs_reader import read_dictionary_schemas, read_usecase_sources
+    from .catalog.markdown_docs import usecase_dir
+    from .catalog.metadata_parser import is_eligible
+    from .catalog.scaffold import SCAFFOLD_ROOT, sync_dictionary_models
+
+    docs_dir = Path(output) / usecase_dir(usecase)
+    sources = read_usecase_sources(docs_dir)
+    targets = [s for s in _select_sources(sources, source_name, publisher, include_ineligible, docs_dir) if is_eligible(s)]
+
+    updated, unchanged, missing = sync_dictionary_models(
+        SCAFFOLD_ROOT, usecase, targets, read_dictionary_schemas(docs_dir)
+    )
+    for path in updated:
+        logger.info("Synced %s", path)
+    logger.info(
+        "Dictionary sync complete: %s updated, %s unchanged, %s not scaffolded",
+        len(updated),
+        len(unchanged),
+        len(missing),
+    )
+    for path in missing:
+        logger.warning(
+            "Module folder/files not created yet for %s; run 'python -m ingestion docs "
+            "--usecase %s --scaffold' first",
+            path,
+            usecase,
+        )
+
+
+def _select_sources(
+    sources: List[Dict[str, Any]],
+    source_name: Optional[str],
+    publisher: Optional[str],
+    include_ineligible: bool,
+    docs_dir: Path,
+) -> List[Dict[str, Any]]:
+    """Apply the ``--source`` / ``--publisher`` / eligibility selection to docs rows."""
+    from .catalog.metadata_parser import is_eligible, normalize_name
+
+    origin = docs_dir / "usecase.md"
+    if source_name:
+        wanted = normalize_name(source_name)
+        targets = [s for s in sources if normalize_name(s["source_name"]) == wanted]
+        if not targets:
+            targets = [s for s in sources if wanted in normalize_name(s["source_name"])]
+        if not targets:
+            raise ConfigError(f"Source '{source_name}' not found in {origin}")
+    elif publisher:
+        wanted = normalize_name(publisher)
+        targets = [s for s in sources if normalize_name(s.get("publisher")) == wanted]
+        if not targets:
+            targets = [s for s in sources if wanted in normalize_name(s.get("publisher"))]
+        if not targets:
+            raise ConfigError(f"Publisher '{publisher}' not found in {origin}")
+    else:
+        targets = sources
+    if include_ineligible:
+        return targets
+    return [s for s in targets if is_eligible(s)]
 
 
 def _delete_usecase(
