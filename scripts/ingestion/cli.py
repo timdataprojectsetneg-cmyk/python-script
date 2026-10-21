@@ -239,9 +239,13 @@ def execute_run(
     limit: int = 0,
     use_dlt: bool = False,
     targets: Optional[List[str]] = None,
+    full_refresh: bool = False,
     out: Optional[Any] = None,
 ) -> int:
     config = load_config(usecase, publisher, source)
+    if full_refresh:
+        # PostgresLoader drops and recreates the table instead of keeping it.
+        config["full_refresh"] = True
 
     requested = [t.lower() for t in targets] if targets else []
     if not requested:
@@ -321,7 +325,7 @@ def _run_source_task(payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
         execute_run(
             usecase, publisher, source, payload["mode"], payload["limit"],
-            payload["use_dlt"], payload["targets"], out=buf,
+            payload["use_dlt"], payload["targets"], payload["full_refresh"], out=buf,
         )
         return {"pair": (publisher, source), "code": int(ExitCode.SUCCESS),
                 "output": buf.getvalue(), "error": None, "ingestion_error": True}
@@ -399,6 +403,13 @@ def cli(env_profile: Optional[str]) -> None:
 @click.option("--limit", default=0, type=int, help="Limit records (debug)")
 @click.option("--use-dlt", is_flag=True, default=False, help="Use dlt for DEV PostgreSQL loading")
 @click.option(
+    "--full-refresh",
+    is_flag=True,
+    default=False,
+    help="Drop and recreate the PostgreSQL table before loading, also when METHOD=upsert "
+    "(upsert otherwise keeps the existing table)",
+)
+@click.option(
     "--thread",
     "thread_workers",
     type=int,
@@ -424,6 +435,7 @@ def run(
     minio_uri: Optional[str],
     limit: int,
     use_dlt: bool,
+    full_refresh: bool,
     thread_workers: int,
     extra_vars: Optional[str],
     env_profile: Optional[str],
@@ -432,7 +444,8 @@ def run(
     """Run data ingestion for a usecase by --publisher and/or --source.
 
     ``--publisher`` runs every source under that publisher; ``--exclude`` skips
-    comma-separated sources from that selection.
+    comma-separated sources from that selection. ``--full-refresh`` drops and
+    recreates the PostgreSQL table before loading, also for ``METHOD=upsert``.
     """
     setup_logging(log_level)
     try:
@@ -471,6 +484,10 @@ def run(
         targets = uri_targets or None
         pairs = _resolve_run_targets(usecase, publisher, source, exclude)
         logger.info("Targets: %s", ", ".join(f"{pub}/{src}" for pub, src in pairs))
+        if full_refresh:
+            logger.info(
+                "Full refresh requested: the PostgreSQL table is dropped and recreated before loading"
+            )
         code = ExitCode.SUCCESS
         if thread_workers > 1 and len(pairs) > 1:
             logger.info("Running %s sources with %s thread workers", len(pairs), thread_workers)
@@ -482,6 +499,7 @@ def run(
                     "mode": mode,
                     "limit": limit,
                     "use_dlt": use_dlt,
+                    "full_refresh": full_refresh,
                     "targets": targets,
                 }
                 for pub, src in pairs
@@ -506,7 +524,7 @@ def run(
         else:
             for pub, src in pairs:
                 try:
-                    execute_run(usecase, pub, src, mode, limit, use_dlt, targets)
+                    execute_run(usecase, pub, src, mode, limit, use_dlt, targets, full_refresh)
                 except Exception as exc:  # noqa: BLE001 - continue the remaining sources
                     code = exit_code_for(exc)
                     logger.error(

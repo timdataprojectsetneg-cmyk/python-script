@@ -291,15 +291,17 @@ def _prepare_table(
     method: str,
     comments: Dict[str, str],
     table_comment: str,
+    full_refresh: bool = False,
 ) -> Any:
     """Create/refresh the target table and its comments for the current load.
 
     ``replace`` drops the table first so column types and comments are rebuilt
     from the current model/extractor result; ``upsert`` keeps the existing table
-    but refreshes comments and ensures the unique index.
+    but refreshes comments and ensures the unique index — unless ``full_refresh``
+    forces the drop anyway.
     """
     qualified = sql.SQL("{}.{}").format(sql.Identifier(schema), sql.Identifier(table))
-    if method == "replace":
+    if method == "replace" or full_refresh:
         cur.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(qualified))
     _ensure_table(cur, sql, schema, table, columns, rows, keys)
     _apply_comments(cur, sql, schema, table, columns, comments, table_comment)
@@ -358,7 +360,17 @@ class PostgresLoader(BaseLoader):
         try:
             with conn, conn.cursor() as cur:
                 qualified = _prepare_table(
-                    cur, sql, schema, table, columns, rows, keys, method, comments, table_comment
+                    cur,
+                    sql,
+                    schema,
+                    table,
+                    columns,
+                    rows,
+                    keys,
+                    method,
+                    comments,
+                    table_comment,
+                    bool(self.config.get("full_refresh")),
                 )
                 column_sql = sql.SQL(", ").join(sql.Identifier(column) for column in columns)
                 values = [
@@ -405,6 +417,12 @@ class DltPostgresLoader(BaseLoader):
         keys = _unique_keys(self.config)
         if method == "upsert" and not keys:
             raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
+        # A recreated table is empty, so "replace" loads the same as a merge.
+        disposition = (
+            "replace"
+            if self.config.get("full_refresh") or method != "upsert"
+            else "merge"
+        )
         pipeline = dlt.pipeline(pipeline_name=f"ingestion_{self.config.get('usecase')}", destination=postgres_destination(credentials=_postgres_credentials()), dataset_name=schema)
-        pipeline.run(dlt.resource(rows, name=table, write_disposition="merge" if method == "upsert" else "replace", primary_key=keys or None))
+        pipeline.run(dlt.resource(rows, name=table, write_disposition=disposition, primary_key=keys or None))
         return len(rows)

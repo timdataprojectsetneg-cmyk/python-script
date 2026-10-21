@@ -15,3 +15,6 @@ __pycache__/
 out/
 dev/
 glossy-fastness-511414-p4-64cb764cfc18.json
+
+# Local-only ingestion tests (run an actual use case; never pushed)
+scripts/tests/ingestion/

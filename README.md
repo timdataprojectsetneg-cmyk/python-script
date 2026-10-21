@@ -21,11 +21,27 @@ Selain script standalone, folder `scripts` berisi framework ingestion generik (p
 
 - Dokumentasi lengkap: `scripts/SKILL.md`.
 - Menjalankan satu source: `python -m ingestion run --usecase <uc> --source <src> --env dev`.
+- Full refresh tabel PostgreSQL (drop + create sebelum load): `python -m ingestion run --usecase <uc> --source <src> --env dev --full-refresh`.
 - Generate docs dari katalog (SharePoint/spreadsheet): `python -m ingestion docs --usecase <uc> --env dev`.
 - Scaffold module folders/files dari docs lokal (tanpa sync katalog): `python -m ingestion docs --usecase <uc> --scaffold`.
 - Sinkron hanya `models.py` dari dictionary: `python -m ingestion docs --usecase <uc> --source <src> --sync-dictionary`.
 - Hapus docs + module folders/files usecase: `python -m ingestion docs --usecase <uc> --delete` (batasi ke satu sumber/penerbit dengan `--source` / `--publisher`).
 - Wiring NiFi: `scripts/nifi/README.md`.
+
+### Full Refresh PostgreSQL (`--full-refresh`) ###
+Secara default `run` bersifat **non-destruktif**: dengan `__METHOD=upsert` tabel yang sudah ada dipertahankan (hanya `INSERT ... ON CONFLICT DO UPDATE`), dan dengan `__METHOD=replace` tabel memang di-`DROP` lalu dibuat ulang. Flag `--full-refresh` memaksa tabel di-`DROP` + `CREATE TABLE` ulang **juga saat `__METHOD=upsert`**, sehingga:
+
+- skema kolom dan komentar (hasil Data Dictionary/model terbaru) ikut ter-refresh, bukan hanya barisnya;
+- baris lama yang tidak ada di batch kali ini akan hilang (tabel dikosongkan lebih dulu);
+- proses insert tetap memakai jalur upsert (`ON CONFLICT`), jadi `__UNIQUE_KEY` tetap berlaku;
+- hanya berpengaruh pada target PostgreSQL; dengan `--use-dlt` flag ini memakai `write_disposition=replace`.
+
+```bash
+# Contoh: refresh tabel raw setelah models.py / dictionary berubah
+python -m ingestion run --usecase ketenagakerjaan --source kasus_perselisihan --env dev --full-refresh
+```
+
+Berlaku juga untuk banyak source sekaligus (`--publisher ... --thread N`): setiap source melakukan drop-create untuk tabelnya sendiri.
 
 ## Environment Variables ##
 Untuk pembuatan dan penggunaan environment variables, dapat dilakukan dengan 2 cara yaitu:
