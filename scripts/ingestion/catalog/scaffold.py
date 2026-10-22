@@ -1,4 +1,4 @@
-"""Scaffold use case module folders/files from the SharePoint catalog.
+"""Scaffold use case module folders/files for eligible sources.
 
 Only sources with ``Eligible = true`` are scaffolded. Existing files are skipped
 by default; callers can explicitly opt into overwriting them.
@@ -13,7 +13,15 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .metadata_parser import derive_access, derive_module_name, publisher_slug, source_slug, to_pydantic_source
 
-__all__ = ["merge_models_source", "remove_ineligible_sources", "scaffold_usecase"]
+__all__ = [
+    "SCAFFOLD_ROOT",
+    "merge_models_source",
+    "remove_ineligible_sources",
+    "scaffold_usecase",
+    "sync_dictionary_models",
+]
+
+SCAFFOLD_ROOT = "ingestion/usecases"
 
 EXTRACTOR_BASES = {
     "excel": ("ExcelExtractor", "core.extractors.excel_extractor"),
@@ -227,6 +235,20 @@ def merge_models_source(existing: str, generated: str) -> str:
 
 
 
+def _write_models(models_path: Path, generated: str, overwrite: bool = False) -> Tuple[bool, bool]:
+    """Write ``models.py``, merging into an existing file. Returns ``(written, skipped)``."""
+    if models_path.exists() and not overwrite:
+        current = models_path.read_text(encoding="utf-8")
+        merged = merge_models_source(current, generated)
+        if merged == current:
+            return False, True
+        models_path.write_text(merged, encoding="utf-8")
+        return True, False
+    models_path.parent.mkdir(parents=True, exist_ok=True)
+    models_path.write_text(generated, encoding="utf-8")
+    return True, False
+
+
 def scaffold_usecase(
     root: str,
     usecase: str,
@@ -254,25 +276,17 @@ def scaffold_usecase(
         source_name = str(source.get("source_name") or slug)
 
         models_path = source_dir / "models.py"
+        written, _ = _write_models(
+            models_path, _models_source(source_name, schemas.get(slug, [])), overwrite
+        )
+        (created if written else skipped).append(str(models_path))
+
         files: Dict[Path, str] = {
             usecase_dir / publisher / "__init__.py": EMPTY,
             source_dir / "__init__.py": EMPTY,
             source_dir / "normalizer.py": _normalizer_source(source_name),
             source_dir / "extractor.py": _extractor_source(source_name, access),
         }
-
-        generated_models = _models_source(source_name, schemas.get(slug, []))
-        if models_path.exists() and not overwrite:
-            current = models_path.read_text(encoding="utf-8")
-            merged = merge_models_source(current, generated_models)
-            if merged == current:
-                skipped.append(str(models_path))
-            else:
-                models_path.write_text(merged, encoding="utf-8")
-                created.append(str(models_path))
-        else:
-            files[models_path] = generated_models
-
         for path, content in files.items():
             if path.exists() and not overwrite:
                 skipped.append(str(path))
@@ -282,6 +296,38 @@ def scaffold_usecase(
             created.append(str(path))
 
     return created, skipped
+
+
+def sync_dictionary_models(
+    root: str,
+    usecase: str,
+    sources: List[Dict[str, Any]],
+    schemas: Dict[str, List[Dict[str, Any]]] | None = None,
+) -> Tuple[List[str], List[str], List[str]]:
+    """Refresh only ``models.py`` from the dictionary, keeping hand-written code.
+
+    Returns ``(updated, unchanged, missing)``. Nothing is created: a source whose
+    module folder/files have not been scaffolded yet is reported as ``missing``.
+    """
+    schemas = schemas or {}
+    usecase_dir = Path(root) / derive_module_name(usecase)
+    updated: List[str] = []
+    unchanged: List[str] = []
+    missing: List[str] = []
+
+    for source in sources:
+        slug = source_slug(source)
+        if not slug:
+            continue
+        models_path = usecase_dir / publisher_slug(source) / slug / "models.py"
+        if not models_path.is_file():
+            missing.append(str(models_path))
+            continue
+        source_name = str(source.get("source_name") or slug)
+        written, _ = _write_models(models_path, _models_source(source_name, schemas.get(slug, [])))
+        (updated if written else unchanged).append(str(models_path))
+
+    return updated, unchanged, missing
 
 
 def remove_ineligible_sources(

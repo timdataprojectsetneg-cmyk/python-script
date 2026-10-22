@@ -23,7 +23,7 @@ class SatuDataKemnakerRecord(BaseModel):
     link_file: str | None = Field(
         default=None, validation_alias=AliasChoices("link_file", "file")
     )
-    abstraksi: int | None = Field(default=None, alias="abstraksi")
+    abstraksi: str | None = Field(default=None, alias="abstraksi")
     isi: str | None = Field(default=None)
     size_files: str | None = Field(default=None)
     kategori: str | None = Field(default=None)

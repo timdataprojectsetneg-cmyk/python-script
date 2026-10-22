@@ -61,6 +61,26 @@ def _split_schema_table(value: Any, default_schema: str) -> tuple:
     return default_schema, text
 
 
+def _run_ddl(cur: Any, query: Any) -> None:
+    """Run a DDL statement, ignoring duplicates created by concurrent loads.
+
+    ``IF NOT EXISTS`` is not race-free: the CLI loads sources in threads, so two
+    loads can pass the existence check together and one then fails on the catalog
+    unique constraint (``pg_namespace_nspname_index`` for a schema, ``pg_class``
+    for a table/index). The statement runs under a savepoint so a duplicate is
+    treated as "already exists" and the surrounding transaction stays usable.
+    """
+    from psycopg2 import errors
+
+    cur.execute("SAVEPOINT setneg_ddl")
+    try:
+        cur.execute(query)
+    except (errors.UniqueViolation, errors.DuplicateSchema, errors.DuplicateTable):
+        cur.execute("ROLLBACK TO SAVEPOINT setneg_ddl")
+    else:
+        cur.execute("RELEASE SAVEPOINT setneg_ddl")
+
+
 def _ensure_schema(schema: str) -> None:
     """Create the target schema if it does not exist yet."""
     import psycopg2
@@ -76,8 +96,9 @@ def _ensure_schema(schema: str) -> None:
     )
     try:
         with conn, conn.cursor() as cur:
-            cur.execute(
-                sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema))
+            _run_ddl(
+                cur,
+                sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema)),
             )
     finally:
         conn.close()
@@ -202,7 +223,10 @@ def _ensure_table(
         definitions.append(sql.SQL("{} {}").format(sql.Identifier(column), sql.SQL(_column_type([row.get(column) for row in rows]))))
     if keys:
         definitions.append(sql.SQL("PRIMARY KEY ({})").format(sql.SQL(", ").join(sql.Identifier(key) for key in keys)))
-    cur.execute(sql.SQL("CREATE TABLE IF NOT EXISTS {}.{} ({})").format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(", ").join(definitions)))
+    _run_ddl(
+        cur,
+        sql.SQL("CREATE TABLE IF NOT EXISTS {}.{} ({})").format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(", ").join(definitions)),
+    )
 
 
 def _apply_comments(
@@ -245,13 +269,14 @@ def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list
     if not keys:
         return
     index_name = "uq_" + "_".join([table] + keys)[:60]
-    cur.execute(
+    _run_ddl(
+        cur,
         sql.SQL("CREATE UNIQUE INDEX IF NOT EXISTS {} ON {}.{} ({})").format(
             sql.Identifier(index_name),
             sql.Identifier(schema),
             sql.Identifier(table),
             sql.SQL(", ").join(sql.Identifier(key) for key in keys),
-        )
+        ),
     )
 
 
@@ -266,15 +291,17 @@ def _prepare_table(
     method: str,
     comments: Dict[str, str],
     table_comment: str,
+    full_refresh: bool = False,
 ) -> Any:
     """Create/refresh the target table and its comments for the current load.
 
     ``replace`` drops the table first so column types and comments are rebuilt
     from the current model/extractor result; ``upsert`` keeps the existing table
-    but refreshes comments and ensures the unique index.
+    but refreshes comments and ensures the unique index — unless ``full_refresh``
+    forces the drop anyway.
     """
     qualified = sql.SQL("{}.{}").format(sql.Identifier(schema), sql.Identifier(table))
-    if method == "replace":
+    if method == "replace" or full_refresh:
         cur.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(qualified))
     _ensure_table(cur, sql, schema, table, columns, rows, keys)
     _apply_comments(cur, sql, schema, table, columns, comments, table_comment)
@@ -333,7 +360,17 @@ class PostgresLoader(BaseLoader):
         try:
             with conn, conn.cursor() as cur:
                 qualified = _prepare_table(
-                    cur, sql, schema, table, columns, rows, keys, method, comments, table_comment
+                    cur,
+                    sql,
+                    schema,
+                    table,
+                    columns,
+                    rows,
+                    keys,
+                    method,
+                    comments,
+                    table_comment,
+                    bool(self.config.get("full_refresh")),
                 )
                 column_sql = sql.SQL(", ").join(sql.Identifier(column) for column in columns)
                 values = [
@@ -380,6 +417,12 @@ class DltPostgresLoader(BaseLoader):
         keys = _unique_keys(self.config)
         if method == "upsert" and not keys:
             raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
+        # A recreated table is empty, so "replace" loads the same as a merge.
+        disposition = (
+            "replace"
+            if self.config.get("full_refresh") or method != "upsert"
+            else "merge"
+        )
         pipeline = dlt.pipeline(pipeline_name=f"ingestion_{self.config.get('usecase')}", destination=postgres_destination(credentials=_postgres_credentials()), dataset_name=schema)
-        pipeline.run(dlt.resource(rows, name=table, write_disposition="merge" if method == "upsert" else "replace", primary_key=keys or None))
+        pipeline.run(dlt.resource(rows, name=table, write_disposition=disposition, primary_key=keys or None))
         return len(rows)

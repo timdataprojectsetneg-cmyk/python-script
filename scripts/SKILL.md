@@ -21,8 +21,10 @@ Location: `bigaction/python-script/scripts/` (package `ingestion/`; entrypoints
 3. **Secrets never in code/logs.** `.env` is published (non-secret only);
    `.env.<profile>` (e.g. `.env.dev`) is gitignored and loaded with `--env dev`.
    PROD Python holds no DB credentials.
-4. **Unit tests are optional**; a pytest suite lives in `scripts/tests/unit`
-   (`pytest scripts/tests/unit`).
+4. **Unit tests are optional**; the committed suite lives in `scripts/tests/unit`
+   and `scripts/tests/integration`. Tests that actually run an ingestion for one
+   use case belong in `scripts/tests/ingestion/`, which is **local-only**
+   (gitignored) — see [Tests](#tests).
 
 ## Ingestion pipeline (3 steps)
 
@@ -81,6 +83,33 @@ import Record`.
   `pip install -r requirements-dev.txt` — it `-r requirements.txt` and adds
   `dlt[postgres]`, `psycopg2-binary`, `elasticsearch`, `sqlalchemy`,
   `google-api-python-client`, `google-auth`.
+
+## Tests
+
+| Folder | Isi | Di-commit? |
+|---|---|---|
+| `scripts/tests/unit/` | unit test semua modul `ingestion/`: `config`, `catalog/`+`docs`, loaders, `registry`, dan fitur `run` (`--full-refresh`, `--thread`, `--exclude`) | ya |
+| `scripts/tests/integration/` | CLI/dokumen end-to-end dengan client di-stub (mis. `docs` generate/scaffold) | ya |
+| `scripts/tests/ingestion/` | unit test yang **benar-benar menjalankan ingestion** (`run --usecase/--publisher/--source`) untuk satu use case | **tidak** (gitignored) |
+
+`scripts/tests/ingestion/` dikhususkan untuk Data Engineer pemilik use case: isinya
+menjalankan alur nyata (extract → normalize → load) untuk usecase/publisher/source
+tertentu — sering butuh kredensial/DB — dan **tidak di-push ke repo**. Fitur milik
+core `run` (mis. `--full-refresh`, `--thread`) tetap diuji di
+`scripts/tests/unit/`, bukan di sini.
+
+```bash
+pytest scripts/tests/unit scripts/tests/integration   # suite yang di-commit
+mkdir -p scripts/tests/ingestion && pytest scripts/tests/ingestion   # lokal saja
+```
+
+Di clone baru folder `scripts/tests/ingestion/` belum ada (gitignored, tidak ikut
+ter-push): buat manual, lalu tambahkan file mengikuti pola `unit` (mis.
+`test_<usecase>_<source>.py`). `scripts/tests/conftest.py` sudah menambahkan
+`scripts/` ke `sys.path`, jadi `import ingestion...` langsung jalan. Jalankan
+`pytest scripts/tests/unit scripts/tests/integration` untuk suite yang di-commit;
+`pytest scripts/tests` juga ikut mengambil tes lokal tersebut (butuh
+kredensial/DB), jadi pakai path eksplisit kalau tidak ingin menjalankannya.
 
 ## Environment variables
 
@@ -143,6 +172,8 @@ python -m ingestion run --usecase ketenagakerjaan --publisher kemnaker
 python -m ingestion run --usecase ketenagakerjaan --publisher bps --exclude bps_inflasi_yoy,bps_inflasi_mom
 # Run all selected sources concurrently (I/O-bound → threads is the good default)
 python -m ingestion run --usecase ketenagakerjaan --publisher kemnaker --thread 4
+# Drop + create tabel PostgreSQL sebelum load (juga saat METHOD=upsert)
+python -m ingestion run --usecase ketenagakerjaan --source kasus_perselisihan --env dev --full-refresh
 # PROD NDJSON vs direct load (URI present enables loading; each URI = one sink)
 python -m ingestion run --usecase ... --source ... --mode dev --env dev
 python -m ingestion run --usecase ... --source ... --pg-uri "$PG_URI" --minio-uri "$MINIO_URI"
@@ -153,8 +184,11 @@ python -m ingestion run --usecase ... --source ... --env dev --extra-vars '{"BPS
 python -m ingestion docs --usecase ketenagakerjaan --env dev
 python -m ingestion docs --usecase ketenagakerjaan --publisher kemnaker
 python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
-python -m ingestion docs --usecase ketenagakerjaan --env dev --scaffold
+python -m ingestion docs --usecase ketenagakerjaan --scaffold   # from local docs, no catalog sync
 python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan" --scaffold-overwrite
+python -m ingestion docs --usecase ketenagakerjaan --source satu_data_kemnaker --sync-dictionary  # models.py only
+python -m ingestion docs --usecase ketenagakerjaan --delete     # remove docs + module folders/files
+python -m ingestion docs --usecase ketenagakerjaan --source "Direktori Putusan PHI" --delete  # one source only
 python -m ingestion docs --list    # bare = all; inventory only, no env/credentials needed
 python -m ingestion docs --list sources --usecase ketenagakerjaan
 ```
@@ -171,6 +205,10 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
 - `run --exclude a,b` drops comma-separated sources from the `--publisher`/
   `--source` selection (name or slug, substring-tolerant), so
   `run --usecase X --publisher Y --exclude s1,s2` skips those sources.
+- `run --full-refresh` drops and recreates the PostgreSQL table before loading,
+  also when `__METHOD=upsert` (which otherwise keeps the existing table), so the
+  column types/comments follow the current model; the insert still uses
+  `ON CONFLICT`. PostgreSQL target only.
 - `--scaffold` creates missing folders/files; `--scaffold-overwrite` replaces
   existing scaffold files, limited to the `--source`/`--publisher` scope (or the
   whole usecase when neither is given).
@@ -179,11 +217,14 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
 
 ## Adding a source — checklist
 
-1. `python -m ingestion docs --usecase <uc> --scaffold --env dev` (creates
-   folders for **Eligible = true** sources; add `--source`/`--publisher` to limit
-   the scope and `--scaffold-overwrite` to replace existing files in that scope).
+1. `python -m ingestion docs --usecase <uc> --env dev` (writes the docs), then
+   `python -m ingestion docs --usecase <uc> --scaffold` (creates folders for
+   **Eligible = true** sources from those local docs; add `--source`/`--publisher`
+   to limit the scope and `--scaffold-overwrite` to replace existing files in that
+   scope).
    `--scaffold` also refreshes each `models.py` from the dictionary while keeping
-   hand-written code; or copy the example source.
+   hand-written code; `--sync-dictionary` does that refresh alone; or copy the
+   example source.
 2. Fill `models.py` (`class Record`) from the generated
    `docs/<usecase>/dictionary_<source>.md`; map source column names to canonical
    fields with Pydantic `validation_alias=AliasChoices(...)`; add
@@ -288,11 +329,22 @@ without any credentials/env** (bare `--list` = `all`; or
   `POSTGRE_SCHEMA`, `POSTGRE_TABLE` (`schema.table`), `ES_INDEX`, `MINIO_BUCKET`.
 - Only `Eligible = true` sources are structured/scaffolded/env-emitted;
   `--include-ineligible` overrides for dictionaries.
-- `--scaffold` scaffolds only the selected scope (`--source` / `--publisher` /
-  whole usecase) and refreshes `models.py` from the dictionary field-by-field,
-  preserving hand-written code (imports, extra classes, methods, custom field
-  aliases). `--scaffold-overwrite` fully replaces existing scaffold files, also
-  limited to that scope.
+- `--scaffold` / `--scaffold-overwrite` work from the **local** docs
+  (`docs/<usecase>/usecase.md` + `dictionary_*.md`): no catalog sync and no
+  credentials, so run `docs --usecase <uc> --env dev` first. They scaffold only
+  the selected scope (`--source` / `--publisher` / whole usecase) and refresh
+  `models.py` from the dictionary field-by-field, preserving hand-written code
+  (imports, extra classes, methods, custom field aliases);
+  `--scaffold-overwrite` fully replaces existing scaffold files in that scope.
+- `--sync-dictionary` refreshes **only** `models.py` for the selected sources from
+  the local `dictionary_<source>.md` (same merge as `--scaffold`, so hand-written
+  code survives). It never creates folders/files: if a module has not been
+  scaffolded yet it logs a warning pointing at `--scaffold`.
+- `--delete` removes the use case docs (`docs/<usecase>/`) and its module folders
+  (`ingestion/usecases/<usecase>/`), including hand-written code. With
+  `--source` / `--publisher` only the matching `dictionary_<source>.md` and module
+  folders/files are removed; `usecase.md` / `usecase.env` stay untouched (source
+  matching reads them, so the docs must exist).
 - `docs/<usecase>/usecase.env` is auto-loaded by `load_env()` when running that
   use case.
 

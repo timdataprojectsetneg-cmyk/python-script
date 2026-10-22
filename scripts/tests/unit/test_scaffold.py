@@ -7,6 +7,7 @@ from ingestion.catalog.scaffold import (
     merge_models_source,
     remove_ineligible_sources,
     scaffold_usecase,
+    sync_dictionary_models,
 )
 
 SOURCES = [
@@ -146,6 +147,56 @@ def test_merge_uses_record_alias_target():
     assert "class Record(BaseModel):" not in merged
     assert "Record = SatuDataRecord" in merged
     assert merged.count("class SatuDataRecord(BaseModel):") == 1
+
+
+def test_sync_dictionary_updates_models_only_and_keeps_custom_code(tmp_path):
+    models_path = tmp_path / "ketenagakerjaan" / "kemnaker" / "kasus_perselisihan" / "models.py"
+    models_path.parent.mkdir(parents=True)
+    models_path.write_text(
+        '"""Custom docstring."""\n\n'
+        "from pydantic import BaseModel, Field\n\n\n"
+        "class KasusPerselisihanRecord(BaseModel):\n"
+        '    kabupaten_kota: str | None = Field(default=None, alias="Kabupaten_Kota")\n\n'
+        '    model_config = {"populate_by_name": True, "extra": "ignore"}\n\n'
+        "    def keep_me(self) -> str:\n"
+        '        return "keep me"\n\n\n'
+        "Record = KasusPerselisihanRecord\n"
+    )
+    (models_path.parent / "extractor.py").write_text("custom extractor", encoding="utf-8")
+
+    updated, unchanged, missing = sync_dictionary_models(
+        str(tmp_path),
+        "ketenagakerjaan",
+        SOURCES,
+        {
+            "kasus_perselisihan": [
+                {"label": "Kabupaten_Kota", "name": "kabupaten_kota", "type": "Text"},
+                {"label": "Tahun", "name": "tahun", "type": "Integer"},
+            ]
+        },
+    )
+
+    models = models_path.read_text()
+    assert updated == [str(models_path)]
+    assert unchanged == [] and missing == []
+    assert "tahun" in models
+    assert "keep me" in models
+    assert "Record = KasusPerselisihanRecord" in models
+    # Only models.py is touched.
+    assert (models_path.parent / "extractor.py").read_text() == "custom extractor"
+    assert not (models_path.parent / "normalizer.py").exists()
+
+
+def test_sync_dictionary_reports_missing_module_without_creating_files(tmp_path):
+    updated, unchanged, missing = sync_dictionary_models(
+        str(tmp_path), "ketenagakerjaan", SOURCES, {"kasus_perselisihan": []}
+    )
+
+    assert updated == [] and unchanged == []
+    assert missing == [
+        str(tmp_path / "ketenagakerjaan" / "kemnaker" / "kasus_perselisihan" / "models.py")
+    ]
+    assert not (tmp_path / "ketenagakerjaan").exists()
 
 
 def test_remove_ineligible_sources_respects_scope(tmp_path):

@@ -21,6 +21,8 @@
 | Menengah | `menengah` | Integer | Perusahaan | Perusahaan yang melaporkan PKB skala Menengah (20–99 TK). |
 | Besar | `besar` | Integer | Perusahaan | Perusahaan yang melaporkan PKB skala Besar (≥100 TK). |
 | Tidak_Teridentifikasi | `tidak_teridentifikasi` | Integer | Perusahaan | Perusahaan yang melaporkan PKB yang belum melaporkan informasi tenaga kerja. |
+| tahun | `tahun` | string | YYYY | Tahun Pelaporan |
+| bulan | `bulan` | string | - | Bulan Pelaporan |
 | Jumlah | `jumlah` | Integer | Perusahaan | Total seluruh skala. |
 
 ## Generated Pydantic model
@@ -36,6 +38,8 @@ class KemnakerLaporPkbDiWlkpTable1Record(BaseModel):
     menengah: int | None = Field(default=None, alias="Menengah", description="Perusahaan yang melaporkan PKB skala Menengah (20–99 TK).")
     besar: int | None = Field(default=None, alias="Besar", description="Perusahaan yang melaporkan PKB skala Besar (≥100 TK).")
     tidak_teridentifikasi: int | None = Field(default=None, alias="Tidak_Teridentifikasi", description="Perusahaan yang melaporkan PKB yang belum melaporkan informasi tenaga kerja.")
+    tahun: str | None = Field(default=None, alias="tahun", description="Tahun Pelaporan")
+    bulan: str | None = Field(default=None, alias="bulan", description="Bulan Pelaporan")
     jumlah: int | None = Field(default=None, alias="Jumlah", description="Total seluruh skala.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}

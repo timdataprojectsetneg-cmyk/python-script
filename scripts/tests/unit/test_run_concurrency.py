@@ -20,7 +20,7 @@ def _reset(monkeypatch):
 
 
 def _install(monkeypatch, pairs, sink):
-    def fake_execute(usecase, pub, src, mode, limit, use_dlt, targets, out=None):
+    def fake_execute(usecase, pub, src, mode, limit, use_dlt, targets, full_refresh=False, out=None):
         time.sleep(0.01)
         sink.append((pub, src))
         if out is not None:

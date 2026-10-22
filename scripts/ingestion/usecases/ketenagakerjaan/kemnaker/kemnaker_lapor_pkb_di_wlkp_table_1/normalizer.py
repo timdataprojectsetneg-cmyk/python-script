@@ -1,4 +1,4 @@
-"""Normalizer — Signal Ketenagakerjaan."""
+"""Normalizer — Kemnaker Lapor PKB di WLKP Table 1."""
 
 from __future__ import annotations
 
@@ -17,6 +17,14 @@ class Normalizer(BaseNormalizer):
     def normalize(self, records: Iterator[Dict[str, Any]]) -> Iterator[Dict[str, Any]]:
         for raw in records:
             try:
+                # Extract metadata from special keys if present
+                # Excel automation adds _sheet_name
+                sheet_name = raw.get("_sheet_name")
+                if sheet_name:
+                    raw["bulan"] = sheet_name
+                
+                raw["tahun"] = "2026"
+
                 yield Record(**raw).model_dump()
             except ValidationError as exc:
                 logger.warning("Validation failed, record skipped: %s", exc)
