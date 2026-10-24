@@ -76,3 +76,41 @@ def test_non_leading_numbers_are_preserved():
         "heesi_2025_executive_summary_natural_gas_and_products"
     )
     assert derive_module_name("3M Indonesia") == "3m_indonesia"
+
+
+def test_internal_dash_is_not_a_title_separator():
+    name = "LAKIN Ditjen Migas 2025_Gambar 27 — Peta Ruas Pipa Cirebon–Semarang"
+    assert summarize_context(name) == "Peta Ruas Pipa Cirebon–Semarang"
+    assert derive_module_name(name) == "peta_ruas_pipa_cirebon_semarang"
+
+
+def test_year_range_is_not_a_title_separator():
+    name = (
+        "PLN - Tabel 5.18 Perubahan RUPTL 2025 – 2034 Skenario ARED "
+        "terhadap RUPTL 2021 – 2030 Indonesia"
+    )
+    assert summarize_context(name) == (
+        "5.18 Perubahan RUPTL 2025 – 2034 Skenario ARED Terhadap "
+        "RUPTL 2021 – 2030 Indonesia"
+    )
+    assert derive_module_name(name) == (
+        "perubahan_ruptl_2025_2034_skenario_ared_terhadap_ruptl_2021"
+    )
+
+
+def test_section_number_after_year_still_splits():
+    assert derive_module_name(
+        "HANDBOOK OF ENERGY & ECONOMIC STATISTICS OF INDONESIA 2025 - "
+        "3.2.2 Energy Consumption (Excluded Traditional Biomass)"
+    ) == "energy_consumption"
+    assert derive_module_name(
+        "HANDBOOK OF ENERGY & ECONOMIC STATISTICS OF INDONESIA 2025 - "
+        "2 Indonesia Energy Balance Table 2025"
+    ) == "indonesia_energy_balance_table_2025"
+
+
+def test_numbers_special_chars_and_connectors_do_not_consume_slots():
+    text = "satu dan dua 2025 – 2034 tiga empat lima enam tujuh delapan sembilan"
+    assert summarize_context(text, max_words=8) == (
+        "Satu dan Dua 2025 – 2034 Tiga Empat Lima Enam Tujuh Delapan"
+    )

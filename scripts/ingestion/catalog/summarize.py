@@ -21,7 +21,7 @@ from typing import Final
 _SPACE_RE = re.compile(r"\s+")
 # Report titles commonly use a pipe or a dash to separate organisation/report
 # prefixes from the actual table or chart title.
-_SEPARATOR_RE = re.compile(r"\s*[|–—]\s*|\s+-\s+")
+_SEPARATOR_RE = re.compile(r"\s*\|\s*|\s+[–—-]\s+")
 _WORD_RE = re.compile(r"\S+")
 
 _LEADING_NOISE: Final[tuple[str, ...]] = (
@@ -40,6 +40,15 @@ _LOWERCASE_TITLE_WORDS: Final[frozenset[str]] = frozenset(
     {"dan", "di", "dari", "ke", "untuk", "pada", "dengan", "atau", "dalam", "oleh", "yang"}
 )
 
+# Function words that do not consume one of the ``max_words`` slots.
+_COUNT_EXCLUDED_WORDS: Final[frozenset[str]] = _LOWERCASE_TITLE_WORDS | frozenset(
+    {
+        "per", "terhadap", "menurut", "secara", "bagi", "serta", "maupun",
+        "hingga", "sampai", "antara", "tentang", "melalui", "berdasarkan",
+        "sesuai", "sebagai", "selama", "tanpa", "setelah", "sebelum",
+    }
+)
+
 DEFAULT_MAX_WORDS = 8
 
 
@@ -49,14 +58,37 @@ def _clean_text(text: str) -> str:
     return text
 
 
+_YEAR = re.compile(r"^(?:19|20)\d{2}$|^\d{2}$")
+
+
+def _is_year_range(text: str, match: re.Match[str]) -> bool:
+    """True for dashes between two years, e.g. ``2025 – 2034``.
+
+    Those are ranges inside the title, not separators between a report name and
+    the table/chart title. Section numbers such as ``2025 - 3.2.2`` are still
+    separators.
+    """
+    before = text[: match.start()].rstrip().rsplit(maxsplit=1)
+    after = text[match.end():].lstrip().split(maxsplit=1)
+    if not before or not after:
+        return False
+    left = before[-1].strip(" ,;.:()")
+    right = after[0].strip(" ,;.:()")
+    return bool(_YEAR.fullmatch(left) and _YEAR.fullmatch(right))
+
+
 def _select_main_segment(text: str) -> str:
     """Prefer the last segment in common report-title separators."""
-    parts = [_clean_text(part) for part in _SEPARATOR_RE.split(text)]
-    parts = [part for part in parts if part]
-    if len(parts) > 1:
+    last_end: int | None = None
+    for match in _SEPARATOR_RE.finditer(text):
+        separator = match.group(0).strip()
+        if separator != "|" and _is_year_range(text, match):
+            continue
+        last_end = match.end()
+    if last_end is not None:
         # The final segment is usually the table/chart/indicator title after
         # organization and report-name prefixes such as "PLN - Sustainability".
-        return parts[-1]
+        return text[last_end:].strip()
     return text
 
 
@@ -97,8 +129,28 @@ def _title_case_indonesian(text: str) -> str:
             # Preserve acronyms such as PLN, LNG, and PPU.
             result.append(word)
         else:
-            result.append(word[:1].upper() + word[1:].lower())
+            # Capitalise hyphen/dash-joined parts too (Cirebon–Semarang).
+            result.append(
+                re.sub(
+                    r"(^|[–—])(\w)",
+                    lambda match: match.group(1) + match.group(2).upper(),
+                    word.lower(),
+                )
+            )
     return " ".join(result)
+
+
+def _counts_toward_limit(token: str) -> bool:
+    """Count only meaningful words; numbers, punctuation and connectors don't count."""
+    word = token.strip(" \t.,;:!?()[]{}<>\"'“”‘’|/\\")
+    if not re.search(r"[A-Za-zÀ-ÿ]", word):
+        return False
+    return word.casefold() not in _COUNT_EXCLUDED_WORDS
+
+
+def meaningful_word_count(text: str) -> int:
+    """Number of words that consume a ``max_words`` slot."""
+    return sum(1 for token in text.split() if _counts_toward_limit(token))
 
 
 def summarize_context(text: str, max_words: int = DEFAULT_MAX_WORDS) -> str:
@@ -130,10 +182,18 @@ def summarize_context(text: str, max_words: int = DEFAULT_MAX_WORDS) -> str:
     result = _remove_trailing_qualifier(result)
     result = _clean_text(result)
 
-    words = _WORD_RE.findall(result)
-    if len(words) > max_words:
-        words = words[:max_words]
-    return _title_case_indonesian(" ".join(words))
+    tokens = result.split()
+    if meaningful_word_count(result) > max_words:
+        kept: list[str] = []
+        counted = 0
+        for token in tokens:
+            kept.append(token)
+            if _counts_toward_limit(token):
+                counted += 1
+            if counted >= max_words:
+                break
+        tokens = kept
+    return _title_case_indonesian(" ".join(tokens))
 
 
 def main(argv: list[str] | None = None) -> int:
