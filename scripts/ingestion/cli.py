@@ -605,6 +605,13 @@ def run(
     ),
 )
 @click.option("--include-ineligible", is_flag=True, help="Also emit dictionaries for ineligible sources")
+@click.option(
+    "--thread",
+    "thread_workers",
+    type=int,
+    default=0,
+    help="Fetch source dictionaries concurrently with N threads (only when >1 source is selected).",
+)
 @click.option("--env", "env_profile", default=None, help=ENV_OPTION_HELP)
 @click.option("--log-level", default="INFO", show_default=True)
 def docs(
@@ -619,6 +626,7 @@ def docs(
     delete_usecase: bool,
     sync_dictionary: bool,
     include_ineligible: bool,
+    thread_workers: int,
     env_profile: Optional[str],
     log_level: str,
 ) -> None:
@@ -675,6 +683,7 @@ def docs(
                 catalog,
                 include_ineligible,
                 publisher,
+                thread_workers,
             )
     except Exception as exc:  # noqa: BLE001
         code = exit_code_for(exc)
@@ -710,6 +719,106 @@ def _preserve_env_values(path: Path, keys: tuple) -> Dict[str, str]:
     return preserved
 
 
+def _dictionary_doc_for_source(
+    client: Any,
+    source: Dict[str, Any],
+    *,
+    usecase: str,
+    sheet: str,
+    docs_dir: Path,
+    link_by_text: Dict[str, str],
+) -> Dict[str, Any]:
+    """Fetch one source's Data Dictionary and write its Markdown.
+
+    Returns an ordered result record: ``name``, ``slug``, ``ref``, ``path``,
+    ``fields``, ``warning`` and ``error``. Kept side-effect free apart from the
+    Markdown file so it can run in a worker thread with its own client.
+    """
+    from .catalog.markdown_docs import (
+        dictionary_filename,
+        render_dictionary_markdown,
+        write_markdown,
+    )
+    from .catalog.metadata_parser import (
+        derive_module_name,
+        parse_dictionary_matrix,
+        publisher_slug,
+        resolve_sheet_name,
+        source_slug,
+    )
+
+    name = source["source_name"]
+    slug = source_slug(source)
+    dictionary = source.get("data_dictionary")
+    dict_link = source.get("data_dictionary_link") or link_by_text.get(
+        str(dictionary or "").strip()
+    )
+    result: Dict[str, Any] = {
+        "name": name,
+        "slug": slug,
+        "ref": None,
+        "path": None,
+        "fields": 0,
+        "warning": None,
+        "error": None,
+    }
+    if not (dictionary or dict_link):
+        result["warning"] = f"No Data Dictionary for {name}; skipping"
+        return result
+
+    dict_ref = (
+        client.resolve_dictionary_link(dict_link, sheet) if dict_link else None
+    ) or client.dictionary_ref(dictionary, sheet)
+    result["ref"] = dict_ref
+    try:
+        dict_sheets = client.list_sheets(dict_ref)
+        dict_sheet = resolve_sheet_name(dict_sheets, name)
+        if not dict_sheet and dict_link:
+            hint = client.link_sheet_hint(dict_link)
+            if hint is not None and 0 <= hint < len(dict_sheets):
+                dict_sheet = dict_sheets[hint]
+        dict_sheet = dict_sheet or (dict_sheets[0] if dict_sheets else None)
+        # One sheet may hold several dictionary tables: the record fields and,
+        # under a ``Data Dictionary <field>`` title, the fields of a JSON
+        # column such as ``putusan``. ``parse_dictionary_matrix`` reads them all.
+        schema = (
+            parse_dictionary_matrix(client.read_matrix(dict_ref, dict_sheet))
+            if dict_sheet
+            else []
+        )
+        # A shared workbook may lead with an empty sheet (e.g. ``Summary``);
+        # fall back to the first sheet that actually holds a dictionary.
+        if not schema:
+            for candidate in dict_sheets:
+                if candidate == dict_sheet:
+                    continue
+                candidate_schema = parse_dictionary_matrix(
+                    client.read_matrix(dict_ref, candidate)
+                )
+                if candidate_schema:
+                    dict_sheet, schema = candidate, candidate_schema
+                    break
+        result["fields"] = len(schema)
+        if not schema:
+            result["warning"] = (
+                f"No dictionary fields parsed for {name} (sheet '{dict_sheet}')"
+            )
+    except Exception as exc:  # noqa: BLE001 - reported by the caller
+        result["error"] = exc
+        return result
+
+    module_path = (
+        f"ingestion/usecases/{derive_module_name(usecase)}/"
+        f"{publisher_slug(source)}/{slug}/models.py"
+    )
+    result["path"] = write_markdown(
+        render_dictionary_markdown(usecase, name, schema, source, module_path),
+        str(docs_dir),
+        dictionary_filename(slug),
+    )
+    return result
+
+
 def _generate_docs(
     usecase: str,
     source_name: Optional[str],
@@ -717,35 +826,35 @@ def _generate_docs(
     catalog: Optional[str],
     include_ineligible: bool = False,
     publisher: Optional[str] = None,
+    thread_workers: int = 0,
 ) -> None:
     docs_source = os.environ.get("DOCS_SOURCE", "sharepoint").strip().lower()
     if docs_source == "spreadsheet":
         from .spreadsheet.client import SpreadsheetClient
-        client = SpreadsheetClient()
+
+        client_factory = SpreadsheetClient
     elif docs_source == "sharepoint":
         from .sharepoint.client import SharePointClient
-        client = SharePointClient()
+
+        client_factory = SharePointClient
     else:
         raise ConfigError("DOCS_SOURCE must be 'sharepoint' or 'spreadsheet'")
+    client = client_factory()
     from .catalog.markdown_docs import (
-        dictionary_filename,
         env_lines,
-        render_dictionary_markdown,
         render_usecase_markdown,
         usecase_dir,
         usecase_filename,
         write_markdown,
     )
     from .catalog.metadata_parser import (
-        derive_module_name,
         is_eligible,
         is_source_row,
         normalize_name,
         parse_catalog_row,
-        parse_dictionary_matrix,
-        publisher_slug,
         resolve_sheet_name,
         source_slug,
+        validate_catalog_columns,
     )
 
     catalog_ref = client.catalog_ref(catalog)
@@ -760,6 +869,18 @@ def _generate_docs(
 
     rows = client.read_sheet(catalog_ref, sheet, header_hints=CATALOG_HEADER_HINTS)
     logger.info("Rows read from '%s': %s", sheet, len(rows))
+
+    missing, unknown = validate_catalog_columns(key for row in rows for key in row)
+    if missing:
+        logger.warning(
+            "Sheet '%s' is missing required catalog columns: %s", sheet, ", ".join(missing)
+        )
+    if unknown:
+        logger.warning(
+            "Sheet '%s' has columns not listed in catalog_columns.json: %s",
+            sheet,
+            ", ".join(unknown),
+        )
     sources = [parse_catalog_row(row) for row in rows]
     sources = [s for s in sources if is_source_row(s)]
     if not sources:
@@ -835,68 +956,68 @@ def _generate_docs(
         if text and link and text not in link_by_text:
             link_by_text[text] = link
 
-    schemas: Dict[str, Any] = {}
-    for source in targets:
-        sname = source["source_name"]
-        slug = source_slug(source)
-        dictionary = source.get("data_dictionary")
-        dict_link = source.get("data_dictionary_link") or link_by_text.get(
-            str(dictionary or "").strip()
+    slugs = [source_slug(source) for source in targets]
+    duplicates = sorted({slug for slug in slugs if slugs.count(slug) > 1})
+    if duplicates:
+        logger.warning(
+            "Duplicate source slugs %s; set the catalog 'Module Name' column to disambiguate.",
+            ", ".join(duplicates),
         )
-        if not (dictionary or dict_link):
-            logger.warning("No Data Dictionary for %s; skipping", sname)
-            continue
 
-        dict_ref = (
-            client.resolve_dictionary_link(dict_link, sheet) if dict_link else None
-        ) or client.dictionary_ref(dictionary, sheet)
-        try:
-            dict_sheets = client.list_sheets(dict_ref)
-            dict_sheet = resolve_sheet_name(dict_sheets, sname)
-            if not dict_sheet and dict_link:
-                hint = client.link_sheet_hint(dict_link)
-                if hint is not None and 0 <= hint < len(dict_sheets):
-                    dict_sheet = dict_sheets[hint]
-            dict_sheet = dict_sheet or (dict_sheets[0] if dict_sheets else None)
-            # One sheet may hold several dictionary tables: the record fields and,
-            # under a ``Data Dictionary <field>`` title, the fields of a JSON
-            # column such as ``putusan``. ``parse_dictionary_matrix`` reads them all.
-            schema = (
-                parse_dictionary_matrix(client.read_matrix(dict_ref, dict_sheet))
-                if dict_sheet
-                else []
+    def run_sequential(source: Dict[str, Any]) -> Dict[str, Any]:
+        return _dictionary_doc_for_source(
+            client,
+            source,
+            usecase=usecase,
+            sheet=sheet,
+            docs_dir=docs_dir,
+            link_by_text=link_by_text,
+        )
+
+    if thread_workers > 1 and len(targets) > 1:
+        logger.info(
+            "Fetching %s dictionaries with %s thread workers",
+            len(targets),
+            thread_workers,
+        )
+        ordered_results: List[Optional[Dict[str, Any]]] = [None] * len(targets)
+
+        def run_thread(index: int, source: Dict[str, Any]) -> tuple[int, Dict[str, Any]]:
+            # A client per worker keeps the SharePoint token/Google service state
+            # out of shared mutable state.
+            return index, _dictionary_doc_for_source(
+                client_factory(),
+                source,
+                usecase=usecase,
+                sheet=sheet,
+                docs_dir=docs_dir,
+                link_by_text=link_by_text,
             )
-            # A shared workbook may lead with an empty sheet (e.g. ``Summary``);
-            # fall back to the first sheet that actually holds a dictionary.
-            if not schema:
-                for candidate in dict_sheets:
-                    if candidate == dict_sheet:
-                        continue
-                    candidate_schema = parse_dictionary_matrix(
-                        client.read_matrix(dict_ref, candidate)
-                    )
-                    if candidate_schema:
-                        dict_sheet, schema = candidate, candidate_schema
-                        break
-            schemas[slug] = schema
-            if not schema:
-                logger.warning("No dictionary fields parsed for %s (sheet '%s')", sname, dict_sheet)
-        except Exception as exc:  # noqa: BLE001
-            if source_name:
-                raise
-            logger.warning("Could not read dictionary for %s (%s): %s", sname, dict_ref, exc)
-            continue
 
-        module_path = (
-            f"ingestion/usecases/{derive_module_name(usecase)}/"
-            f"{publisher_slug(source)}/{slug}/models.py"
-        )
-        path = write_markdown(
-            render_dictionary_markdown(usecase, sname, schema, source, module_path),
-            str(docs_dir),
-            dictionary_filename(slug),
-        )
-        logger.info("Wrote %s (%s fields)", path, len(schema))
+        with ThreadPoolExecutor(max_workers=thread_workers) as executor:
+            futures = [executor.submit(run_thread, i, s) for i, s in enumerate(targets)]
+            for future in as_completed(futures):
+                index, result = future.result()
+                ordered_results[index] = result
+        results = [result for result in ordered_results if result is not None]
+    else:
+        results = [run_sequential(source) for source in targets]
+
+    for result in results:
+        if result["warning"]:
+            logger.warning("%s", result["warning"])
+        if result["error"] is not None:
+            if source_name:
+                raise result["error"]
+            logger.warning(
+                "Could not read dictionary for %s (%s): %s",
+                result["name"],
+                result["ref"],
+                result["error"],
+            )
+            continue
+        if result["path"]:
+            logger.info("Wrote %s (%s fields)", result["path"], result["fields"])
 
 
 def _scaffold_from_docs(

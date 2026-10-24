@@ -1,0 +1,135 @@
+{
+  "columns": [
+    {
+      "column": "No",
+      "required": true
+    },
+    {
+      "column": "Source Name",
+      "field": "source_name",
+      "required": true,
+      "aliases": ["Nama Sumber", "Nama Source", "Source"]
+    },
+    {
+      "column": "Module Name",
+      "field": "module_name",
+      "required": false,
+      "aliases": ["Folder Name", "Alias", "Slug", "Nama Modul"]
+    },
+    {
+      "column": "Page",
+      "required": false
+    },
+    {
+      "column": "Publisher",
+      "field": "publisher",
+      "required": true,
+      "aliases": ["Penerbit", "Instansi"]
+    },
+    {
+      "column": "Data Dictionary",
+      "field": "data_dictionary",
+      "required": true,
+      "aliases": ["Kamus Data"]
+    },
+    {
+      "column": "Source Link",
+      "field": "source_link",
+      "required": true,
+      "aliases": ["Link Sumber", "Link"]
+    },
+    {
+      "column": "Resource URL",
+      "field": "resource_url",
+      "required": false,
+      "aliases": ["Resource Url", "resource url", "Resource"]
+    },
+    {
+      "column": "Is Official",
+      "field": "is_official",
+      "required": false,
+      "aliases": ["Official", "Resmi"]
+    },
+    {
+      "column": "Data Access",
+      "field": "data_access",
+      "required": true,
+      "aliases": ["Akses Data", "Access"]
+    },
+    {
+      "column": "Update Frequency",
+      "field": "update_frequency",
+      "required": false,
+      "aliases": ["Frekuensi", "Frequency"]
+    },
+    {
+      "column": "Last Update",
+      "field": "last_update",
+      "required": false,
+      "aliases": ["Update Terakhir"]
+    },
+    {
+      "column": "Need Registration",
+      "required": false
+    },
+    {
+      "column": "Eligible",
+      "field": "eligible",
+      "required": true,
+      "aliases": ["Layak"]
+    },
+    {
+      "column": "Data Engineer",
+      "field": "data_engineer",
+      "required": true
+    },
+    {
+      "column": "Raw Data",
+      "required": true
+    },
+    {
+      "column": "Raw Minio (Bucket)",
+      "field": "raw_minio_bucket",
+      "required": true,
+      "aliases": ["Raw Minio", "Minio Bucket"]
+    },
+    {
+      "column": "Raw ES (Index)",
+      "field": "raw_es_index",
+      "required": true,
+      "aliases": ["Raw ES"]
+    },
+    {
+      "column": "Raw Postgre (Schema + Table Name)",
+      "field": "raw_postgre_table",
+      "required": true,
+      "aliases": ["Raw Postgre", "Raw Postgres"]
+    },
+    {
+      "column": "Raw Scheduler",
+      "field": "raw_scheduler",
+      "required": false
+    },
+    {
+      "column": "Cleaned Data",
+      "required": true
+    },
+    {
+      "column": "Cleaned ES (Index)",
+      "field": "cleaned_es_index",
+      "required": false,
+      "aliases": ["Cleaned ES"]
+    },
+    {
+      "column": "Cleaned Postgre (Schema)",
+      "field": "cleaned_postgre_table",
+      "required": false,
+      "aliases": ["Cleaned Postgre", "Cleaned Postgres"]
+    },
+    {
+      "column": "Cleaned Scheduler",
+      "field": "cleaned_scheduler",
+      "required": false
+    }
+  ]
+}

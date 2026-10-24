@@ -77,6 +77,16 @@ def _link_cell(value: Any, url: Any) -> str:
     return text
 
 
+def _resource_cell(value: Any) -> str:
+    """Resource URL is a web link or a copyable local/S3 path."""
+    if value in (None, ""):
+        return "-"
+    text = _cell(value)
+    if str(value).lower().startswith(("http://", "https://")):
+        return f"[{text}]({value})"
+    return f"`{text}`"
+
+
 def _group_sources(sources: List[Dict[str, Any]]) -> Dict[tuple, Dict[str, Any]]:
     grouped: Dict[tuple, Dict[str, Any]] = {}
     for source in sources:
@@ -160,7 +170,7 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
                 eligible=_cell(source.get("eligible")),
                 updated=_cell(source.get("last_update")),
                 link=_link_cell(source.get("source_link"), source.get("source_link")),
-                resource=_link_cell(source.get("resource_url"), source.get("resource_url")),
+                resource=_resource_cell(source.get("resource_url")),
                 dict=_link_cell(source.get("data_dictionary"), source.get("data_dictionary_link")),
             )
         )

@@ -38,10 +38,89 @@ overrides what it needs.
 | `ExcelExtractor` | `core/extractors/excel_extractor.py` | normalized records |
 | `ApiExtractor` | `core/extractors/api_extractor.py` | normalized records |
 | `WebScraper` | `core/extractors/web_scraper.py` | normalized records |
-| `PdfExtractor` | `core/extractors/pdf_extractor.py` | **binary uploaded to MinIO/S3 on-prem**, metadata record emitted |
+| `PdfExtractor` | `core/extractors/pdf_extractor.py` | normalized records (table/chart) |
+| `DuckDBJSONExtractor` | `core/extractors/duckdb_extractor.py` | normalized records (manual/curated JSON) |
 
-PDF flow: source/landing URL → resolve PDF URL → download → upload to MinIO →
-emit metadata (bucket, object_key, etag, size, sha256).
+PDF flow: `url`/`pdf_url`/`source_file` (or `minio://bucket/key.pdf`) → download
+→ optional raw upload to MinIO (`save_raw=True`) → deterministic table/chart
+extraction → records. The engine lives in `core/extractors/pdf/`; every PDF
+parameter is passed explicitly (no PDF-specific env vars): a source supplies its
+schema (`dictionary=Record`) and a marker, and may override pages/mode:
+
+```python
+class Extractor(PdfExtractor):
+    def __init__(self, config):
+        super().__init__(
+            config,                      # optional; only for MinIO settings
+            url="https://example.org/handbook.pdf",
+            dictionary=Record,           # Pydantic model from models.py
+            marker="Primary Energy Supply",
+            pages="12",                  # printed or physical (auto-detected)
+        )
+```
+
+All parameters can also be passed directly (notebooks/scripts):
+
+```python
+from ingestion.core.extractors.pdf_extractor import PdfExtractor
+
+extractor = PdfExtractor(
+    dictionary="dict.json",              # path, dict, or Pydantic model
+    marker="Primary Energy Supply",
+    source_file="handbook.pdf",          # or url="https://.../file.pdf"
+    pages="12",
+    mode="auto",                         # auto|table|chart
+    page_numbering="auto",               # auto|physical|printed
+)
+records = list(extractor.extract())
+extractor.result.status                  # success / partial / ...
+```
+
+CLI (no env needed, except `--save-raw` which uses MinIO settings):
+
+```bash
+python -m ingestion.core.extractors.pdf_extractor handbook.pdf \
+  --dictionary dict.json --marker "Primary Energy Supply" --pages 12
+
+# URL + NDJSON output
+python -m ingestion.core.extractors.pdf_extractor https://example.org/file.pdf \
+  --dictionary dict.json --marker "Indonesia Energy Balance Table 2025" \
+  --pages 18-19 --format ndjson -o records.ndjson
+```
+
+`save_raw=True` is the only option that reads external settings (MinIO
+credentials). PDF files must have a text layer (no OCR). Deterministic extraction
+is the default; LLM assistance is optional.
+
+### Manual JSON sources
+
+Some tables are curated by hand because the PDF/chart is unreliable or would need
+an AI pass on every run. Keep the records in a JSON file and put its location in
+the catalog **`Resource URL`** column (it becomes `__URL` in `usecase.env`). Set
+**`Data Access`** to `Manual JSON`, `JSON`, or `Manual`; `docs --scaffold` then
+generates `Extractor(DuckDBJSONExtractor)`.
+
+Supported locations (handled by `resolve_location`):
+
+- `s3://bucket/key.json` / `minio://bucket/key.json` (MinIO/S3 settings from
+  `MINIO_URI` or `MINIO__*`)
+- `file:///path/to/data.json`
+- local absolute paths, `~`, environment variables, and relative paths
+  (macOS, Linux, Windows — `C:\data\x.json` works on Windows)
+
+The file may be an array of objects (the usual manual shape):
+
+```json
+[
+  {"tahun": 2025, "produk": "Crude Oil", "komponen": "Production", "nilai": 221.2, "satuan": "Million Barrel", "pertumbuhan_yoy_persen": null}
+]
+```
+
+For wrapped documents (`{"data": [...]}`), set `root` in the source extractor
+config; the generic extractor also supports `json_format`, `records`,
+`number_columns`, `union_by_name`, and `ignore_errors` (see
+`core/extractors/duckdb_extractor.py`). Normalization and validation still use
+the source's `models.Record`, so the JSON keys must match the Data Dictionary.
 
 A source extractor may combine several retrieval steps internally (e.g. scrape a
 landing page, then download the Excel it links to). This lives entirely in the
@@ -74,6 +153,8 @@ it offline; see `usecases/ketenagakerjaan/goodstats/umk_sumut/extractor.py`.
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev
 python -m ingestion.cli docs --usecase ketenagakerjaan --source "Kasus Perselisihan" --env dev
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --scaffold
+# Fetch the per-source Data Dictionaries concurrently (I/O-bound)
+python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --thread 4
 python -m ingestion.cli docs --list    # inventory only (bare = all; no env/credentials needed)
 python -m ingestion.cli docs --list sources --usecase ketenagakerjaan
 

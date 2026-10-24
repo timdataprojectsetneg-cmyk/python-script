@@ -223,3 +223,28 @@ def test_remove_ineligible_sources_respects_scope(tmp_path):
     assert not sibling.exists()
     assert not other_pub.exists()
     assert str(sibling) in removed_all
+
+
+def test_scaffold_manual_json_uses_duckdb_json_extractor(tmp_path):
+    sources = [
+        {
+            "source_name": "Manual Oil Balance",
+            "publisher": "ESDM",
+            "data_access": "Manual JSON",
+            "resource_url": "/data/manual/oil_balance.json",
+            "eligible": True,
+        }
+    ]
+    created, skipped = scaffold_usecase(
+        str(tmp_path),
+        "ketahanan_energi",
+        sources,
+        {"manual_oil_balance": [{"label": "nilai", "type": "Numeric"}]},
+    )
+
+    base = tmp_path / "ketahanan_energi" / "esdm" / "manual_oil_balance"
+    extractor = (base / "extractor.py").read_text()
+    assert "class Extractor(DuckDBJSONExtractor):" in extractor
+    assert "from .....core.extractors.duckdb_extractor import DuckDBJSONExtractor" in extractor
+    assert len(created) == 5
+    assert skipped == []

@@ -3,39 +3,56 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+from ..exceptions import ConfigError
+from .summarize import DEFAULT_MAX_WORDS, summarize_context
+
+logger = logging.getLogger("ingestion")
 
 __all__ = [
-    "ACCESS_KEYWORDS", "CATALOG_COLUMNS", "DICTIONARY_HEADER_ALIASES",
-    "DICTIONARY_REQUIRED_HEADERS", "MAX_SLUG_LENGTH", "PYDANTIC_TYPE_MAP",
-    "TARGET_FIELDS", "derive_access", "derive_module_name", "effective_url",
-    "is_eligible", "is_source_row", "normalize_name", "parse_catalog_row",
+    "ACCESS_KEYWORDS", "CATALOG_COLUMNS", "CATALOG_COLUMN_SPEC",
+    "DICTIONARY_HEADER_ALIASES", "DICTIONARY_REQUIRED_HEADERS",
+    "MAX_SLUG_LENGTH", "PYDANTIC_TYPE_MAP", "TARGET_FIELDS",
+    "derive_access", "derive_module_name", "effective_url", "is_eligible",
+    "is_source_row", "normalize_name", "parse_catalog_row",
     "parse_dictionary_matrix", "publisher_slug", "resolve_sheet_name",
     "source_slug", "split_postgre", "to_pydantic_source", "to_snake_case",
+    "validate_catalog_columns",
 ]
 
+CATALOG_COLUMN_SPEC_PATH = Path(__file__).with_name("catalog_columns.json")
+
+
+def _load_catalog_columns() -> List[Dict[str, Any]]:
+    """Read the catalog column dictionary (single source of column names)."""
+    try:
+        data = json.loads(CATALOG_COLUMN_SPEC_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ConfigError(
+            f"Cannot read catalog column dictionary {CATALOG_COLUMN_SPEC_PATH}: {exc}"
+        ) from exc
+    columns = data.get("columns")
+    if not isinstance(columns, list) or not all(
+        isinstance(entry, dict) and entry.get("column") for entry in columns
+    ):
+        raise ConfigError(
+            f"Invalid catalog column dictionary {CATALOG_COLUMN_SPEC_PATH}: "
+            "expected a 'columns' list of {'column': ..., 'required': ...} entries"
+        )
+    return columns
+
+
+CATALOG_COLUMN_SPEC = _load_catalog_columns()
+
+# Internal field -> headers that map to it.
 CATALOG_COLUMNS = {
-    "source_name": ["Source Name", "nama sumber", "nama source", "source"],
-    "module_name": ["Module Name", "Folder Name", "Alias", "Slug", "Nama Modul"],
-    "publisher": ["Publisher", "penerbit", "instansi"],
-    "data_dictionary": ["Data Dictionary", "kamus data"],
-    "source_link": ["Source Link", "link sumber", "link"],
-    "resource_url": ["Resource URL", "Resource Url", "resource url", "resource"],
-    "data_access": ["Data Access", "akses data", "access"],
-    "update_frequency": ["Update Frequency", "frekuensi", "frequency"],
-    "is_official": ["Is Official", "official", "resmi"],
-    "last_update": ["Last Update", "update terakhir"],
-    "eligible": ["Eligible", "layak"],
-    "data_engineer": ["Data Engineer"],
-    "raw_minio_bucket": ["Raw Minio", "minio bucket"],
-    "raw_es_index": ["Raw ES"],
-    "raw_postgre_table": ["Raw Postgre", "raw postgres"],
-    "raw_scheduler": ["Raw Scheduler"],
-    "cleaned_es_index": ["Cleaned ES"],
-    "cleaned_postgre_table": ["Cleaned Postgre", "cleaned postgres"],
-    "cleaned_scheduler": ["Cleaned Scheduler"],
+    entry["field"]: [entry["column"], *(entry.get("aliases") or [])]
+    for entry in CATALOG_COLUMN_SPEC
+    if entry.get("field")
 }
 
 TARGET_FIELDS = (
@@ -81,6 +98,49 @@ def _pick(row: Dict[str, Any], aliases: List[str]) -> Any:
             if key in norm_key and value not in (None, ""):
                 return value
     return None
+
+
+def _matches_column(header: Any, entry: Dict[str, Any]) -> bool:
+    """True when ``header`` names the dictionary column or one of its aliases.
+
+    Exact normalized names win; the canonical column also matches a longer
+    header by substring (e.g. ``Eligible (Layak ...)``). Aliases are exact-only
+    so generic names such as ``Source`` do not match ``Source Link``.
+    """
+    normalized = _normalize_key(header)
+    names = [entry.get("column"), *(entry.get("aliases") or [])]
+    if any(_normalize_key(name) == normalized for name in names):
+        return True
+    key = _normalize_key(entry.get("column"))
+    return len(key) >= 4 and key in normalized
+
+
+def validate_catalog_columns(
+    headers: Iterable[Any],
+) -> Tuple[List[str], List[str]]:
+    """Check a catalog sheet header against ``catalog_columns.json``.
+
+    Returns ``(missing_required, unknown)`` column names. Optional columns may be
+    absent without a warning; unknown columns are headers not listed in the
+    dictionary. Generated placeholder headers (``col_0``) are ignored.
+    """
+    present = [
+        header
+        for header in dict.fromkeys(headers)
+        if header and header != "_links" and not re.fullmatch(r"col_\d+", str(header))
+    ]
+    missing = [
+        str(entry["column"])
+        for entry in CATALOG_COLUMN_SPEC
+        if entry.get("required")
+        and not any(_matches_column(header, entry) for header in present)
+    ]
+    unknown = [
+        str(header)
+        for header in present
+        if not any(_matches_column(header, entry) for entry in CATALOG_COLUMN_SPEC)
+    ]
+    return missing, unknown
 
 
 def parse_catalog_row(row: Dict[str, Any]) -> Dict[str, Any]:
@@ -297,7 +357,11 @@ def parse_dictionary_matrix(matrix: List[List[Any]]) -> List[Dict[str, Any]]:
     return schema
 
 
-MAX_SLUG_LENGTH = 48
+# PostgreSQL identifiers are limited to 63 bytes (NAMEDATALEN - 1), so keep the
+# slug within that budget; longer names are cut on a word boundary.
+MAX_SLUG_LENGTH = 63
+
+_TRUNCATED_SLUGS: set[str] = set()
 
 
 def derive_module_name(source_name: str) -> str:
@@ -307,6 +371,10 @@ def derive_module_name(source_name: str) -> str:
     Use the catalog ``Module Name`` column to override with a preferred acronym.
     """
     text = re.sub(r"\([^)]*\)", " ", str(source_name or "").strip())
+    # Long captions are summarized first (only when they exceed the word limit),
+    # so the slug keeps the main subject instead of a chopped prefix.
+    if len(text.split()) > DEFAULT_MAX_WORDS:
+        text = summarize_context(text, max_words=DEFAULT_MAX_WORDS)
     name = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
     if len(name) > MAX_SLUG_LENGTH:
         parts: List[str] = []
@@ -318,6 +386,15 @@ def derive_module_name(source_name: str) -> str:
             parts.append(word)
             total += extra
         name = "_".join(parts) or name[:MAX_SLUG_LENGTH].rstrip("_")
+        if source_name not in _TRUNCATED_SLUGS:
+            _TRUNCATED_SLUGS.add(source_name)
+            logger.warning(
+                "Name %r exceeds %d characters and was truncated to %r; "
+                "set the catalog 'Module Name' column to choose the slug explicitly.",
+                source_name,
+                MAX_SLUG_LENGTH,
+                name,
+            )
     return name
 
 
@@ -428,6 +505,8 @@ ACCESS_KEYWORDS = (
     ("scrap", "scraper"),
     ("web", "scraper"),
     ("crawl", "scraper"),
+    ("json", "json"),
+    ("manual", "json"),
 )
 
 

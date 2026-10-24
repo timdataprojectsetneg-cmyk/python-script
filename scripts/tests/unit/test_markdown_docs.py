@@ -16,6 +16,9 @@ def test_derive_access():
     assert derive_access("REST API") == "api"
     assert derive_access("Web Scraping") == "scraper"
     assert derive_access("Download PDF") == "pdf"
+    assert derive_access("Manual JSON") == "json"
+    assert derive_access("JSON (manual input)") == "json"
+    assert derive_access("Input Manual") == "json"
     assert derive_access("") == "excel"
 
 
@@ -59,6 +62,21 @@ def test_render_usecase_markdown():
     assert "# Use Case: ketenagakerjaan" in md
     assert "Kasus Perselisihan" in md
     assert "BPS Inflasi MoM" in md
+
+
+def test_render_usecase_markdown_shows_local_resource_path_as_code():
+    sources = [
+        {
+            "source_name": "Manual Oil Balance",
+            "publisher": "ESDM",
+            "data_access": "Manual JSON",
+            "resource_url": "/Users/me/data/oil_balance.json",
+            "eligible": True,
+        }
+    ]
+    md = render_usecase_markdown("ketahanan_energi", sources, "catalog.xlsx")
+    assert "`/Users/me/data/oil_balance.json`" in md
+    assert "](</Users/me/data/oil_balance.json>)" not in md
 
 
 def test_env_lines_are_flat_without_access():

@@ -97,7 +97,7 @@ def test_long_name_slug_and_override():
     long_name = "Direktori Putusan Perkara Pengadilan Hubungan Industrial (Mahkamah Agung RI)"
     slug = derive_module_name(long_name)
     assert "mahkamah" not in slug  # parenthetical dropped
-    assert len(slug) <= 48
+    assert len(slug) <= 63
     assert slug == slug.strip("_")
 
     overridden = source_slug({"source_name": long_name, "module_name": "putusan_phi"})
@@ -106,6 +106,11 @@ def test_long_name_slug_and_override():
 
 def test_source_slug_defaults_to_derived_name():
     assert source_slug({"source_name": "Kasus Perselisihan"}) == "kasus_perselisihan"
+
+
+def test_source_slug_keeps_name_that_fits_postgres_limit():
+    name = "HEESI 2025 Executive Summary- Natural Gas and Products"
+    assert derive_module_name(name) == "heesi_2025_executive_summary_natural_gas_and_products"
 
 
 def test_effective_url_prefers_resource_url():
@@ -129,3 +134,14 @@ def test_effective_url_falls_back_to_source_link():
     )
     assert source["resource_url"] is None
     assert effective_url(source) == "https://a"
+
+
+def test_truncated_name_logs_warning(caplog):
+    import logging
+
+    name = "x" * 70
+    with caplog.at_level(logging.WARNING):
+        slug = derive_module_name(name)
+
+    assert len(slug) <= 63
+    assert "truncated" in caplog.text

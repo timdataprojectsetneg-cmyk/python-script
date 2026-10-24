@@ -138,7 +138,7 @@ Source count: **71** · eligible for implementation: **53**
 | UMK Papua Pegunungan | - | - | raw_goodstats.data_umk | False | - | - | False |
 | UMK Papua Barat Daya | - | - | raw_goodstats.data_umk | False | - | - | False |
 | Kebutuhan Hidup Minimum/Layak | - | - | raw_bps.kebutuhan_hidup_minimum | False | - | - | False |
-| BPS Inflasi YoY | - | - | - | False | - | - | False |
+| BPS Inflasi YoY | - | - | raw_bps.inflasi_yoy | False | - | - | False |
 | BPS Inflasi MoM | - | - | raw_bps.inflasi_bulanan | False | - | - | False |
 | BPS Consumer Price Index | - | - | raw_bps.indeks_harga_konsumen | False | - | - | False |
 | Data Pengawas Ketenagakerjaan | - | - | raw_kemnaker.data_pengawas_ketenagakerjaan | False | - | - | False |

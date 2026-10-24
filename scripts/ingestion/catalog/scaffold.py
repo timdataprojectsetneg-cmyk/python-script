@@ -28,6 +28,7 @@ EXTRACTOR_BASES = {
     "api": ("ApiExtractor", "core.extractors.api_extractor"),
     "scraper": ("WebScraper", "core.extractors.web_scraper"),
     "pdf": ("PdfExtractor", "core.extractors.pdf_extractor"),
+    "json": ("DuckDBJSONExtractor", "core.extractors.duckdb_extractor"),
 }
 
 EMPTY = ""
