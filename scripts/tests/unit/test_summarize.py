@@ -53,3 +53,26 @@ def test_long_names_are_summarized_before_slugging():
         "Tahun 2025 Menurut Sektor"
     )
     assert derive_module_name(name) == "konsumsi_energi_nasional"
+
+
+def test_leading_section_numbers_are_removed():
+    assert derive_module_name("6.2.9 LPG Supply and Demand") == "lpg_supply_and_demand"
+    assert derive_module_name("6_2_9_lpg_supply_and_demand") == "lpg_supply_and_demand"
+    assert derive_module_name("6.5.1 Geothermal Resources and Reserves") == (
+        "geothermal_resources_and_reserves"
+    )
+    assert derive_module_name("2 Energy Balance Table") == "energy_balance_table"
+    assert derive_module_name("5.1.2 Energy Consumption in Industrial Sector") == (
+        "energy_consumption_in_industrial_sector"
+    )
+
+
+def test_leading_year_is_removed():
+    assert derive_module_name("2025 Laporan Tahunan") == "laporan_tahunan"
+
+
+def test_non_leading_numbers_are_preserved():
+    assert derive_module_name("HEESI 2025 Executive Summary- Natural Gas and Products") == (
+        "heesi_2025_executive_summary_natural_gas_and_products"
+    )
+    assert derive_module_name("3M Indonesia") == "3m_indonesia"

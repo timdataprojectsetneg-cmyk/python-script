@@ -363,19 +363,33 @@ MAX_SLUG_LENGTH = 63
 
 _TRUNCATED_SLUGS: set[str] = set()
 
+# Catalog names often start with chapter/table numbering ("6.2.9 LPG Supply...").
+_LEADING_NUMBERING = re.compile(r"^\s*\d+(?:[._\-/]\d+)*[.)]?(?=\s|$)")
+_SLUG_NUMBERING = re.compile(r"^\d+(?:_\d+)*_")
+
+
+def _strip_leading_numbering(text: str) -> str:
+    """Drop numbering such as ``6.2.9`` / ``5_1_2`` from the start of a name."""
+    stripped = _LEADING_NUMBERING.sub("", text, count=1).lstrip()
+    return stripped or text
+
 
 def derive_module_name(source_name: str) -> str:
     """Slug a name into a snake_case module/folder name.
 
-    Parentheticals are dropped and long names are capped on a word boundary.
-    Use the catalog ``Module Name`` column to override with a preferred acronym.
+    Parentheticals are dropped, leading section/table numbers are removed
+    (``6.2.9 LPG Supply and Demand`` -> ``lpg_supply_and_demand``), and long
+    names are capped on a word boundary. Use the catalog ``Module Name`` column
+    to override with a preferred acronym.
     """
     text = re.sub(r"\([^)]*\)", " ", str(source_name or "").strip())
+    text = _strip_leading_numbering(text)
     # Long captions are summarized first (only when they exceed the word limit),
     # so the slug keeps the main subject instead of a chopped prefix.
     if len(text.split()) > DEFAULT_MAX_WORDS:
         text = summarize_context(text, max_words=DEFAULT_MAX_WORDS)
     name = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+    name = _SLUG_NUMBERING.sub("", name, count=1) or name
     if len(name) > MAX_SLUG_LENGTH:
         parts: List[str] = []
         total = 0
