@@ -1,10 +1,18 @@
 """PostgreSQL loader helpers: upsert batch de-duplication and table prep."""
 
+from datetime import date, datetime
+
 import psycopg2
 import pytest
 from psycopg2 import sql
 
-from ingestion.core.loaders.postgres_loader import _dedupe_rows, _prepare_table, _run_ddl
+from ingestion.core.loaders.postgres_loader import (
+    _apply_metadata,
+    _dedupe_rows,
+    _parse_published_date,
+    _prepare_table,
+    _run_ddl,
+)
 
 
 def _as_sql(node) -> str:
@@ -147,3 +155,53 @@ def test_dedupe_composite_key_and_no_keys():
     rows = [{"a": 1, "b": 1}, {"a": 1, "b": 2}, {"a": 1, "b": 1}]
     assert _dedupe_rows(rows, ["a", "b"]) == [{"a": 1, "b": 1}, {"a": 1, "b": 2}]
     assert _dedupe_rows(rows, []) is rows
+
+
+def test_parse_published_date_variants():
+    assert _parse_published_date("2025") == date(2025, 1, 1)
+    assert _parse_published_date("2025-06") == date(2025, 6, 1)
+    assert _parse_published_date("2025-6-15") == date(2025, 6, 15)
+    assert _parse_published_date(datetime(2025, 6, 15, 10, 30)) == date(2025, 6, 15)
+    assert _parse_published_date("") is None
+    assert _parse_published_date(None) is None
+    assert _parse_published_date("Terbit Mei 2025") is None
+    assert _parse_published_date("2025-13") is None
+
+
+def test_apply_metadata_uses_publisher_source_and_last_update():
+    rows = _apply_metadata(
+        [{"nilai": 1}],
+        {
+            "publisher_name": "BPS",
+            "source_link": "https://example.org/source",
+            "last_update": "2025-06",
+        },
+    )
+
+    assert rows[0]["_source"] == "BPS"
+    assert rows[0]["_source_url"] == "https://example.org/source"
+    assert rows[0]["_published_date"] == date(2025, 6, 1)
+    assert isinstance(rows[0]["_created_at"], datetime)
+    assert isinstance(rows[0]["_modified_at"], datetime)
+
+
+def test_prepare_table_adds_metadata_columns_with_defaults():
+    cur = _FakeCursor()
+
+    _prepare_table(
+        cur, sql, "raw_x", "data_y", ["nomor_perkara"], ROWS, [], "replace", {}, "",
+    )
+
+    statements = "\n".join(cur.statements)
+    assert "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _source TEXT" in statements
+    assert "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _source_url TEXT" in statements
+    assert "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _published_date DATE" in statements
+    assert (
+        "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        in statements
+    )
+    assert (
+        "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        in statements
+    )
+    assert "_loaded_at" not in statements

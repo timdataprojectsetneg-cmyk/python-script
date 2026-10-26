@@ -116,11 +116,51 @@ The file may be an array of objects (the usual manual shape):
 ]
 ```
 
-For wrapped documents (`{"data": [...]}`), set `root` in the source extractor
-config; the generic extractor also supports `json_format`, `records`,
-`number_columns`, `union_by_name`, and `ignore_errors` (see
-`core/extractors/duckdb_extractor.py`). Normalization and validation still use
-the source's `models.Record`, so the JSON keys must match the Data Dictionary.
+### LLM document extraction (PDF/Excel)
+
+`core/extractors/llm_extractor.py` (adapter/CLI) and `core/extractors/llm/`
+(engine) implement the LLM path. The PDF engine keeps its deterministic first
+pass and uses `core/extractors/llm/pdf_assist.py` only for the optional
+fallback.
+
+```python
+from ingestion.core.extractors.llm import extract_document
+
+result = extract_document(
+    "data/energy-statistics-2025.pdf",
+    "Ekstrak kapasitas terpasang per jenis pembangkit tahun 2025",
+    metadata=Record,          # optional: Pydantic model, dict, or JSON path/string
+    page="1-2",               # optional PDF pages (alias: pages="1,3" / "5-8")
+)
+print(result.status, result.records)
+```
+
+- `metadata=None` is permissive: the model proposes a consistent structure.
+- With metadata, the contract is sent to the model **and** enforced in Python
+  (`validator.py`): required fields, types, enums, nullability.
+- Missing values become `null`; values are not guessed or converted without an
+  explicit rule. Invalid records are reported and dropped.
+- Provider-agnostic: `LLM_MODEL`, `LLM_BASE_URL`, and `LLM_API_KEY` (or
+  `OPENAI_API_KEY`) configure the OpenAI-compatible endpoint. `--render-images`
+  sends rendered pages to a vision-capable model for scanned PDFs.
+- Files may be local, `file://`, `s3://`, `minio://`, or HTTP(S); `.xlsx`/`.xls`
+  are read per sheet.
+
+CLI with a reviewable JSON result under `scripts/out/`:
+
+```bash
+python -m ingestion.core.extractors.llm_extractor report.pdf \
+  --instruction "Ekstrak kapasitas terpasang per jenis pembangkit 2025" \
+  --metadata schema.json --page 1-2 --save-output
+
+# explicit file or directory
+python -m ingestion.core.extractors.llm_extractor report.xlsx \
+  --instruction "Ekstrak tabel ringkasan" --output out/review.json
+```
+
+`--save-output` writes `out/<source-stem>_<UTC timestamp>.json` (directory can
+be changed with `--output-dir`). The JSON contains `status`, `records`,
+`warnings`, `errors`, and run metadata (model, usage, page count, output path).
 
 A source extractor may combine several retrieval steps internally (e.g. scrape a
 landing page, then download the Excel it links to). This lives entirely in the

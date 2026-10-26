@@ -34,6 +34,8 @@ _profile: Optional[str] = None
 KNOWN_KEYS = (
     "URL",
     "SOURCE_LINK",
+    "PUBLISHER_NAME",
+    "LAST_UPDATE",
     "SCHEMA",
     "TABLE",
     "TARGET",
@@ -81,7 +83,6 @@ KNOWN_KEYS = (
     "ES_INDEX",
     "UNIQUE_KEY",
     "WRITE_DISPOSITION",
-    "LOAD_TIMESTAMP_COLUMN",
     "HTTP_METHOD",
     "IMPERSONATE",
 )

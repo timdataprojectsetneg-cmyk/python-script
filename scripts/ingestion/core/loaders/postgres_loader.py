@@ -9,7 +9,8 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable
 import importlib
 import json
-from datetime import datetime, date
+from datetime import date, datetime, timezone
+import re
 
 from ...config import HTTP_METHODS, get_raw, get_uri
 from ...exceptions import ConfigError
@@ -156,6 +157,62 @@ def _load_method(config: Dict[str, Any]) -> str:
     return method
 
 
+_METADATA_TYPES = {
+    "_source": "TEXT",
+    "_source_url": "TEXT",
+    "_published_date": "DATE",
+    "_created_at": "TIMESTAMP",
+    "_modified_at": "TIMESTAMP",
+}
+_METADATA_DEFAULTS = {
+    "_created_at": "DEFAULT CURRENT_TIMESTAMP",
+    "_modified_at": "DEFAULT CURRENT_TIMESTAMP",
+}
+_METADATA_COLUMNS = tuple(_METADATA_TYPES)
+
+
+def _parse_published_date(value: Any) -> date | None:
+    """Parse ``YYYY`` / ``YYYY-MM`` / ``YYYY-MM-DD``; other strings become NULL."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value or "").strip()
+    if not text:
+        return None
+    match = re.fullmatch(r"(\d{4})(?:-(\d{1,2}))?(?:-(\d{1,2}))?", text)
+    if not match:
+        return None
+    year = int(match.group(1))
+    month = int(match.group(2) or 1)
+    day = int(match.group(3) or 1)
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
+def _metadata_values(config: Dict[str, Any]) -> Dict[str, Any]:
+    source = str(config.get("publisher_name") or config.get("publisher") or "").strip() or None
+    source_url = str(config.get("source_link") or config.get("url") or "").strip() or None
+    return {
+        "_source": source,
+        "_source_url": source_url,
+        "_published_date": _parse_published_date(config.get("last_update")),
+    }
+
+
+def _apply_metadata(rows: list[Dict[str, Any]], config: Dict[str, Any]) -> list[Dict[str, Any]]:
+    """Attach loader lineage columns; timestamps default to the current UTC time."""
+    values = _metadata_values(config)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    for row in rows:
+        row.update(values)
+        row.setdefault("_created_at", now)
+        row["_modified_at"] = now
+    return rows
+
+
 def _column_type(values: list[Any]) -> str:
     """Choose a conservative PostgreSQL type from normalized Python values."""
     non_null = [value for value in values if value is not None]
@@ -220,7 +277,15 @@ def _ensure_table(
     ordered = list(dict.fromkeys(columns + observed))
     definitions = []
     for column in ordered:
-        definitions.append(sql.SQL("{} {}").format(sql.Identifier(column), sql.SQL(_column_type([row.get(column) for row in rows]))))
+        column_type = _METADATA_TYPES.get(column) or _column_type([row.get(column) for row in rows])
+        default = _METADATA_DEFAULTS.get(column, "")
+        definitions.append(
+            sql.SQL("{} {}{}").format(
+                sql.Identifier(column),
+                sql.SQL(column_type),
+                sql.SQL(f" {default}" if default else ""),
+            )
+        )
     if keys:
         definitions.append(sql.SQL("PRIMARY KEY ({})").format(sql.SQL(", ").join(sql.Identifier(key) for key in keys)))
     _run_ddl(
@@ -280,6 +345,21 @@ def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list
     )
 
 
+def _ensure_metadata_columns(cur: Any, sql: Any, schema: str, table: str) -> None:
+    """Add lineage columns to a table created by an older loader version."""
+    for column in _METADATA_COLUMNS:
+        default = _METADATA_DEFAULTS.get(column, "")
+        cur.execute(
+            sql.SQL("ALTER TABLE {}.{} ADD COLUMN IF NOT EXISTS {} {}{}").format(
+                sql.Identifier(schema),
+                sql.Identifier(table),
+                sql.Identifier(column),
+                sql.SQL(_METADATA_TYPES[column]),
+                sql.SQL(f" {default}" if default else ""),
+            )
+        )
+
+
 def _prepare_table(
     cur: Any,
     sql: Any,
@@ -304,6 +384,7 @@ def _prepare_table(
     if method == "replace" or full_refresh:
         cur.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(qualified))
     _ensure_table(cur, sql, schema, table, columns, rows, keys)
+    _ensure_metadata_columns(cur, sql, schema, table)
     _apply_comments(cur, sql, schema, table, columns, comments, table_comment)
     if method == "upsert":
         _ensure_unique_index(cur, sql, schema, table, keys)
@@ -339,11 +420,7 @@ class PostgresLoader(BaseLoader):
             # statement, so collapse duplicate keys within the batch (keep the last).
             rows = _dedupe_rows(rows, keys)
 
-        timestamp_column = str(self.config.get("load_timestamp_column") or "_loaded_at").strip()
-        if timestamp_column:
-            from datetime import datetime, timezone
-            stamp = datetime.now(timezone.utc)
-            rows = [{**row, timestamp_column: row.get(timestamp_column) or stamp} for row in rows]
+        rows = _apply_metadata(rows, self.config)
 
         _ensure_schema(schema)
         creds = _postgres_credentials()
@@ -351,8 +428,9 @@ class PostgresLoader(BaseLoader):
         model_fields = _model_columns(self.config)
         comments = _model_comments(self.config)
         columns = list(dict.fromkeys(model_fields + columns))
-        if timestamp_column and timestamp_column not in columns:
-            columns.append(timestamp_column)
+        for column in _METADATA_COLUMNS:
+            if column not in columns:
+                columns.append(column)
         if not columns:
             return 0
         table_comment = str(self.config.get("source_link") or self.config.get("url") or "").strip()
@@ -384,7 +462,11 @@ class PostgresLoader(BaseLoader):
                 ]
                 query = sql.SQL("INSERT INTO {} ({}) VALUES %s").format(qualified, column_sql)
                 if method == "upsert":
-                    updates = [column for column in columns if column not in keys]
+                    updates = [
+                        column
+                        for column in columns
+                        if column not in keys and column != "_created_at"
+                    ]
                     if updates:
                         query += sql.SQL(" ON CONFLICT ({}) DO UPDATE SET {}" ).format(
                             sql.SQL(", ").join(sql.Identifier(key) for key in keys),
@@ -417,6 +499,7 @@ class DltPostgresLoader(BaseLoader):
         keys = _unique_keys(self.config)
         if method == "upsert" and not keys:
             raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
+        rows = _apply_metadata(rows, self.config)
         # A recreated table is empty, so "replace" loads the same as a merge.
         disposition = (
             "replace"

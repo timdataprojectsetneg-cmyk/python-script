@@ -29,7 +29,7 @@ from .dictionary_mapper import (
     map_columns,
     map_table,
 )
-from .llm_extractor import LLMUnavailable, extract_with_llm, is_available
+from ..llm.pdf_assist import LLMUnavailable, extract_with_llm, is_available
 from .marker_detector import MarkerMatch, find_markers
 from .models import (
     Dictionary,

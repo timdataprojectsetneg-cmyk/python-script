@@ -124,6 +124,8 @@ def env_lines(
         prefix = f"{usecase_slug}__{publisher}__{slug}".upper()
         lines.append(f"{prefix}__URL={effective_url(source) or ''}")
         lines.append(f"{prefix}__SOURCE_LINK={source.get('source_link') or effective_url(source) or ''}")
+        lines.append(f"{prefix}__PUBLISHER_NAME={source.get('publisher') or ''}")
+        lines.append(f"{prefix}__LAST_UPDATE={source.get('last_update') or ''}")
         schema, postgre_table = split_postgre(source.get("raw_postgre_table"))
         targets = (
             ("POSTGRE_SCHEMA", schema),

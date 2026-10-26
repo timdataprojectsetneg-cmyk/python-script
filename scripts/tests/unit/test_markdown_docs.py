@@ -153,3 +153,18 @@ def test_render_dictionary_markdown_json_nested():
     md = render_dictionary_markdown("ketenagakerjaan", "Direktori Putusan", schema, SOURCES[0], "a/b/models.py")
     assert "### JSON field: `putusan`" in md
     assert "| Nomor_Perkara | `nomor_perkara` | String | - | Nomor putusan |" in md
+
+
+def test_env_lines_include_publisher_name_and_last_update():
+    sources = [
+        {
+            "source_name": "Kasus Perselisihan",
+            "publisher": "Kemnaker",
+            "source_link": "https://example.org",
+            "last_update": "2025-06",
+            "eligible": True,
+        }
+    ]
+    lines = env_lines("ketenagakerjaan", sources)
+    assert "KETENAGAKERJAAN__KEMNAKER__KASUS_PERSELISIHAN__PUBLISHER_NAME=Kemnaker" in lines
+    assert "KETENAGAKERJAAN__KEMNAKER__KASUS_PERSELISIHAN__LAST_UPDATE=2025-06" in lines
