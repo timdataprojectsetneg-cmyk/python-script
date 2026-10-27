@@ -80,3 +80,21 @@ def test_manual_json_url_comes_from_the_resource_url_env_key(monkeypatch, tmp_pa
 
     assert config["url"] == str(path)
     assert len(rows) == len(SAMPLE)
+
+
+def test_bps_inflasi_yoy_source_uses_duckdb_json_with_sample(tmp_path):
+    from ingestion.core.extractors.duckdb_extractor import DuckDBJSONExtractor
+    from ingestion.usecases.ketenagakerjaan.bps.bps_inflasi_yoy.extractor import (
+        Extractor,
+    )
+
+    path = tmp_path / "inflasi.json"
+    path.write_text(
+        json.dumps([{"tanggal": "2026-08-01", "nilai": 3.19}]),
+        encoding="utf-8",
+    )
+
+    assert issubclass(Extractor, DuckDBJSONExtractor)
+    rows = list(Extractor({"url": str(path)}).extract())
+    assert rows[0]["Periode"] == "2026-08-01"
+    assert rows[0]["Inflasi_YoY"] == 3.19

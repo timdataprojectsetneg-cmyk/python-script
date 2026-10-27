@@ -719,6 +719,36 @@ def _preserve_env_values(path: Path, keys: tuple) -> Dict[str, str]:
     return preserved
 
 
+def _duplicate_source_slugs(
+    sources: List[Dict[str, Any]],
+) -> Dict[str, List[str]]:
+    """Map duplicate slugs to the source names that produced them."""
+    from .catalog.metadata_parser import source_slug
+
+    by_slug: Dict[str, List[str]] = {}
+    for source in sources:
+        by_slug.setdefault(source_slug(source), []).append(
+            str(source.get("source_name") or "")
+        )
+    return {slug: names for slug, names in by_slug.items() if len(names) > 1}
+
+
+def _log_dictionary_result(result: Dict[str, Any]) -> None:
+    """Log one dictionary result immediately as its worker finishes."""
+    if result["warning"]:
+        logger.warning("%s", result["warning"])
+    if result["error"] is not None:
+        logger.warning(
+            "Could not read dictionary for %s (%s): %s",
+            result["name"],
+            result["ref"],
+            result["error"],
+        )
+        return
+    if result["path"]:
+        logger.info("Wrote %s (%s fields)", result["path"], result["fields"])
+
+
 def _dictionary_doc_for_source(
     client: Any,
     source: Dict[str, Any],
@@ -748,6 +778,7 @@ def _dictionary_doc_for_source(
     )
 
     name = source["source_name"]
+    logger.info("Fetching dictionary for %s", name)
     slug = source_slug(source)
     dictionary = source.get("data_dictionary")
     dict_link = source.get("data_dictionary_link") or link_by_text.get(
@@ -956,12 +987,16 @@ def _generate_docs(
         if text and link and text not in link_by_text:
             link_by_text[text] = link
 
-    slugs = [source_slug(source) for source in targets]
-    duplicates = sorted({slug for slug in slugs if slugs.count(slug) > 1})
+    duplicates = _duplicate_source_slugs(targets)
     if duplicates:
+        detail = "; ".join(
+            f"{slug} <- {', '.join(names)}"
+            for slug, names in sorted(duplicates.items())
+        )
         logger.warning(
-            "Duplicate source slugs %s; set the catalog 'Module Name' column to disambiguate.",
-            ", ".join(duplicates),
+            "Duplicate source slugs (%s); one dictionary overwrites the other. "
+            "Set the catalog 'Module Name' column to disambiguate.",
+            detail,
         )
 
     def run_sequential(source: Dict[str, Any]) -> Dict[str, Any]:
@@ -999,25 +1034,24 @@ def _generate_docs(
             for future in as_completed(futures):
                 index, result = future.result()
                 ordered_results[index] = result
+                # Log as soon as this source finishes, not after the whole batch.
+                _log_dictionary_result(result)
         results = [result for result in ordered_results if result is not None]
     else:
-        results = [run_sequential(source) for source in targets]
+        results = []
+        for source in targets:
+            result = run_sequential(source)
+            results.append(result)
+            _log_dictionary_result(result)
 
-    for result in results:
-        if result["warning"]:
-            logger.warning("%s", result["warning"])
-        if result["error"] is not None:
-            if source_name:
+    if source_name:
+        for result in results:
+            if result["error"] is not None:
                 raise result["error"]
-            logger.warning(
-                "Could not read dictionary for %s (%s): %s",
-                result["name"],
-                result["ref"],
-                result["error"],
-            )
-            continue
-        if result["path"]:
-            logger.info("Wrote %s (%s fields)", result["path"], result["fields"])
+
+    written = sum(1 for result in results if result["path"])
+    failed = sum(1 for result in results if result["error"] is not None)
+    logger.info("Dictionary fetch complete: %s written, %s failed", written, failed)
 
 
 def _scaffold_from_docs(

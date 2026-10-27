@@ -78,3 +78,17 @@ def test_docs_fetches_dictionaries_in_parallel(tmp_path, monkeypatch):
     assert (docs / "usecase.md").is_file()
     assert (docs / "usecase.env").is_file()
     assert len(WORKER_THREADS) == 2
+
+
+def test_duplicate_source_slugs_reports_source_names():
+    from ingestion.cli import _duplicate_source_slugs
+
+    sources = [
+        {"source_name": "Tabel 17  Kuota dan Realisasi LPG Tabung 3 kg", "publisher": "esdm"},
+        {"source_name": "Tabel 17 Kuota dan Realisasi LPG Tabung 3 kg", "publisher": "esdm"},
+        {"source_name": "Sumber Lain", "publisher": "esdm"},
+    ]
+    duplicates = _duplicate_source_slugs(sources)
+
+    assert list(duplicates) == ["kuota_dan_realisasi_lpg_tabung_3_kg"]
+    assert len(duplicates["kuota_dan_realisasi_lpg_tabung_3_kg"]) == 2

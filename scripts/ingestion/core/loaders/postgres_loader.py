@@ -6,10 +6,12 @@ and NiFi ``PutDatabaseRecord`` performs the load, so no DB credentials live here
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, Iterable
 import importlib
 import json
 from datetime import date, datetime, timezone
+from functools import lru_cache
 import re
 
 from ...config import HTTP_METHODS, get_raw, get_uri
@@ -192,23 +194,102 @@ def _parse_published_date(value: Any) -> date | None:
         return None
 
 
-def _metadata_values(config: Dict[str, Any]) -> Dict[str, Any]:
-    source = str(config.get("publisher_name") or config.get("publisher") or "").strip() or None
-    source_url = str(config.get("source_link") or config.get("url") or "").strip() or None
+_DOCS_ROOT = Path(__file__).resolve().parents[3] / "docs"
+
+
+@lru_cache(maxsize=32)
+def _read_docs_sources(docs_dir: str, _mtime: float) -> list[Dict[str, Any]]:
+    """Parse one usecase.md; the mtime argument invalidates the cache."""
+    from ...catalog.docs_reader import read_usecase_sources
+
+    return read_usecase_sources(Path(docs_dir))
+
+
+def _clean_url(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return None if text in ("", "-", "–", "—") else text
+
+
+def _docs_metadata(
+    config: Dict[str, Any], docs_root: Path | None = None
+) -> tuple[Any, Any, Any]:
+    """Read publisher, last update and source URL from ``docs/<usecase>/usecase.md``.
+
+    The generated docs are the local copy of the catalog, so the loader can use
+    those columns without duplicating them in every env file.
+    """
+    from ...catalog.metadata_parser import derive_module_name, publisher_slug, source_slug
+
+    usecase = str(config.get("usecase") or "").strip()
+    publisher = str(config.get("publisher") or "").strip()
+    source = str(config.get("source") or "").strip()
+    if not (usecase and publisher and source):
+        return None, None, None
+
+    docs_dir = Path(docs_root or _DOCS_ROOT) / derive_module_name(usecase)
+    try:
+        mtime = (docs_dir / "usecase.md").stat().st_mtime
+        sources = _read_docs_sources(str(docs_dir), mtime)
+    except Exception:  # noqa: BLE001 - docs are optional for the loader
+        return None, None, None
+
+    for item in sources:
+        if (
+            publisher_slug(item) == publisher.lower()
+            and source_slug(item) == source.lower()
+        ):
+            return (
+                item.get("publisher"),
+                item.get("last_update"),
+                _clean_url(item.get("source_link") or item.get("resource_url")),
+            )
+    return None, None, None
+
+
+def _metadata_values(
+    config: Dict[str, Any], docs_root: Path | None = None
+) -> Dict[str, Any]:
+    docs_publisher, docs_last_update, docs_source_url = _docs_metadata(config, docs_root)
+    source = str(
+        config.get("publisher_name") or docs_publisher or config.get("publisher") or ""
+    ).strip() or None
+    source_url = str(
+        config.get("source_url")
+        or docs_source_url
+        or config.get("source_link")
+        or config.get("url")
+        or ""
+    ).strip() or None
+    last_update = config.get("last_update")
+    if last_update in (None, ""):
+        last_update = docs_last_update
     return {
         "_source": source,
         "_source_url": source_url,
-        "_published_date": _parse_published_date(config.get("last_update")),
+        "_published_date": _parse_published_date(last_update),
     }
 
 
-def _apply_metadata(rows: list[Dict[str, Any]], config: Dict[str, Any]) -> list[Dict[str, Any]]:
-    """Attach loader lineage columns; timestamps default to the current UTC time."""
-    values = _metadata_values(config)
+def _apply_metadata(
+    rows: list[Dict[str, Any]],
+    config: Dict[str, Any],
+    *,
+    reset_created_at: bool = False,
+    docs_root: Path | None = None,
+) -> list[Dict[str, Any]]:
+    """Attach loader lineage columns.
+
+    ``_created_at`` is preserved on upserts; ``reset_created_at`` is set for a
+    ``--full-refresh`` load so the recreated table gets a new creation time.
+    """
+    values = _metadata_values(config, docs_root)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for row in rows:
         row.update(values)
-        row.setdefault("_created_at", now)
+        if reset_created_at:
+            row["_created_at"] = now
+        else:
+            row.setdefault("_created_at", now)
         row["_modified_at"] = now
     return rows
 
@@ -420,7 +501,10 @@ class PostgresLoader(BaseLoader):
             # statement, so collapse duplicate keys within the batch (keep the last).
             rows = _dedupe_rows(rows, keys)
 
-        rows = _apply_metadata(rows, self.config)
+        full_refresh = bool(self.config.get("full_refresh"))
+        rows = _apply_metadata(
+            rows, self.config, reset_created_at=full_refresh
+        )
 
         _ensure_schema(schema)
         creds = _postgres_credentials()
@@ -433,7 +517,7 @@ class PostgresLoader(BaseLoader):
                 columns.append(column)
         if not columns:
             return 0
-        table_comment = str(self.config.get("source_link") or self.config.get("url") or "").strip()
+        table_comment = str(_metadata_values(self.config).get("_source_url") or "").strip()
         conn = psycopg2.connect(host=creds["host"], port=creds["port"], dbname=creds["database"], user=creds["username"], password=creds["password"])
         try:
             with conn, conn.cursor() as cur:
@@ -448,7 +532,7 @@ class PostgresLoader(BaseLoader):
                     method,
                     comments,
                     table_comment,
-                    bool(self.config.get("full_refresh")),
+                    full_refresh,
                 )
                 column_sql = sql.SQL(", ").join(sql.Identifier(column) for column in columns)
                 values = [
@@ -465,7 +549,8 @@ class PostgresLoader(BaseLoader):
                     updates = [
                         column
                         for column in columns
-                        if column not in keys and column != "_created_at"
+                        if column not in keys
+                        and (column != "_created_at" or full_refresh)
                     ]
                     if updates:
                         query += sql.SQL(" ON CONFLICT ({}) DO UPDATE SET {}" ).format(
@@ -499,11 +584,14 @@ class DltPostgresLoader(BaseLoader):
         keys = _unique_keys(self.config)
         if method == "upsert" and not keys:
             raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
-        rows = _apply_metadata(rows, self.config)
+        full_refresh = bool(self.config.get("full_refresh"))
+        rows = _apply_metadata(
+            rows, self.config, reset_created_at=full_refresh
+        )
         # A recreated table is empty, so "replace" loads the same as a merge.
         disposition = (
             "replace"
-            if self.config.get("full_refresh") or method != "upsert"
+            if full_refresh or method != "upsert"
             else "merge"
         )
         pipeline = dlt.pipeline(pipeline_name=f"ingestion_{self.config.get('usecase')}", destination=postgres_destination(credentials=_postgres_credentials()), dataset_name=schema)

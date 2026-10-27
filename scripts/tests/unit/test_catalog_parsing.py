@@ -37,7 +37,8 @@ def test_matrix_merges_two_row_header():
     records = client._matrix_to_records(matrix, ["Source Name"])
     assert len(records) == 1
     assert records[0]["Source Name"] == "Kasus Perselisihan"
-    assert records[0]["Data Engineer"] is False
+    assert records[0]["Raw Data"] is False
+    assert "Data Engineer" not in records[0]
     assert records[0]["Raw Minio (Bucket)"] == "bucket-1"
 
 

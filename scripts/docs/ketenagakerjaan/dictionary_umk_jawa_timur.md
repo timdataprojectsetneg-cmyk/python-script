@@ -5,7 +5,7 @@
 - Use case: `ketenagakerjaan`
 - Source: `UMK Jawa Timur`
 - Publisher: GoodStats
-- Data access: `scraper`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
 - Data Dictionary file: [Data Dictionary - Ketenagakerjaan - UMK](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketenagakerjaan/1.%20Data%20Dictionary%20-%20Ketenagakerjaan%20-%20Hubungan%20Industrial%20dan%20Pengupahan%20(1).xlsx?d=wff0dbd62d68e4b14823be60d69d2b660&csf=1&web=1&e=joPYuh&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wQjAwLTAwMDAwMDAwMDAwMH0)

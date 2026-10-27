@@ -520,7 +520,6 @@ ACCESS_KEYWORDS = (
     ("web", "scraper"),
     ("crawl", "scraper"),
     ("json", "json"),
-    ("manual", "json"),
 )
 
 
@@ -529,12 +528,54 @@ def normalize_name(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
 
 
-def derive_access(data_access: Any) -> str:
-    """Map a free-text Data Access value to a leaf module name."""
+_MANUAL_EXTENSIONS = {
+    ".xlsx": "excel",
+    ".xls": "excel",
+    ".xlsm": "excel",
+    ".json": "json",
+    ".jsonl": "json",
+    ".ndjson": "json",
+    ".pdf": "pdf",
+}
+
+
+def _file_access(source: Dict[str, Any] | None) -> str | None:
+    """Infer the extractor from a direct file path (Resource URL/URL/S3 key).
+
+    The catalog's Data Access can be stale (e.g. "Web Scraping" while the
+    Resource URL is an ``s3://...json`` file), so a known extension wins.
+    """
+    if not isinstance(source, dict):
+        return None
+    from urllib.parse import urlparse
+
+    for key in ("resource_url", "url", "source_file", "minio_object", "object_key"):
+        value = source.get(key)
+        if not value:
+            continue
+        path = urlparse(str(value)).path or str(value)
+        suffix = Path(path).suffix.lower()
+        if suffix in _MANUAL_EXTENSIONS:
+            return _MANUAL_EXTENSIONS[suffix]
+    return None
+
+
+def derive_access(data_access: Any, source: Dict[str, Any] | None = None) -> str:
+    """Map a free-text Data Access value to a leaf module name.
+
+    A direct file extension in the Resource URL/URL takes precedence (e.g.
+    ``s3://.../data.json`` -> json, even when Data Access says Web Scraping).
+    Manual sources without a known extension keep the historical ``json``.
+    """
+    direct = _file_access(source)
+    if direct:
+        return direct
     text = str(data_access or "").strip().lower()
     for keyword, access in ACCESS_KEYWORDS:
         if re.search(rf"(?<![a-z]){re.escape(keyword)}", text):
             return access
+    if "manual" in text:
+        return "json"
     return "excel"
 
 

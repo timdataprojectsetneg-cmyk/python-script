@@ -203,3 +203,15 @@ def test_loader_writes_metadata_columns_without_loaded_at(monkeypatch):
     updates = insert.split("DO UPDATE SET", 1)[1]
     assert '"_created_at"' not in updates
     assert '"_modified_at"' in updates
+
+
+def test_full_refresh_upsert_updates_created_at(monkeypatch):
+    log = []
+    _install_fake_db(monkeypatch, log)
+
+    PostgresLoader(_config(full_refresh=True)).load([{"nomor_perkara": "A"}])
+
+    insert = next(statement for statement in log if statement.startswith("INSERT"))
+    updates = insert.split("DO UPDATE SET", 1)[1]
+    assert '"_created_at"' in updates
+    assert '"_modified_at"' in updates

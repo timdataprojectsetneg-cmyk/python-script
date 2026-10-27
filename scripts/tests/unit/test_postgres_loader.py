@@ -9,6 +9,7 @@ from psycopg2 import sql
 from ingestion.core.loaders.postgres_loader import (
     _apply_metadata,
     _dedupe_rows,
+    _docs_metadata,
     _parse_published_date,
     _prepare_table,
     _run_ddl,
@@ -205,3 +206,39 @@ def test_prepare_table_adds_metadata_columns_with_defaults():
         in statements
     )
     assert "_loaded_at" not in statements
+
+
+def test_docs_metadata_reads_publisher_and_last_update(tmp_path):
+    docs = tmp_path / "demo"
+    docs.mkdir()
+    (docs / "usecase.md").write_text(
+        """# Use Case: demo
+
+## Sources
+
+| # | Source Name | Publisher | Data Access | Update Frequency | Is Official | Eligible | Last Update | Source Link | Resource URL | Data Dictionary |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | Demo Source | BPS | Download PDF | Monthly | Yes | True | 2025-06 | https://example.org | - | - |
+""",
+        encoding="utf-8",
+    )
+
+    assert _docs_metadata(
+        {"usecase": "demo", "publisher": "bps", "source": "demo_source"},
+        docs_root=tmp_path,
+    ) == ("BPS", "2025-06", "https://example.org")
+
+
+def test_apply_metadata_preserves_created_at_without_full_refresh():
+    old = datetime(2020, 1, 1)
+    rows = _apply_metadata([{"_created_at": old}], {"publisher": "bps"})
+    assert rows[0]["_created_at"] == old
+
+
+def test_apply_metadata_resets_created_at_on_full_refresh():
+    old = datetime(2020, 1, 1)
+    rows = _apply_metadata(
+        [{"_created_at": old}], {"publisher": "bps"}, reset_created_at=True
+    )
+    assert rows[0]["_created_at"] != old
+    assert rows[0]["_created_at"].year >= 2024

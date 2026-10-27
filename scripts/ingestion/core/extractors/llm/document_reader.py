@@ -16,7 +16,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from ....exceptions import ConfigError
-from ..duckdb_extractor import S3, resolve_location
+from ..duckdb import S3, resolve_location
 from ..pdf.pdf_reader import PdfOpenError, PdfSource
 from ..pdf.page_selector import resolve_pages
 

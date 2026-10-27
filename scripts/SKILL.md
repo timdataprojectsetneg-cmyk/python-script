@@ -1,6 +1,6 @@
 ---
 name: nifi-python-ingestion
-description: Use when working on the NiFi + Python generic ingestion framework (bigaction/python-script/scripts) — adding or editing use cases, publishers, sources or extractors, configuring env vars, generating catalog docs (SharePoint or spreadsheet, per-use-case under docs/<usecase>/), scaffolding modules, or wiring NiFi ExecuteStreamCommand. Covers the folder conventions, {USECASE}__{PUBLISHER}__{SOURCE}__{KEY} env format, connection URIs (PG_URI/ELASTICSEARCH_URL/MINIO_URI), the run/docs/capture CLIs, and common source-specific quirks (satudata SPA, %2520 download URLs, Cloudflare/SOURCE_FILE, PDF→MinIO).
+description: Use when working on the NiFi + Python generic ingestion framework (bigaction/python-script/scripts) — adding or editing use cases, publishers, sources or extractors, configuring env vars, generating catalog docs (SharePoint or spreadsheet, per-use-case under docs/<usecase>/), scaffolding modules, or wiring NiFi ExecuteStreamCommand. Covers the folder conventions, {USECASE}__{PUBLISHER}__{SOURCE}__{KEY} env format, connection URIs (PG_URI/ELASTICSEARCH_URL/MINIO_URI), the run/docs/capture CLIs, and common source-specific quirks (satudata SPA, %2520 download URLs, Cloudflare/SOURCE_FILE, PDF/JSON/LLM/Excel automation extractors).
 ---
 
 # NiFi + Python Generic Ingestion
@@ -126,7 +126,11 @@ Common keys: `URL`, `TABLE`, `SCHEMA`, `POSTGRE_SCHEMA`, `POSTGRE_TABLE`,
 `API_KEY`, `TOKEN`, `PAGINATION_TYPE`,
 `PAGINATION_PARAM`, `DATA_PATH`, `ITEM_SELECTOR`, `FIELDS`, `DOWNLOAD_SELECTOR`,
 `DOWNLOAD_URL`, `SOURCE_FILE`, `SHEET`, `HEADER_ROW`, `METHOD`,
-`UNIQUE_KEY`, `HTTP_METHOD`, `IMPERSONATE`, `SOURCE_LINK`.
+`UNIQUE_KEY`, `HTTP_METHOD`, `IMPERSONATE`.
+
+`PUBLISHER_NAME`, `LAST_UPDATE`, and `SOURCE_LINK` are **not** emitted; the
+PostgreSQL loader reads Publisher, Last Update, and Source Link/Resource URL from
+the generated `docs/<usecase>/usecase.md`.
 
 Load method (DEV `postgres`/`elastic` target): `METHOD` is `replace` (default)
 or `upsert`; `upsert` requires `UNIQUE_KEY` (comma/semicolon-separated, one or
@@ -135,11 +139,18 @@ so column types and comments always track the current dictionary/extractor resul
 (a plain truncate would leave stale metadata). For API sources the HTTP verb is
 `HTTP_METHOD` (legacy: `METHOD` is still honored when it is a verb like `GET`/`POST`).
 
+`PostgresLoader`/`DltPostgresLoader` also add lineage columns:
+`_source` (Publisher from `usecase.md`), `_source_url` (Source Link → Resource
+URL), `_published_date` (Last Update: `YYYY` → `YYYY-01-01`, `YYYY-MM` →
+`YYYY-MM-01`, free text/empty → `NULL`), `_created_at`, `_modified_at`
+(`TIMESTAMP DEFAULT CURRENT_TIMESTAMP`). `_loaded_at`/`LOAD_TIMESTAMP_COLUMN`
+were removed. On `upsert`, `_created_at` is preserved and `_modified_at`
+refreshed; `--full-refresh` resets both by recreating the table.
+
 The loader sets metadata comments on every load: column comments come from the
-Record model's `Field(description=...)`, and the table comment is `SOURCE_LINK`
-(falling back to `URL`) from the generated env, e.g.
-`COMMENT ON TABLE schema.table IS 'https://.../sumber'`. Regenerate the env with
-`docs` after the catalog gains the Source Link column so `SOURCE_LINK` is emitted.
+Record model's `Field(description=...)`, and the table comment is the catalog
+Source Link (falling back to Resource URL) from `usecase.md`, e.g.
+`COMMENT ON TABLE schema.table IS 'https://.../sumber'`.
 
 Global (non-namespaced) secrets live directly in `.env.dev` and are read with
 `config.get_raw("KEY")`, e.g. `BPS_WEBAPI_KEY` for the BPS WebAPI extractors.
@@ -189,6 +200,7 @@ python -m ingestion docs --usecase ketenagakerjaan --source "Kasus Perselisihan"
 python -m ingestion docs --usecase ketenagakerjaan --source satu_data_kemnaker --sync-dictionary  # models.py only
 python -m ingestion docs --usecase ketenagakerjaan --delete     # remove docs + module folders/files
 python -m ingestion docs --usecase ketenagakerjaan --source "Direktori Putusan PHI" --delete  # one source only
+python -m ingestion docs --usecase ketenagakerjaan --env dev --thread 4  # concurrent dictionary fetch
 python -m ingestion docs --list    # bare = all; inventory only, no env/credentials needed
 python -m ingestion docs --list sources --usecase ketenagakerjaan
 ```
@@ -207,8 +219,8 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
   `run --usecase X --publisher Y --exclude s1,s2` skips those sources.
 - `run --full-refresh` drops and recreates the PostgreSQL table before loading,
   also when `__METHOD=upsert` (which otherwise keeps the existing table), so the
-  column types/comments follow the current model; the insert still uses
-  `ON CONFLICT`. PostgreSQL target only.
+  column types/comments follow the current model and `_created_at` is reset; the
+  insert still uses `ON CONFLICT`. PostgreSQL target only.
 - `--scaffold` creates missing folders/files; `--scaffold-overwrite` replaces
   existing scaffold files, limited to the `--source`/`--publisher` scope (or the
   whole usecase when neither is given).
@@ -230,10 +242,12 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
    fields with Pydantic `validation_alias=AliasChoices(...)`; add
    `@model_validator(mode="before")` for value transforms (e.g. period→year).
 3. Implement `extractor.py` (`class Extractor`) — subclass the generic base
-   matching the catalog Data Access (`ExcelExtractor`/`ApiExtractor`/`WebScraper`/
-   `PdfExtractor`) and override as needed. For a different sheet layout, override
-   `_parse_excel`; to resolve a download link (scrape → download), override
-   `_resolve_download_url`.
+   matching the retrieval method: `ExcelExtractor` (download/read Excel),
+   `ExcelAutomationExtractor` (multi-level headers/metadata sheets),
+   `ApiExtractor`, `WebScraper`, `PdfExtractor`, `DuckDBJSONExtractor`/
+   `DuckDBExcelExtractor` (manual files), or `LLMExtractor` (AI extraction).
+   For a different simple sheet layout, override `_parse_excel`; to resolve a
+   download link (scrape → download), override `_resolve_download_url`.
 4. Keep source-specific parsing/selector logic in the source module
    (never in `core/`).
 5. Verify: `python -m ingestion run --usecase <uc> --source <src> --limit 5`.
@@ -303,8 +317,29 @@ Verifikasi: python -m ingestion run --usecase ketenagakerjaan --source data_mogo
   the request uses a browser TLS/HTTP2 fingerprint; the MA PHI extractor defaults
   to `chrome` already. Alternatively support `SOURCE_FILE` (saved HTML) and parse a
   scoped container (e.g. `div.statistic-content ol li`).
-- **PDF**: the source `extractor.py` downloads and uploads to MinIO/S3, emitting a
-  metadata record (bucket, object_key, etag, size, sha256).
+- **PDF**: use `PdfExtractor` (`core/extractors/pdf_extractor.py`, engine
+  `core/extractors/pdf/`). Deterministic table/chart extraction runs first;
+  `--llm`/`LLMConfig` is an optional fallback. Pass `dictionary=Record`,
+  `marker`, `pages`/`page`, `mode`, and `page_numbering` explicitly
+  (`page`/`pages` are physical 1-based; default all pages). The CLI is
+  `python -m ingestion.core.extractors.pdf_extractor`.
+- **Manual JSON/Excel**: `DuckDBJSONExtractor`/`DuckDBExcelExtractor`
+  (`core/extractors/duckdb_extractor.py`, engine `core/extractors/duckdb/`).
+  A direct file extension in `Resource URL`/`URL` wins over Data Access text
+  (`.json` → json, `.xlsx` → excel, `.pdf` → pdf), so stale “Web Scraping”
+  labels still route correctly. Manual dictionaries display `Data access:
+  Manual` as in the catalog; scaffold still uses the inferred engine.
+- **Excel automation (complex books)**: `ExcelAutomationExtractor`
+  (`core/extractors/excel_automation_extractor.py`, engine
+  `core/extractors/excel_automation/`) for multi-level/merged headers, a
+  metadata sheet, and wide/long outputs. It selects one output table and yields
+  records; `ExcelExtractor` remains the simple download/read path.
+- **LLM extraction**: `LLMExtractor`/`extract_document`
+  (`core/extractors/llm_extractor.py`, engine `core/extractors/llm/`). Metadata
+  is optional; with metadata the model contract is enforced by `validator.py`
+  (types/enums/required/null). `page`/`pages` limits PDF pages; unsupported
+  values become `NULL`, not guesses. `--save-output` writes a reviewable JSON
+  under `scripts/out/` (or `--output`/`--output-dir`).
 
 ## `docs` command behavior
 
@@ -320,13 +355,21 @@ without any credentials/env** (bare `--list` = `all`; or
 - Dictionary reading **starts** at the header row containing
   `Label, Tipe Data, Satuan, Deskripsi` and **ends** at the first fully-empty
   row; column names are normalized to lower snake_case (`name`).
+- For merged group headers (e.g. `Data Engineer` spanning `Raw Data`, `Raw Minio
+  (Bucket)`, …), the sub-header wins; `Raw Data` is a real column and `Data
+  Engineer` is not. This is handled in `sharepoint/client._matrix_to_records`.
 - One worksheet may stack several dictionary tables: a later table titled
   `Data Dictionary <field>` (with or without a colon) becomes the nested fields
   of that JSON column, e.g. `Data Dictionary Putusan` fills `putusan`. A shared
   workbook may lead with an empty `Summary` sheet; the first sheet holding a
   dictionary is used instead.
-- Also writes `docs/<usecase>/usecase.env` with
-  `POSTGRE_SCHEMA`, `POSTGRE_TABLE` (`schema.table`), `ES_INDEX`, `MINIO_BUCKET`.
+- Also writes `docs/<usecase>/usecase.env` with `URL`, `POSTGRE_SCHEMA`,
+  `POSTGRE_TABLE` (`schema.table`), `ES_INDEX`, `MINIO_BUCKET`, `METHOD`,
+  `UNIQUE_KEY`. Publisher/Last Update/Source Link are not duplicated there; the
+  loader reads them from `usecase.md`.
+- `--thread N` fetches dictionaries concurrently and logs `Fetching dictionary
+  for ...` / `Wrote ...` as each source completes. Only eligible sources are
+  slugged, so long ineligible names do not warn.
 - Only `Eligible = true` sources are structured/scaffolded/env-emitted;
   `--include-ineligible` overrides for dictionaries.
 - `--scaffold` / `--scaffold-overwrite` work from the **local** docs

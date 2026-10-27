@@ -79,13 +79,8 @@
       "aliases": ["Layak"]
     },
     {
-      "column": "Data Engineer",
-      "field": "data_engineer",
-      "required": true
-    },
-    {
       "column": "Raw Data",
-      "required": true
+      "required": false
     },
     {
       "column": "Raw Minio (Bucket)",
@@ -112,7 +107,7 @@
     },
     {
       "column": "Cleaned Data",
-      "required": true
+      "required": false
     },
     {
       "column": "Cleaned ES (Index)",
