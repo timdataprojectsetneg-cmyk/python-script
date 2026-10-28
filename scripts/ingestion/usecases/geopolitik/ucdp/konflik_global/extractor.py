@@ -97,6 +97,66 @@ OFFLINE_FALLBACK_DATA = [
         "koordinat_lon": 29.2300,
         "data_source": "Uppsala Conflict Data Program (UCDP, Uppsala University)",
     },
+    {
+        "id_konflik": "UCDP-2026-097",
+        "negara": "Lebanon",
+        "kawasan": "Timur Tengah",
+        "aktor_terlibat": "Militer Israel (IDF) vs Hizbullah",
+        "jenis_konflik": "State-based conflict (Pertempuran Terorganisir)",
+        "tanggal_kejadian": "2024-10-02",
+        "jumlah_korban_tewas": 55,
+        "koordinat_lat": 33.8886,
+        "koordinat_lon": 35.4955,
+        "data_source": "Uppsala Conflict Data Program (UCDP, Uppsala University)",
+    },
+    {
+        "id_konflik": "UCDP-2026-098",
+        "negara": "Yaman",
+        "kawasan": "Timur Tengah",
+        "aktor_terlibat": "Ansar Allah (Houthi) vs Koalisi Pemerintah Yaman",
+        "jenis_konflik": "State-based conflict (Pertempuran Terorganisir)",
+        "tanggal_kejadian": "2024-09-28",
+        "jumlah_korban_tewas": 12,
+        "koordinat_lat": 15.3694,
+        "koordinat_lon": 44.1910,
+        "data_source": "Uppsala Conflict Data Program (UCDP, Uppsala University)",
+    },
+    {
+        "id_konflik": "UCDP-2026-099",
+        "negara": "Somalia",
+        "kawasan": "Afrika Timur",
+        "aktor_terlibat": "Pemerintah Federal Somalia & ATMIS vs Al-Shabaab",
+        "jenis_konflik": "State-based conflict (Pertempuran Terorganisir)",
+        "tanggal_kejadian": "2024-10-14",
+        "jumlah_korban_tewas": 20,
+        "koordinat_lat": 2.0469,
+        "koordinat_lon": 45.3182,
+        "data_source": "Uppsala Conflict Data Program (UCDP, Uppsala University)",
+    },
+    {
+        "id_konflik": "UCDP-2026-100",
+        "negara": "Burkina Faso",
+        "kawasan": "Afrika Barat / Sahel",
+        "aktor_terlibat": "Militer Burkina Faso vs Kelompok Bersenjata JNIM",
+        "jenis_konflik": "One-sided violence (Kekerasan terhadap Sipil)",
+        "tanggal_kejadian": "2024-08-25",
+        "jumlah_korban_tewas": 60,
+        "koordinat_lat": 12.3714,
+        "koordinat_lon": -1.5197,
+        "data_source": "Uppsala Conflict Data Program (UCDP, Uppsala University)",
+    },
+    {
+        "id_konflik": "UCDP-2026-101",
+        "negara": "Haiti",
+        "kawasan": "Karibia / Amerika Latin",
+        "aktor_terlibat": "Koalisi Geng Bersenjata Viv Ansanm vs Kepolisian Nasional Haiti & MSS",
+        "jenis_konflik": "Non-state conflict (Konflik Antar-Kelompok Bersenjata)",
+        "tanggal_kejadian": "2024-10-03",
+        "jumlah_korban_tewas": 70,
+        "koordinat_lat": 18.5944,
+        "koordinat_lon": -72.3074,
+        "data_source": "Uppsala Conflict Data Program (UCDP, Uppsala University)",
+    },
 ]
 
 
@@ -112,7 +172,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__UCDP__KONFLIK_GLOBAL__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

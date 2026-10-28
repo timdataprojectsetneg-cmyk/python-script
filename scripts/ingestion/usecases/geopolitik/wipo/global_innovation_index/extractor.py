@@ -91,6 +91,62 @@ OFFLINE_FALLBACK_DATA = [
         "pilar_creative_outputs": 26.5,
         "data_source": "World Intellectual Property Organization (WIPO)",
     },
+    {
+        "tahun": 2021,
+        "skor_gii_indonesia": 26.8,
+        "peringkat_gii_indonesia": 87,
+        "peringkat_asean": 8,
+        "pilar_institusi": 44.5,
+        "pilar_human_capital": 26.9,
+        "pilar_infrastruktur": 38.2,
+        "pilar_market_sophistication": 49.8,
+        "pilar_business_sophistication": 27.1,
+        "pilar_knowledge_technology": 18.5,
+        "pilar_creative_outputs": 25.2,
+        "data_source": "World Intellectual Property Organization (WIPO)",
+    },
+    {
+        "tahun": 2020,
+        "skor_gii_indonesia": 26.5,
+        "peringkat_gii_indonesia": 85,
+        "peringkat_asean": 8,
+        "pilar_institusi": 43.8,
+        "pilar_human_capital": 26.0,
+        "pilar_infrastruktur": 37.9,
+        "pilar_market_sophistication": 48.5,
+        "pilar_business_sophistication": 26.5,
+        "pilar_knowledge_technology": 18.0,
+        "pilar_creative_outputs": 24.8,
+        "data_source": "World Intellectual Property Organization (WIPO)",
+    },
+    {
+        "tahun": 2019,
+        "skor_gii_indonesia": 29.7,
+        "peringkat_gii_indonesia": 85,
+        "peringkat_asean": 8,
+        "pilar_institusi": 45.1,
+        "pilar_human_capital": 28.5,
+        "pilar_infrastruktur": 39.2,
+        "pilar_market_sophistication": 50.1,
+        "pilar_business_sophistication": 28.0,
+        "pilar_knowledge_technology": 19.1,
+        "pilar_creative_outputs": 26.0,
+        "data_source": "World Intellectual Property Organization (WIPO)",
+    },
+    {
+        "tahun": 2018,
+        "skor_gii_indonesia": 29.8,
+        "peringkat_gii_indonesia": 85,
+        "peringkat_asean": 8,
+        "pilar_institusi": 44.8,
+        "pilar_human_capital": 28.0,
+        "pilar_infrastruktur": 38.9,
+        "pilar_market_sophistication": 49.5,
+        "pilar_business_sophistication": 27.8,
+        "pilar_knowledge_technology": 18.9,
+        "pilar_creative_outputs": 25.8,
+        "data_source": "World Intellectual Property Organization (WIPO)",
+    },
 ]
 
 
@@ -105,7 +161,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__WIPO__GLOBAL_INNOVATION_INDEX__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

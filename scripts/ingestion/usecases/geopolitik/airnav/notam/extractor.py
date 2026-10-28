@@ -100,6 +100,71 @@ OFFLINE_FALLBACK_DATA = [
         "koordinasi_satgas_tni_kemlu": "Atase Pertahanan KBRI Yangon & Kemlu RI",
         "data_source": "AirNav Indonesia & Kementerian Luar Negeri RI (Satgas Evakuasi WNI)",
     },
+    {
+        "id_wilayah": "EVAC-2026-ME-07",
+        "negara": "Suriah",
+        "kawasan": "Timur Tengah",
+        "status_siaga_evakuasi": "Siaga I",
+        "estimasi_wni_terdampak": 140,
+        "jalur_evakuasi_utama": "Koridor darat Damaskus menuju Beirut atau perbatasan Yordania",
+        "titik_kumpul_safe_haven": "KBRI Damaskus & Shelter Penampungan",
+        "status_ruang_udara_notam": "Danger Area (NOTAM OSTT-A0045/26)",
+        "kesiapan_bandara_pelabuhan": "Bandara Internasional Damaskus Operasional Terbatas",
+        "koordinasi_satgas_tni_kemlu": "Satgas PWNI KBRI Damaskus & TNI Konga",
+        "data_source": "AirNav Indonesia & Kementerian Luar Negeri RI (Satgas Evakuasi WNI)",
+    },
+    {
+        "id_wilayah": "EVAC-2026-ME-08",
+        "negara": "Irak",
+        "kawasan": "Timur Tengah",
+        "status_siaga_evakuasi": "Siaga II",
+        "estimasi_wni_terdampak": 85,
+        "jalur_evakuasi_utama": "Jalur penerbangan evakuasi via Baghdad International Airport atau Erbil",
+        "titik_kumpul_safe_haven": "KBRI Baghdad",
+        "status_ruang_udara_notam": "Warning / Conflict Zone (NOTAM ORBB-A0112/26)",
+        "kesiapan_bandara_pelabuhan": "Bandara Baghdad dan Erbil Beroperasi Waspada",
+        "koordinasi_satgas_tni_kemlu": "Satgas Kontinjensi Kemlu & KBRI Baghdad",
+        "data_source": "AirNav Indonesia & Kementerian Luar Negeri RI (Satgas Evakuasi WNI)",
+    },
+    {
+        "id_wilayah": "EVAC-2026-AF-09",
+        "negara": "Libya",
+        "kawasan": "Afrika Utara",
+        "status_siaga_evakuasi": "Siaga II",
+        "estimasi_wni_terdampak": 60,
+        "jalur_evakuasi_utama": "Jalur darat ke perbatasan Tunisia (Ras Ajdir) atau laut via Tripoli",
+        "titik_kumpul_safe_haven": "KBRI Tripoli",
+        "status_ruang_udara_notam": "Restricted Area (NOTAM HLLL-A0088/26)",
+        "kesiapan_bandara_pelabuhan": "Bandara Mitiga Beroperasi dengan Pengawasan Ketat",
+        "koordinasi_satgas_tni_kemlu": "Satgas PWNI Kemlu & KBRI Tripoli",
+        "data_source": "AirNav Indonesia & Kementerian Luar Negeri RI (Satgas Evakuasi WNI)",
+    },
+    {
+        "id_wilayah": "EVAC-2026-EA-10",
+        "negara": "Taiwan",
+        "kawasan": "Asia Timur",
+        "status_siaga_evakuasi": "Waspada / Siaga III",
+        "estimasi_wni_terdampak": 320000,
+        "jalur_evakuasi_utama": "Rencana evakuasi kontinjensi laut & udara menuju Filipina / Indonesia",
+        "titik_kumpul_safe_haven": "KDEI Taipei, Shelter Taichung, Shelter Kaohsiung",
+        "status_ruang_udara_notam": "Military Exercise Area (NOTAM RCAA-A0550/26)",
+        "kesiapan_bandara_pelabuhan": "Bandara Taoyuan dan Kaohsiung Beroperasi Normal Waspada",
+        "koordinasi_satgas_tni_kemlu": "KDEI Taipei, Kemlu RI & Bakamla RI",
+        "data_source": "AirNav Indonesia & Kementerian Luar Negeri RI (Satgas Evakuasi WNI)",
+    },
+    {
+        "id_wilayah": "EVAC-2026-ID-11",
+        "negara": "Indonesia",
+        "kawasan": "Asia Tenggara (Laut Natuna Utara)",
+        "status_siaga_evakuasi": "Pengawasan Maritim",
+        "estimasi_wni_terdampak": 450,
+        "jalur_evakuasi_utama": "Pangkalan Ranai Natuna dilanjutkan KRI Koarmada I ke Batam / Tanjungpinang",
+        "titik_kumpul_safe_haven": "Lanud Raden Sadjad Ranai Natuna",
+        "status_ruang_udara_notam": "FIR Jakarta WIIF Airspace Monitoring",
+        "kesiapan_bandara_pelabuhan": "Lanud Ranai dan Pelabuhan Selat Lampa Siaga Penuh",
+        "koordinasi_satgas_tni_kemlu": "Koarmada I, Koopsau I & AirNav Cabang Natuna",
+        "data_source": "AirNav Indonesia & Kementerian Luar Negeri RI (Satgas Evakuasi WNI)",
+    },
 ]
 
 
@@ -114,7 +179,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__AIRNAV__NOTAM__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

@@ -93,6 +93,54 @@ OFFLINE_FALLBACK_DATA = [
         "posisi_negara_mitra_utama": "Mayoritas mutlak mendukung; pengabaian hukum humaniter internasional dikecam",
         "data_source": "United Nations Digital Library & PTRI New York",
     },
+    {
+        "nomor_resolusi": "A/RES/79/015",
+        "badan_pbb": "UN General Assembly",
+        "tanggal_voting": "2024-10-30",
+        "judul_resolusi": "Keharusan Mengakhiri Embargo Ekonomi, Komersial dan Keuangan yang Dikenakan AS terhadap Kuba",
+        "posisi_indonesia": "In Favor",
+        "total_suara_in_favor": 187,
+        "total_suara_against": 2,
+        "total_abstain": 1,
+        "posisi_negara_mitra_utama": "Seluruh ASEAN & Global South In Favor; AS & Israel Against",
+        "data_source": "United Nations Digital Library & PTRI New York",
+    },
+    {
+        "nomor_resolusi": "A/RES/77/276",
+        "badan_pbb": "UN General Assembly",
+        "tanggal_voting": "2023-03-29",
+        "judul_resolusi": "Permintaan Fatwa Hukum (Advisory Opinion) Mahkamah Internasional terkait Perubahan Iklim",
+        "posisi_indonesia": "In Favor (Co-Sponsor)",
+        "total_suara_in_favor": 132,
+        "total_suara_against": 0,
+        "total_abstain": 0,
+        "posisi_negara_mitra_utama": "Diadopsi secara konsensus tanpa voting formal",
+        "data_source": "United Nations Digital Library & PTRI New York",
+    },
+    {
+        "nomor_resolusi": "A/RES/ES-11/1",
+        "badan_pbb": "UN General Assembly",
+        "tanggal_voting": "2022-03-02",
+        "judul_resolusi": "Penegakan Kedaulatan Wilayah dan Integritas Teritorial Ukraina",
+        "posisi_indonesia": "In Favor",
+        "total_suara_in_favor": 141,
+        "total_suara_against": 5,
+        "total_abstain": 35,
+        "posisi_negara_mitra_utama": "Indonesia konsisten pada Piagam PBB dan penghormatan kedaulatan batas negara",
+        "data_source": "United Nations Digital Library & PTRI New York",
+    },
+    {
+        "nomor_resolusi": "A/RES/76/300",
+        "badan_pbb": "UN General Assembly",
+        "tanggal_voting": "2022-07-28",
+        "judul_resolusi": "Hak Asasi Manusia atas Lingkungan Hidup yang Bersih, Sehat dan Berkelanjutan",
+        "posisi_indonesia": "In Favor",
+        "total_suara_in_favor": 161,
+        "total_suara_against": 0,
+        "total_abstain": 8,
+        "posisi_negara_mitra_utama": "Indonesia mendukung penuh kerangka hak generasi masa depan",
+        "data_source": "United Nations Digital Library & PTRI New York",
+    },
 ]
 
 
@@ -107,7 +155,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__UN__VOTING_SIDANG_PBB__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

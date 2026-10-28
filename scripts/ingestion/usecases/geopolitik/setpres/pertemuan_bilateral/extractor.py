@@ -89,6 +89,83 @@ OFFLINE_FALLBACK_DATA = [
         "kesepakatan_konkret": "MoU investasi ekspansi pembangkit listrik tenaga surya terapung Cirata tahap 2",
         "data_source": "Sekretariat Presiden RI & Kementerian Luar Negeri RI",
     },
+    {
+        "id_pertemuan": "BIL-2026-07",
+        "tanggal_kegiatan": "2024-11-14",
+        "negara_mitra": "Peru",
+        "lokasi_kota_negara": "Istana Pemerintahan, Lima",
+        "format_pertemuan": "Kunjungan Kenegaraan & KTT APEC",
+        "tokoh_pemimpin_mitra": "Presiden Dina Boluarte",
+        "isu_utama_dibahas": "Penyelesaian negosiasi Indonesia-Peru Comprehensive Economic Partnership Agreement (IP-CEPA)",
+        "kesepakatan_konkret": "Penandatanganan kesepakatan substansial CEPA membuka pasar ekspor pertanian dan alas kaki ke Amerika Latin",
+        "data_source": "Sekretariat Presiden RI & Kementerian Luar Negeri RI",
+    },
+    {
+        "id_pertemuan": "BIL-2026-08",
+        "tanggal_kegiatan": "2024-11-18",
+        "negara_mitra": "Brasil",
+        "lokasi_kota_negara": "Museum of Modern Art, Rio de Janeiro",
+        "format_pertemuan": "KTT G20 & Pertemuan Bilateral Tingkat Tinggi",
+        "tokoh_pemimpin_mitra": "Presiden Luiz Inacio Lula da Silva",
+        "isu_utama_dibahas": "Aliansi Global Melawan Kelaparan dan Kemiskinan serta transisi energi terbarukan berbasis biofuel",
+        "kesepakatan_konkret": "Komitmen bergabung dalam Global Alliance against Hunger and Poverty dan kerja sama riset bioetanol tebu",
+        "data_source": "Sekretariat Presiden RI & Kementerian Luar Negeri RI",
+    },
+    {
+        "id_pertemuan": "BIL-2026-09",
+        "tanggal_kegiatan": "2024-11-21",
+        "negara_mitra": "Inggris",
+        "lokasi_kota_negara": "10 Downing Street, London",
+        "format_pertemuan": "Pertemuan Bilateral Resmi",
+        "tokoh_pemimpin_mitra": "PM Keir Starmer & Raja Charles III",
+        "isu_utama_dibahas": "Kemitraan strategis ekonomi hijau, maritim, dan investasi senilai 8,5 miliar dolar AS",
+        "kesepakatan_konkret": "Komitmen pendanaan proyek infrastruktur transisi energi dan pendidikan tinggi kedokteran",
+        "data_source": "Sekretariat Presiden RI & Kementerian Luar Negeri RI",
+    },
+    {
+        "id_pertemuan": "BIL-2026-10",
+        "tanggal_kegiatan": "2024-11-23",
+        "negara_mitra": "Prancis",
+        "lokasi_kota_negara": "Istana Elysee, Paris",
+        "format_pertemuan": "Pertemuan Tingkat Kepala Negara",
+        "tokoh_pemimpin_mitra": "Presiden Emmanuel Macron",
+        "isu_utama_dibahas": "Kerja sama pertahanan matra darat-laut-udara, industri strategis, dan keanggotaan OECD",
+        "kesepakatan_konkret": "Dukungan penuh Prancis terhadap proses aksesi Indonesia menjadi anggota penuh OECD",
+        "data_source": "Sekretariat Presiden RI & Kementerian Luar Negeri RI",
+    },
+    {
+        "id_pertemuan": "BIL-2026-11",
+        "tanggal_kegiatan": "2024-12-02",
+        "negara_mitra": "Malaysia",
+        "lokasi_kota_negara": "Perdana Putra, Putrajaya",
+        "format_pertemuan": "Pertemuan Konsultasi Tahunan Pemimpin RI-Malaysia",
+        "tokoh_pemimpin_mitra": "PM Anwar Ibrahim",
+        "isu_utama_dibahas": "Perlindungan pekerja migran Indonesia (PMI), batas maritim Laut Sulawesi, dan kerja sama sawit CPOPC",
+        "kesepakatan_konkret": "Implementasi sistem satu kanal (One Channel System) penempatan PMI dan penyelesaian sengketa perbatasan darat",
+        "data_source": "Sekretariat Presiden RI & Kementerian Luar Negeri RI",
+    },
+    {
+        "id_pertemuan": "BIL-2026-12",
+        "tanggal_kegiatan": "2024-12-08",
+        "negara_mitra": "Arab Saudi",
+        "lokasi_kota_negara": "Istana Al-Yamamah, Riyadh",
+        "format_pertemuan": "Kunjungan Kenegaraan Kenegaraan",
+        "tokoh_pemimpin_mitra": "Putra Mahkota & PM Mohammed bin Salman (MBS)",
+        "isu_utama_dibahas": "Peningkatan kuota haji Indonesia, pendirian Kampung Haji di Mekkah, dan investasi energi kilang",
+        "kesepakatan_konkret": "Alokasi lahan pembangunan kompleks akomodasi jamaah haji dan umrah Indonesia di Mekkah",
+        "data_source": "Sekretariat Presiden RI & Kementerian Luar Negeri RI",
+    },
+    {
+        "id_pertemuan": "BIL-2026-13",
+        "tanggal_kegiatan": "2024-12-15",
+        "negara_mitra": "Turki",
+        "lokasi_kota_negara": "Kompleks Kepresidenan Bestepe, Ankara",
+        "format_pertemuan": "High-Level Strategic Cooperation Council (HLSCC)",
+        "tokoh_pemimpin_mitra": "Presiden Recep Tayyip Erdogan",
+        "isu_utama_dibahas": "Produksi bersama industri kedirgantaraan, transfer teknologi radar maritim, dan krisis kemanusiaan Palestina",
+        "kesepakatan_konkret": "Perjanjian joint production drone militer dan pembentukan komite bersama rekonstruksi Gaza",
+        "data_source": "Sekretariat Presiden RI & Kementerian Luar Negeri RI",
+    },
 ]
 
 
@@ -104,7 +181,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__SETPRES__PERTEMUAN_BILATERAL__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

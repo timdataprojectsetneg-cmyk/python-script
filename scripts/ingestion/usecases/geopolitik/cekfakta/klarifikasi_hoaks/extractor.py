@@ -81,6 +81,66 @@ OFFLINE_FALLBACK_DATA = [
         "tanggal_klarifikasi": "2026-10-10",
         "data_source": "CekFakta.com, Kementerian Luar Negeri RI & Kementerian Komunikasi dan Digital",
     },
+    {
+        "id_narasi": "NAR-2026-06",
+        "isu_pemberitaan": "Ketahanan Pangan & Cadangan Beras Pemerintah",
+        "klaim_narasi": "Klaim palsu di media sosial bahwa stok beras Bulog habis dan impor beras melonjak tak terkendali",
+        "asal_media_sumber": "TikTok & Facebook Video",
+        "tingkat_sebaran": "Tinggi (Viral)",
+        "hasil_verifikasi_cek_fakta": "Disinformasi / Hoaks (Cadangan Beras Pemerintah di gudang Bulog tercatat aman di atas 2 juta ton)",
+        "tanggapan_resmi_pemerintah": "Kepala Bapanas dan Dirut Bulog merilis stok gudang per provinsi siap suplai pasar murah",
+        "instansi_klarifikasi": "Badan Pangan Nasional & Perum Bulog",
+        "tanggal_klarifikasi": "2024-10-18",
+        "data_source": "CekFakta.com, Kementerian Luar Negeri RI & Kementerian Komunikasi dan Digital",
+    },
+    {
+        "id_narasi": "NAR-2026-07",
+        "isu_pemberitaan": "Pencabutan Subsidi Bahan Bakar Minyak (BBM)",
+        "klaim_narasi": "Tautan pendaftaran palsu penyaluran BLT subsidi BBM pengganti penghapusan Pertalite",
+        "asal_media_sumber": "Pesan Berantai WhatsApp & Situs Phishing",
+        "tingkat_sebaran": "Tinggi (Viral)",
+        "hasil_verifikasi_cek_fakta": "Penipuan / Phishing (Pemerintah tidak menghapus subsidi BBM dan tidak membuat tautan registrasi)",
+        "tanggapan_resmi_pemerintah": "Kementerian ESDM dan Pertamina mengimbau masyarakat waspada tautan palsu pencurian data perbankan",
+        "instansi_klarifikasi": "Kementerian ESDM & PT Pertamina",
+        "tanggal_klarifikasi": "2024-11-02",
+        "data_source": "CekFakta.com, Kementerian Luar Negeri RI & Kementerian Komunikasi dan Digital",
+    },
+    {
+        "id_narasi": "NAR-2026-08",
+        "isu_pemberitaan": "Kedaulatan Pulau Terluar (Kepulauan Pasir / Ashmore Reef)",
+        "klaim_narasi": "Klaim sensasional bahwa Pulau Pasir di NTT telah dijual pemerintah kepada pihak asing",
+        "asal_media_sumber": "YouTube Shorts & Forum Daring",
+        "tingkat_sebaran": "Sedang",
+        "hasil_verifikasi_cek_fakta": "Salah Paham Sejarah (Ashmore Reef adalah wilayah warisan administratif Australia sejak era kolonial)",
+        "tanggapan_resmi_pemerintah": "Kemlu menegaskan wilayah NKRI berdasar traktat 1945/1974 dan batas ZEE diratifikasi sesuai UNCLOS",
+        "instansi_klarifikasi": "Kementerian Luar Negeri RI",
+        "tanggal_klarifikasi": "2024-11-15",
+        "data_source": "CekFakta.com, Kementerian Luar Negeri RI & Kementerian Komunikasi dan Digital",
+    },
+    {
+        "id_narasi": "NAR-2026-09",
+        "isu_pemberitaan": "Program 3 Juta Rumah Rakyat",
+        "klaim_narasi": "Beredar formulir berbayar pemesanan rumah subsidi gratis dari Kementerian Perumahan",
+        "asal_media_sumber": "Grup Media Sosial & Selebaran Ilegal",
+        "tingkat_sebaran": "Sedang",
+        "hasil_verifikasi_cek_fakta": "Penipuan / Pungutan Liar (Pendaftaran program rumah subsidi MBR hanya melalui bank penyalur resmi)",
+        "tanggapan_resmi_pemerintah": "Kementerian PKP melaporkan oknum pemungut biaya liar ke aparat penegak hukum",
+        "instansi_klarifikasi": "Kementerian Perumahan dan Kawasan Permukiman",
+        "tanggal_klarifikasi": "2024-12-05",
+        "data_source": "CekFakta.com, Kementerian Luar Negeri RI & Kementerian Komunikasi dan Digital",
+    },
+    {
+        "id_narasi": "NAR-2026-10",
+        "isu_pemberitaan": "Posisi Diplomatik RI Terhadap Konflik Laut Merah",
+        "klaim_narasi": "Rumor bahwa kapal perang Indonesia bergabung dalam koalisi militer asing di Laut Merah",
+        "asal_media_sumber": "Portal Berita Daring Internasional",
+        "tingkat_sebaran": "Sedang",
+        "hasil_verifikasi_cek_fakta": "Disinformasi (Indonesia konsisten memegang prinsip politik luar negeri bebas aktif)",
+        "tanggapan_resmi_pemerintah": "Kemlu RI menegaskan pengiriman KRI rumah sakit murni untuk misi kemanusiaan bantuan korban Gaza",
+        "instansi_klarifikasi": "Kementerian Luar Negeri RI & Mabes TNI",
+        "tanggal_klarifikasi": "2024-12-20",
+        "data_source": "CekFakta.com, Kementerian Luar Negeri RI & Kementerian Komunikasi dan Digital",
+    },
 ]
 
 
@@ -95,7 +155,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__CEKFAKTA__KLARIFIKASI_HOAKS__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

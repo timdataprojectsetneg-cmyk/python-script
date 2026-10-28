@@ -87,6 +87,61 @@ OFFLINE_FALLBACK_DATA = [
         "catatan_reservasi_deklarasi": "Deklarasi prinsip Common Heritage of Mankind",
         "data_source": "United Nations Treaty Collection (UNTC) & Kemenlu RI",
     },
+    {
+        "id_traktat": "UNTC-XVIII-18",
+        "nama_konvensi_internasional": "United Nations Convention against Corruption (UNCAC)",
+        "organisasi_penyimpan_depository": "Sekjen PBB",
+        "tanggal_adopsi_dunia": "2003-10-31",
+        "status_keikutsertaan_indonesia": "Pihak (Diratifikasi)",
+        "dokumen_pengesahan_uu_ri": "UU No. 7 Tahun 2006",
+        "tanggal_penyerahan_instrumen": "2006-09-19",
+        "catatan_reservasi_deklarasi": "Reservasi Pasal 66 ayat (2) mengenai Mahkamah Internasional",
+        "data_source": "United Nations Treaty Collection (UNTC) & Kemenlu RI",
+    },
+    {
+        "id_traktat": "UNTC-XVIII-12",
+        "nama_konvensi_internasional": "United Nations Convention against Transnational Organized Crime (UNTOC)",
+        "organisasi_penyimpan_depository": "Sekjen PBB",
+        "tanggal_adopsi_dunia": "2000-11-15",
+        "status_keikutsertaan_indonesia": "Pihak (Diratifikasi)",
+        "dokumen_pengesahan_uu_ri": "UU No. 5 Tahun 2009",
+        "tanggal_penyerahan_instrumen": "2009-04-20",
+        "catatan_reservasi_deklarasi": "Reservasi penyelesaian sengketa ICJ",
+        "data_source": "United Nations Treaty Collection (UNTC) & Kemenlu RI",
+    },
+    {
+        "id_traktat": "UNTC-XXVII-16",
+        "nama_konvensi_internasional": "Minamata Convention on Mercury",
+        "organisasi_penyimpan_depository": "Sekjen PBB",
+        "tanggal_adopsi_dunia": "2013-10-10",
+        "status_keikutsertaan_indonesia": "Pihak (Diratifikasi)",
+        "dokumen_pengesahan_uu_ri": "UU No. 11 Tahun 2017",
+        "tanggal_penyerahan_instrumen": "2017-09-22",
+        "catatan_reservasi_deklarasi": "Pernyataan penghapusan bertahap merkuri pada PESK tambang emas rakyat",
+        "data_source": "United Nations Treaty Collection (UNTC) & Kemenlu RI",
+    },
+    {
+        "id_traktat": "UNTC-III-3",
+        "nama_konvensi_internasional": "Vienna Convention on Diplomatic Relations 1961",
+        "organisasi_penyimpan_depository": "Sekjen PBB",
+        "tanggal_adopsi_dunia": "1961-04-18",
+        "status_keikutsertaan_indonesia": "Pihak (Diratifikasi)",
+        "dokumen_pengesahan_uu_ri": "UU No. 1 Tahun 1982",
+        "tanggal_penyerahan_instrumen": "1982-06-04",
+        "catatan_reservasi_deklarasi": "Kepatuhan penuh pada hak kekebalan diplomatik resiprokal",
+        "data_source": "United Nations Treaty Collection (UNTC) & Kemenlu RI",
+    },
+    {
+        "id_traktat": "UNTC-IV-8",
+        "nama_konvensi_internasional": "Convention on the Rights of the Child (CRC)",
+        "organisasi_penyimpan_depository": "Sekjen PBB",
+        "tanggal_adopsi_dunia": "1989-11-20",
+        "status_keikutsertaan_indonesia": "Pihak (Diratifikasi)",
+        "dokumen_pengesahan_uu_ri": "Keppres No. 36 Tahun 1990",
+        "tanggal_penyerahan_instrumen": "1990-09-05",
+        "catatan_reservasi_deklarasi": "Pencabutan reservasi menyeluruh pada tahun 2005",
+        "data_source": "United Nations Treaty Collection (UNTC) & Kemenlu RI",
+    },
 ]
 
 
@@ -101,7 +156,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__UN__STATUS_TRAKTAT_MULTILATERAL__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

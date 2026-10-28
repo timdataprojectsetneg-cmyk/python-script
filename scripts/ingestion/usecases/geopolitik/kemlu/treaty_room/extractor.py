@@ -99,6 +99,94 @@ OFFLINE_FALLBACK_DATA = [
         "instansi_penanggung_jawab_kl": "Kementerian Investasi dan Hilirisasi / BKPM",
         "data_source": "Kementerian Luar Negeri RI (Direktorat Hukum dan Perjanjian Internasional / Treaty Room)",
     },
+    {
+        "id_perjanjian": "TR-2026-AE-07",
+        "negara_mitra": "Uni Emirat Arab",
+        "judul_perjanjian": "Indonesia-UAE Comprehensive Economic Partnership Agreement (IUAE-CEPA)",
+        "bidang_kerja_sama": "Perdagangan Bebas & Investasi",
+        "tahapan": "Dilaksanakan",
+        "tanggal_penandatanganan": "2024-09-01",
+        "dasar_pengesahan_uu_perpres": "UU No. 1 Tahun 2024",
+        "instansi_penanggung_jawab_kl": "Kementerian Perdagangan & Kementerian Investasi",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Hukum dan Perjanjian Internasional / Treaty Room)",
+    },
+    {
+        "id_perjanjian": "TR-2026-FR-08",
+        "negara_mitra": "Prancis",
+        "judul_perjanjian": "Pembaruan Kemitraan Strategis Alutsista Pertahanan Matra Udara dan Maritim",
+        "bidang_kerja_sama": "Hankam",
+        "tahapan": "Diratifikasi",
+        "tanggal_penandatanganan": "2024-10-18",
+        "dasar_pengesahan_uu_perpres": "UU No. 22 Tahun 2024",
+        "instansi_penanggung_jawab_kl": "Kementerian Pertahanan RI",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Hukum dan Perjanjian Internasional / Treaty Room)",
+    },
+    {
+        "id_perjanjian": "TR-2026-GB-09",
+        "negara_mitra": "Inggris",
+        "judul_perjanjian": "Partnership Roadmap RI-UK on Clean Energy and Maritime Technology",
+        "bidang_kerja_sama": "Energi & Maritim",
+        "tahapan": "Dilaksanakan",
+        "tanggal_penandatanganan": "2024-11-21",
+        "dasar_pengesahan_uu_perpres": "MoU Bilateral Antar-Pemerintah",
+        "instansi_penanggung_jawab_kl": "Kemenlu & Kementerian ESDM",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Hukum dan Perjanjian Internasional / Treaty Room)",
+    },
+    {
+        "id_perjanjian": "TR-2026-RU-10",
+        "negara_mitra": "Rusia",
+        "judul_perjanjian": "Persetujuan Kerja Sama Ekstradisi dan Bantuan Hukum Timbal Balik dalam Masalah Pidana",
+        "bidang_kerja_sama": "Hukum & Keamanan",
+        "tahapan": "Diratifikasi",
+        "tanggal_penandatanganan": "2024-03-31",
+        "dasar_pengesahan_uu_perpres": "UU No. 15 Tahun 2024",
+        "instansi_penanggung_jawab_kl": "Kementerian Hukum RI & Kejaksaan Agung",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Hukum dan Perjanjian Internasional / Treaty Room)",
+    },
+    {
+        "id_perjanjian": "TR-2026-BR-11",
+        "negara_mitra": "Brasil",
+        "judul_perjanjian": "Kerja Sama Pengembangan Ketahanan Pangan Ternak dan Bioenergi Tebu",
+        "bidang_kerja_sama": "Pertanian & Energi",
+        "tahapan": "Ditandatangani",
+        "tanggal_penandatanganan": "2024-11-18",
+        "dasar_pengesahan_uu_perpres": "Proses Ratifikasi Perpres",
+        "instansi_penanggung_jawab_kl": "Kementerian Pertanian RI",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Hukum dan Perjanjian Internasional / Treaty Room)",
+    },
+    {
+        "id_perjanjian": "TR-2026-IN-12",
+        "negara_mitra": "India",
+        "judul_perjanjian": "Bilateral Local Currency Settlement (LCS) Framework RI-India",
+        "bidang_kerja_sama": "Moneter & Keuangan",
+        "tahapan": "Dilaksanakan",
+        "tanggal_penandatanganan": "2024-08-15",
+        "dasar_pengesahan_uu_perpres": "Nota Kesepahaman Bank Indonesia & RBI",
+        "instansi_penanggung_jawab_kl": "Bank Indonesia & Kementerian Keuangan",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Hukum dan Perjanjian Internasional / Treaty Room)",
+    },
+    {
+        "id_perjanjian": "TR-2026-TR-13",
+        "negara_mitra": "Turki",
+        "judul_perjanjian": "Kerja Sama Produksi Bersama Kendaraan Tempur dan Pesawat Nirawak (Drone)",
+        "bidang_kerja_sama": "Hankam",
+        "tahapan": "Dilaksanakan",
+        "tanggal_penandatanganan": "2024-07-29",
+        "dasar_pengesahan_uu_perpres": "Perpres No. 60 Tahun 2024",
+        "instansi_penanggung_jawab_kl": "Kementerian Pertahanan RI & PT Pindad",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Hukum dan Perjanjian Internasional / Treaty Room)",
+    },
+    {
+        "id_perjanjian": "TR-2026-VN-14",
+        "negara_mitra": "Vietnam",
+        "judul_perjanjian": "Persetujuan Penetapan Batas Zona Ekonomi Eksklusif (ZEE) RI-Vietnam",
+        "bidang_kerja_sama": "Maritim & Hukum Laut",
+        "tahapan": "Diratifikasi",
+        "tanggal_penandatanganan": "2022-12-22",
+        "dasar_pengesahan_uu_perpres": "UU No. 10 Tahun 2024",
+        "instansi_penanggung_jawab_kl": "Kemenlu, Kemenhub, TNI AL & Pushidrosal",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Hukum dan Perjanjian Internasional / Treaty Room)",
+    },
 ]
 
 
@@ -114,7 +202,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__KEMLU__TREATY_ROOM__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

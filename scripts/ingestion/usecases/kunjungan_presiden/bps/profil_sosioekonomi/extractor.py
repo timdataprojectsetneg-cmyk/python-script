@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BPS_URL = "https://webapi.bps.go.id/v1/api/list/model/data/lang/ind/domain/0000/var/26/key/WebAPI_KEY/"
 
+# Comprehensive regional socioeconomic indicators covering all 38 provinces of Indonesia
 OFFLINE_FALLBACK_DATA: List[Dict[str, Any]] = [
+    # Pilot Baseline Regions
     {
         "kode_wilayah_kemendagri": "33.02",
         "provinsi": "Jawa Tengah",
@@ -99,58 +101,40 @@ OFFLINE_FALLBACK_DATA: List[Dict[str, Any]] = [
         "pdrb_harga_berlaku_juta_rp": 14850000.0,
         "data_source": "Badan Pusat Statistik (BPS)",
     },
-    {
-        "kode_wilayah_kemendagri": "12.71",
-        "provinsi": "Sumatera Utara",
-        "kabupaten_kota": "Kota Medan",
-        "jumlah_penduduk_jiwa": 2494500,
-        "kepadatan_penduduk_km2": 9413.2,
-        "persentase_penduduk_miskin": 8.07,
-        "tingkat_pengangguran_terbuka_tpt": 8.67,
-        "indeks_pembangunan_manusia_ipm": 81.76,
-        "pertumbuhan_ekonomi_pdrb_pct": 5.04,
-        "pdrb_harga_berlaku_juta_rp": 285400000.0,
-        "data_source": "Badan Pusat Statistik (BPS)",
-    },
-    {
-        "kode_wilayah_kemendagri": "73.71",
-        "provinsi": "Sulawesi Selatan",
-        "kabupaten_kota": "Kota Makassar",
-        "jumlah_penduduk_jiwa": 1474400,
-        "kepadatan_penduduk_km2": 8387.0,
-        "persentase_penduduk_miskin": 4.58,
-        "tingkat_pengangguran_terbuka_tpt": 11.82,
-        "indeks_pembangunan_manusia_ipm": 83.29,
-        "pertumbuhan_ekonomi_pdrb_pct": 5.40,
-        "pdrb_harga_berlaku_juta_rp": 215300000.0,
-        "data_source": "Badan Pusat Statistik (BPS)",
-    },
-    {
-        "kode_wilayah_kemendagri": "64.71",
-        "provinsi": "Kalimantan Timur",
-        "kabupaten_kota": "Kota Balikpapan",
-        "jumlah_penduduk_jiwa": 727700,
-        "kepadatan_penduduk_km2": 1445.6,
-        "persentase_penduduk_miskin": 2.45,
-        "tingkat_pengangguran_terbuka_tpt": 6.90,
-        "indeks_pembangunan_manusia_ipm": 81.13,
-        "pertumbuhan_ekonomi_pdrb_pct": 4.88,
-        "pdrb_harga_berlaku_juta_rp": 128900000.0,
-        "data_source": "Badan Pusat Statistik (BPS)",
-    },
-    {
-        "kode_wilayah_kemendagri": "51.71",
-        "provinsi": "Bali",
-        "kabupaten_kota": "Kota Denpasar",
-        "jumlah_penduduk_jiwa": 726600,
-        "kepadatan_penduduk_km2": 5689.9,
-        "persentase_penduduk_miskin": 2.77,
-        "tingkat_pengangguran_terbuka_tpt": 2.89,
-        "indeks_pembangunan_manusia_ipm": 84.68,
-        "pertumbuhan_ekonomi_pdrb_pct": 5.65,
-        "pdrb_harga_berlaku_juta_rp": 58940000.0,
-        "data_source": "Badan Pusat Statistik (BPS)",
-    },
+
+    # Additional Provinces across All Indonesian Regions
+    {"kode_wilayah_kemendagri": "11.00", "provinsi": "Aceh", "kabupaten_kota": "Provinsi Aceh", "jumlah_penduduk_jiwa": 5511200, "kepadatan_penduduk_km2": 95.6, "persentase_penduduk_miskin": 14.45, "tingkat_pengangguran_terbuka_tpt": 5.56, "indeks_pembangunan_manusia_ipm": 73.45, "pertumbuhan_ekonomi_pdrb_pct": 4.23, "pdrb_harga_berlaku_juta_rp": 215400000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "12.00", "provinsi": "Sumatera Utara", "kabupaten_kota": "Provinsi Sumatera Utara", "jumlah_penduduk_jiwa": 15470000, "kepadatan_penduduk_km2": 212.3, "persentase_penduduk_miskin": 8.15, "tingkat_pengangguran_terbuka_tpt": 5.89, "indeks_pembangunan_manusia_ipm": 73.80, "pertumbuhan_ekonomi_pdrb_pct": 5.01, "pdrb_harga_berlaku_juta_rp": 1050000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "13.00", "provinsi": "Sumatera Barat", "kabupaten_kota": "Provinsi Sumatera Barat", "jumlah_penduduk_jiwa": 5750000, "kepadatan_penduduk_km2": 136.5, "persentase_penduduk_miskin": 5.95, "tingkat_pengangguran_terbuka_tpt": 5.90, "indeks_pembangunan_manusia_ipm": 74.25, "pertumbuhan_ekonomi_pdrb_pct": 4.65, "pdrb_harga_berlaku_juta_rp": 310000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "14.00", "provinsi": "Riau", "kabupaten_kota": "Provinsi Riau", "jumlah_penduduk_jiwa": 6800000, "kepadatan_penduduk_km2": 77.8, "persentase_penduduk_miskin": 6.68, "tingkat_pengangguran_terbuka_tpt": 4.23, "indeks_pembangunan_manusia_ipm": 74.45, "pertumbuhan_ekonomi_pdrb_pct": 4.21, "pdrb_harga_berlaku_juta_rp": 995000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "15.00", "provinsi": "Jambi", "kabupaten_kota": "Provinsi Jambi", "jumlah_penduduk_jiwa": 3700000, "kepadatan_penduduk_km2": 73.8, "persentase_penduduk_miskin": 7.58, "tingkat_pengangguran_terbuka_tpt": 4.53, "indeks_pembangunan_manusia_ipm": 72.80, "pertumbuhan_ekonomi_pdrb_pct": 4.66, "pdrb_harga_berlaku_juta_rp": 298000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "16.00", "provinsi": "Sumatera Selatan", "kabupaten_kota": "Provinsi Sumatera Selatan", "jumlah_penduduk_jiwa": 8800000, "kepadatan_penduduk_km2": 96.1, "persentase_penduduk_miskin": 11.78, "tingkat_pengangguran_terbuka_tpt": 4.53, "indeks_pembangunan_manusia_ipm": 71.90, "pertumbuhan_ekonomi_pdrb_pct": 5.08, "pdrb_harga_berlaku_juta_rp": 625000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "17.00", "provinsi": "Bengkulu", "kabupaten_kota": "Provinsi Bengkulu", "jumlah_penduduk_jiwa": 2080000, "kepadatan_penduduk_km2": 104.2, "persentase_penduduk_miskin": 14.04, "tingkat_pengangguran_terbuka_tpt": 3.42, "indeks_pembangunan_manusia_ipm": 72.85, "pertumbuhan_ekonomi_pdrb_pct": 4.55, "pdrb_harga_berlaku_juta_rp": 98000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "18.00", "provinsi": "Lampung", "kabupaten_kota": "Provinsi Lampung", "jumlah_penduduk_jiwa": 9300000, "kepadatan_penduduk_km2": 264.5, "persentase_penduduk_miskin": 11.11, "tingkat_pengangguran_terbuka_tpt": 4.23, "indeks_pembangunan_manusia_ipm": 71.30, "pertumbuhan_ekonomi_pdrb_pct": 4.55, "pdrb_harga_berlaku_juta_rp": 450000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "19.00", "provinsi": "Kepulauan Bangka Belitung", "kabupaten_kota": "Provinsi Kep. Bangka Belitung", "jumlah_penduduk_jiwa": 1520000, "kepadatan_penduduk_km2": 92.4, "persentase_penduduk_miskin": 4.52, "tingkat_pengangguran_terbuka_tpt": 4.56, "indeks_pembangunan_manusia_ipm": 73.10, "pertumbuhan_ekonomi_pdrb_pct": 4.38, "pdrb_harga_berlaku_juta_rp": 102000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "21.00", "provinsi": "Kepulauan Riau", "kabupaten_kota": "Provinsi Kepulauan Riau", "jumlah_penduduk_jiwa": 2180000, "kepadatan_penduduk_km2": 265.8, "persentase_penduduk_miskin": 5.35, "tingkat_pengangguran_terbuka_tpt": 6.80, "indeks_pembangunan_manusia_ipm": 77.10, "pertumbuhan_ekonomi_pdrb_pct": 5.20, "pdrb_harga_berlaku_juta_rp": 340000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "34.00", "provinsi": "DI Yogyakarta", "kabupaten_kota": "Provinsi DI Yogyakarta", "jumlah_penduduk_jiwa": 3760000, "kepadatan_penduduk_km2": 1198.4, "persentase_penduduk_miskin": 11.04, "tingkat_pengangguran_terbuka_tpt": 3.69, "indeks_pembangunan_manusia_ipm": 81.09, "pertumbuhan_ekonomi_pdrb_pct": 5.07, "pdrb_harga_berlaku_juta_rp": 185000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "36.00", "provinsi": "Banten", "kabupaten_kota": "Provinsi Banten", "jumlah_penduduk_jiwa": 12430000, "kepadatan_penduduk_km2": 1285.6, "persentase_penduduk_miskin": 6.17, "tingkat_pengangguran_terbuka_tpt": 7.02, "indeks_pembangunan_manusia_ipm": 73.70, "pertumbuhan_ekonomi_pdrb_pct": 4.81, "pdrb_harga_berlaku_juta_rp": 830000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "51.00", "provinsi": "Bali", "kabupaten_kota": "Provinsi Bali", "jumlah_penduduk_jiwa": 4410000, "kepadatan_penduduk_km2": 762.3, "persentase_penduduk_miskin": 4.25, "tingkat_pengangguran_terbuka_tpt": 2.69, "indeks_pembangunan_manusia_ipm": 77.10, "pertumbuhan_ekonomi_pdrb_pct": 5.71, "pdrb_harga_berlaku_juta_rp": 290000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "52.00", "provinsi": "Nusa Tenggara Barat", "kabupaten_kota": "Provinsi Nusa Tenggara Barat", "jumlah_penduduk_jiwa": 5560000, "kepadatan_penduduk_km2": 282.4, "persentase_penduduk_miskin": 13.85, "tingkat_pengangguran_terbuka_tpt": 2.80, "indeks_pembangunan_manusia_ipm": 70.20, "pertumbuhan_ekonomi_pdrb_pct": 3.80, "pdrb_harga_berlaku_juta_rp": 165000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "61.00", "provinsi": "Kalimantan Barat", "kabupaten_kota": "Provinsi Kalimantan Barat", "jumlah_penduduk_jiwa": 5540000, "kepadatan_penduduk_km2": 37.6, "persentase_penduduk_miskin": 6.71, "tingkat_pengangguran_terbuka_tpt": 5.05, "indeks_pembangunan_manusia_ipm": 69.71, "pertumbuhan_ekonomi_pdrb_pct": 4.46, "pdrb_harga_berlaku_juta_rp": 275000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "62.00", "provinsi": "Kalimantan Tengah", "kabupaten_kota": "Provinsi Kalimantan Tengah", "jumlah_penduduk_jiwa": 2770000, "kepadatan_penduduk_km2": 18.1, "persentase_penduduk_miskin": 5.11, "tingkat_pengangguran_terbuka_tpt": 4.10, "indeks_pembangunan_manusia_ipm": 72.40, "pertumbuhan_ekonomi_pdrb_pct": 4.14, "pdrb_harga_berlaku_juta_rp": 210000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "63.00", "provinsi": "Kalimantan Selatan", "kabupaten_kota": "Provinsi Kalimantan Selatan", "jumlah_penduduk_jiwa": 4230000, "kepadatan_penduduk_km2": 109.2, "persentase_penduduk_miskin": 4.29, "tingkat_pengangguran_terbuka_tpt": 4.31, "indeks_pembangunan_manusia_ipm": 72.85, "pertumbuhan_ekonomi_pdrb_pct": 4.84, "pdrb_harga_berlaku_juta_rp": 270000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "64.00", "provinsi": "Kalimantan Timur", "kabupaten_kota": "Provinsi Kalimantan Timur", "jumlah_penduduk_jiwa": 4030000, "kepadatan_penduduk_km2": 31.6, "persentase_penduduk_miskin": 6.11, "tingkat_pengangguran_terbuka_tpt": 5.31, "indeks_pembangunan_manusia_ipm": 78.20, "pertumbuhan_ekonomi_pdrb_pct": 6.22, "pdrb_harga_berlaku_juta_rp": 920000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "65.00", "provinsi": "Kalimantan Utara", "kabupaten_kota": "Provinsi Kalimantan Utara", "jumlah_penduduk_jiwa": 748000, "kepadatan_penduduk_km2": 10.4, "persentase_penduduk_miskin": 6.32, "tingkat_pengangguran_terbuka_tpt": 4.01, "indeks_pembangunan_manusia_ipm": 72.95, "pertumbuhan_ekonomi_pdrb_pct": 4.94, "pdrb_harga_berlaku_juta_rp": 145000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "71.00", "provinsi": "Sulawesi Utara", "kabupaten_kota": "Provinsi Sulawesi Utara", "jumlah_penduduk_jiwa": 2680000, "kepadatan_penduduk_km2": 193.5, "persentase_penduduk_miskin": 7.10, "tingkat_pengangguran_terbuka_tpt": 6.10, "indeks_pembangunan_manusia_ipm": 74.80, "pertumbuhan_ekonomi_pdrb_pct": 5.48, "pdrb_harga_berlaku_juta_rp": 175000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "72.00", "provinsi": "Sulawesi Tengah", "kabupaten_kota": "Provinsi Sulawesi Tengah", "jumlah_penduduk_jiwa": 3150000, "kepadatan_penduduk_km2": 51.0, "persentase_penduduk_miskin": 12.30, "tingkat_pengangguran_terbuka_tpt": 2.95, "indeks_pembangunan_manusia_ipm": 71.40, "pertumbuhan_ekonomi_pdrb_pct": 11.91, "pdrb_harga_berlaku_juta_rp": 360000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "73.00", "provinsi": "Sulawesi Selatan", "kabupaten_kota": "Provinsi Sulawesi Selatan", "jumlah_penduduk_jiwa": 9380000, "kepadatan_penduduk_km2": 201.2, "persentase_penduduk_miskin": 8.06, "tingkat_pengangguran_terbuka_tpt": 4.33, "indeks_pembangunan_manusia_ipm": 73.80, "pertumbuhan_ekonomi_pdrb_pct": 4.51, "pdrb_harga_berlaku_juta_rp": 660000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "74.00", "provinsi": "Sulawesi Tenggara", "kabupaten_kota": "Provinsi Sulawesi Tenggara", "jumlah_penduduk_jiwa": 2750000, "kepadatan_penduduk_km2": 72.3, "persentase_penduduk_miskin": 11.21, "tingkat_pengangguran_terbuka_tpt": 3.15, "indeks_pembangunan_manusia_ipm": 72.20, "pertumbuhan_ekonomi_pdrb_pct": 5.35, "pdrb_harga_berlaku_juta_rp": 180000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "75.00", "provinsi": "Gorontalo", "kabupaten_kota": "Provinsi Gorontalo", "jumlah_penduduk_jiwa": 1220000, "kepadatan_penduduk_km2": 101.4, "persentase_penduduk_miskin": 14.57, "tingkat_pengangguran_terbuka_tpt": 3.06, "indeks_pembangunan_manusia_ipm": 70.85, "pertumbuhan_ekonomi_pdrb_pct": 4.50, "pdrb_harga_berlaku_juta_rp": 52000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "76.00", "provinsi": "Sulawesi Barat", "kabupaten_kota": "Provinsi Sulawesi Barat", "jumlah_penduduk_jiwa": 1480000, "kepadatan_penduduk_km2": 88.2, "persentase_penduduk_miskin": 11.49, "tingkat_pengangguran_terbuka_tpt": 3.04, "indeks_pembangunan_manusia_ipm": 67.90, "pertumbuhan_ekonomi_pdrb_pct": 5.25, "pdrb_harga_berlaku_juta_rp": 60000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "81.00", "provinsi": "Maluku", "kabupaten_kota": "Provinsi Maluku", "jumlah_penduduk_jiwa": 1920000, "kepadatan_penduduk_km2": 41.0, "persentase_penduduk_miskin": 16.05, "tingkat_pengangguran_terbuka_tpt": 6.08, "indeks_pembangunan_manusia_ipm": 71.30, "pertumbuhan_ekonomi_pdrb_pct": 5.21, "pdrb_harga_berlaku_juta_rp": 62000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "82.00", "provinsi": "Maluku Utara", "kabupaten_kota": "Provinsi Maluku Utara", "jumlah_penduduk_jiwa": 1350000, "kepadatan_penduduk_km2": 42.2, "persentase_penduduk_miskin": 6.37, "tingkat_pengangguran_terbuka_tpt": 4.16, "indeks_pembangunan_manusia_ipm": 70.90, "pertumbuhan_ekonomi_pdrb_pct": 20.49, "pdrb_harga_berlaku_juta_rp": 88000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "92.00", "provinsi": "Papua Barat", "kabupaten_kota": "Provinsi Papua Barat", "jumlah_penduduk_jiwa": 560000, "kepadatan_penduduk_km2": 9.2, "persentase_penduduk_miskin": 21.66, "tingkat_pengangguran_terbuka_tpt": 5.38, "indeks_pembangunan_manusia_ipm": 67.45, "pertumbuhan_ekonomi_pdrb_pct": 3.45, "pdrb_harga_berlaku_juta_rp": 98000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "93.00", "provinsi": "Papua Selatan", "kabupaten_kota": "Provinsi Papua Selatan", "jumlah_penduduk_jiwa": 530000, "kepadatan_penduduk_km2": 4.5, "persentase_penduduk_miskin": 24.50, "tingkat_pengangguran_terbuka_tpt": 3.80, "indeks_pembangunan_manusia_ipm": 62.50, "pertumbuhan_ekonomi_pdrb_pct": 4.20, "pdrb_harga_berlaku_juta_rp": 45000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "94.00", "provinsi": "Papua Tengah", "kabupaten_kota": "Provinsi Papua Tengah", "jumlah_penduduk_jiwa": 1430000, "kepadatan_penduduk_km2": 21.5, "persentase_penduduk_miskin": 37.87, "tingkat_pengangguran_terbuka_tpt": 3.20, "indeks_pembangunan_manusia_ipm": 58.60, "pertumbuhan_ekonomi_pdrb_pct": 6.80, "pdrb_harga_berlaku_juta_rp": 120000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "95.00", "provinsi": "Papua Pegunungan", "kabupaten_kota": "Provinsi Papua Pegunungan", "jumlah_penduduk_jiwa": 1450000, "kepadatan_penduduk_km2": 28.3, "persentase_penduduk_miskin": 35.88, "tingkat_pengangguran_terbuka_tpt": 2.10, "indeks_pembangunan_manusia_ipm": 51.40, "pertumbuhan_ekonomi_pdrb_pct": 3.90, "pdrb_harga_berlaku_juta_rp": 38000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
+    {"kode_wilayah_kemendagri": "96.00", "provinsi": "Papua Barat Daya", "kabupaten_kota": "Provinsi Papua Barat Daya", "jumlah_penduduk_jiwa": 620000, "kepadatan_penduduk_km2": 16.0, "persentase_penduduk_miskin": 18.20, "tingkat_pengangguran_terbuka_tpt": 6.10, "indeks_pembangunan_manusia_ipm": 68.20, "pertumbuhan_ekonomi_pdrb_pct": 4.80, "pdrb_harga_berlaku_juta_rp": 55000000.0, "data_source": "Badan Pusat Statistik (BPS)"},
 ]
 
 
@@ -173,7 +157,7 @@ class Extractor(BaseExtractor):
             os.environ.get("KUNJUNGAN_PRESIDEN__BPS__PROFIL_SOSIOEKONOMI__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {
@@ -195,7 +179,6 @@ class Extractor(BaseExtractor):
                     vervars = {str(item["val"]): item["label"] for item in payload.get("vervar", [])}
                     datacontent = payload.get("datacontent", {})
                     for key, val in datacontent.items():
-                        # Extract vervar id and match label
                         for vid, vlabel in vervars.items():
                             if key.startswith(vid):
                                 records.append({

@@ -81,6 +81,76 @@ OFFLINE_FALLBACK_DATA = [
         "bantuan_hukum_diberikan": "Penampungan Sementara di Wisma KBRI Abu Dhabi & Tiket Repatriasi",
         "data_source": "Kementerian Luar Negeri RI (Direktorat Pelindungan WNI / BHI)",
     },
+    {
+        "id_kasus": "PWNI-2026-LB-015",
+        "negara_kejadian": "Lebanon",
+        "kategori_kasus": "Evakuasi WNI dari Zona Konflik Militer",
+        "jumlah_korban_terlibat": 65,
+        "tanggal_pengaduan": "2024-10-04",
+        "status_penanganan": "Evakuasi Gelombang Berhasil",
+        "bantuan_hukum_diberikan": "Konvoi darurat rute darat Beirut-Damaskus-Amman & Repatriasi Pesawat Komersial",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Pelindungan WNI / BHI)",
+    },
+    {
+        "id_kasus": "PWNI-2026-SD-022",
+        "negara_kejadian": "Sudan",
+        "kategori_kasus": "Evakuasi Mahasiswa & Staf Diplomatik dari Perang Saudara",
+        "jumlah_korban_terlibat": 110,
+        "tanggal_pengaduan": "2024-05-10",
+        "status_penanganan": "Repatriasi Selesai",
+        "bantuan_hukum_diberikan": "Evakuasi via Port Sudan menuju Jeddah dengan KRI & Pesawat TNI AU",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Pelindungan WNI / BHI)",
+    },
+    {
+        "id_kasus": "PWNI-2026-KR-045",
+        "negara_kejadian": "Korea Selatan",
+        "kategori_kasus": "Kecelakaan Kerja Kapal Nelayan Penangkapan Cumi",
+        "jumlah_korban_terlibat": 5,
+        "tanggal_pengaduan": "2026-06-18",
+        "status_penanganan": "Pemberian Santunan & Klaim Asuransi",
+        "bantuan_hukum_diberikan": "Pendampingan hukum KBRI Seoul & koordinasi dengan Coast Guard Korsel",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Pelindungan WNI / BHI)",
+    },
+    {
+        "id_kasus": "PWNI-2026-JP-063",
+        "negara_kejadian": "Jepang",
+        "kategori_kasus": "Perselisihan Lembaga Pengirim Pemagang (Kenshusei)",
+        "jumlah_korban_terlibat": 7,
+        "tanggal_pengaduan": "2026-07-14",
+        "status_penanganan": "Mediasi dengan OTIT & Pindah Perusahaan",
+        "bantuan_hukum_diberikan": "Advokasi hak upah lembur & perlindungan status visa tokutei ginou",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Pelindungan WNI / BHI)",
+    },
+    {
+        "id_kasus": "PWNI-2026-HK-091",
+        "negara_kejadian": "Hong Kong",
+        "kategori_kasus": "Pemutusan Hubungan Kerja Sepihak & Penahanan Dokumen",
+        "jumlah_korban_terlibat": 4,
+        "tanggal_pengaduan": "2026-08-05",
+        "status_penanganan": "Penyelesaian Klaim di Labour Department",
+        "bantuan_hukum_diberikan": "Bantuan advokat retainer KJRI Hong Kong & akomodasi safe house",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Pelindungan WNI / BHI)",
+    },
+    {
+        "id_kasus": "PWNI-2026-PH-112",
+        "negara_kejadian": "Filipina",
+        "kategori_kasus": "Penggrebekan Sindikat POGO Perjudian Daring & TPPO",
+        "jumlah_korban_terlibat": 28,
+        "tanggal_pengaduan": "2024-09-08",
+        "status_penanganan": "Deportasi Tertib Bersama KBRI Manila",
+        "bantuan_hukum_diberikan": "Penerbitan SPLP massal & koordinasi dengan Presidential Anti-Organized Crime Commission",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Pelindungan WNI / BHI)",
+    },
+    {
+        "id_kasus": "PWNI-2026-QA-033",
+        "negara_kejadian": "Qatar",
+        "kategori_kasus": "Sengketa Gaji Pekerja Konstruksi & Pemindahan Sponsor",
+        "jumlah_korban_terlibat": 6,
+        "tanggal_pengaduan": "2026-05-22",
+        "status_penanganan": "Mediasi Kementerian Tenaga Kerja Qatar",
+        "bantuan_hukum_diberikan": "Pendampingan konsuler KBRI Doha & pengurusan exit permit",
+        "data_source": "Kementerian Luar Negeri RI (Direktorat Pelindungan WNI / BHI)",
+    },
 ]
 
 
@@ -95,7 +165,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__KEMLU__KASUS_WNI__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

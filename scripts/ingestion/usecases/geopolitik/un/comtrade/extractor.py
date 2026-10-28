@@ -131,6 +131,83 @@ OFFLINE_FALLBACK_DATA: List[Dict[str, Any]] = [
         "pertumbuhan_tahunan_pct": -5.4,
         "data_source": "Badan Pusat Statistik (BPS) & UN Comtrade",
     },
+    {
+        "periode_bulan": "2026-08",
+        "kode_hs_2digit": "74",
+        "deskripsi_komoditas": "Tembaga dan Katoda Tembaga Murni",
+        "arus_perdagangan": "Ekspor",
+        "negara_mitra_utama": "Jepang",
+        "volume_ribu_ton": 85.0,
+        "nilai_fob_cif_juta_usd": 780.0,
+        "pertumbuhan_tahunan_pct": 22.5,
+        "data_source": "Badan Pusat Statistik (BPS) & UN Comtrade",
+    },
+    {
+        "periode_bulan": "2026-08",
+        "kode_hs_2digit": "72",
+        "deskripsi_komoditas": "Besi dan Baja (Stainless Steel)",
+        "arus_perdagangan": "Ekspor",
+        "negara_mitra_utama": "Tiongkok",
+        "volume_ribu_ton": 1250.0,
+        "nilai_fob_cif_juta_usd": 1640.0,
+        "pertumbuhan_tahunan_pct": 9.2,
+        "data_source": "Badan Pusat Statistik (BPS) & UN Comtrade",
+    },
+    {
+        "periode_bulan": "2026-08",
+        "kode_hs_2digit": "64",
+        "deskripsi_komoditas": "Alas Kaki dan Sepatu Olahraga",
+        "arus_perdagangan": "Ekspor",
+        "negara_mitra_utama": "Amerika Serikat",
+        "volume_ribu_ton": 42.0,
+        "nilai_fob_cif_juta_usd": 590.4,
+        "pertumbuhan_tahunan_pct": 4.8,
+        "data_source": "Badan Pusat Statistik (BPS) & UN Comtrade",
+    },
+    {
+        "periode_bulan": "2026-08",
+        "kode_hs_2digit": "12",
+        "deskripsi_komoditas": "Biji Kedelai Pangan (Bahan Baku Tahu & Tempe)",
+        "arus_perdagangan": "Impor",
+        "negara_mitra_utama": "Amerika Serikat",
+        "volume_ribu_ton": 220.0,
+        "nilai_fob_cif_juta_usd": 138.5,
+        "pertumbuhan_tahunan_pct": 1.5,
+        "data_source": "Badan Pusat Statistik (BPS) & UN Comtrade",
+    },
+    {
+        "periode_bulan": "2026-08",
+        "kode_hs_2digit": "03",
+        "deskripsi_komoditas": "Ikan Olahan, Udang, dan Kepiting Beku",
+        "arus_perdagangan": "Ekspor",
+        "negara_mitra_utama": "Jepang",
+        "volume_ribu_ton": 68.0,
+        "nilai_fob_cif_juta_usd": 425.6,
+        "pertumbuhan_tahunan_pct": 7.8,
+        "data_source": "Badan Pusat Statistik (BPS) & UN Comtrade",
+    },
+    {
+        "periode_bulan": "2026-08",
+        "kode_hs_2digit": "87",
+        "deskripsi_komoditas": "Kendaraan Bermotor dan Komponen Otomotif (CBU/CKD)",
+        "arus_perdagangan": "Ekspor",
+        "negara_mitra_utama": "Filipina",
+        "volume_ribu_ton": 110.0,
+        "nilai_fob_cif_juta_usd": 680.2,
+        "pertumbuhan_tahunan_pct": 11.4,
+        "data_source": "Badan Pusat Statistik (BPS) & UN Comtrade",
+    },
+    {
+        "periode_bulan": "2026-08",
+        "kode_hs_2digit": "30",
+        "deskripsi_komoditas": "Produk Farmasi dan Bahan Baku Obat Aktif (API)",
+        "arus_perdagangan": "Impor",
+        "negara_mitra_utama": "India",
+        "volume_ribu_ton": 15.0,
+        "nilai_fob_cif_juta_usd": 285.0,
+        "pertumbuhan_tahunan_pct": 3.2,
+        "data_source": "Badan Pusat Statistik (BPS) & UN Comtrade",
+    },
 ]
 
 
@@ -152,7 +229,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__UN__COMTRADE__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         headers = {

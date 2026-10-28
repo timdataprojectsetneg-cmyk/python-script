@@ -343,7 +343,7 @@ def _resolve_run_targets(
 
     ``exclude`` is a comma-separated list of source names to drop from the result.
     """
-    from .usecases.registry import find_publisher, list_sources
+    from .usecases.registry import find_publisher, list_publishers, list_sources
 
     pairs: List[tuple] = []
     if publisher and source:
@@ -359,7 +359,14 @@ def _resolve_run_targets(
             raise ConfigError(f"Source '{source}' not found under use case '{usecase}'")
         pairs = [(found, source)]
     else:
-        raise ConfigError("Provide --publisher and/or --source")
+        publishers = list_publishers(usecase)
+        if not publishers:
+            raise ConfigError(f"No publishers found under use case '{usecase}'")
+        for pub in publishers:
+            for item in list_sources(usecase, pub):
+                pairs.append((pub, item))
+        if not pairs:
+            raise ConfigError(f"No sources found under use case '{usecase}'")
 
     if exclude:
         from .catalog.metadata_parser import normalize_name

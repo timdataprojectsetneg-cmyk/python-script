@@ -118,6 +118,66 @@ OFFLINE_FALLBACK_DATA = [
         "catatan_analisis": "Patroli maritim terkoordinasi menjaga kelancaran 90.000 kapal niaga dan tanker energi tahunan.",
         "data_source": "CSIS Asia Maritime Transparency Initiative (AMTI) & Kemhan RI",
     },
+    {
+        "id_insiden": "INS-AMTI-2026-16",
+        "tanggal_kejadian": "2024-10-24",
+        "wilayah_perairan": "Laut Natuna Utara (Blok South Natuna Sea B)",
+        "jenis_kejadian": "Pengusiran Kapal Penjaga Pantai Asing Berulang",
+        "pihak_terlibat": "KN Pulau Dana-323 (Bakamla) vs CCG-5402",
+        "koordinat_lat": 4.8500,
+        "koordinat_lon": 109.4000,
+        "tingkat_eskalasi": "Tinggi",
+        "catatan_analisis": "Bakamla bersama TNI AL membayangi dan mengusir keluar kapal CCG yang mendekati kapal survei MV Geo Coral.",
+        "data_source": "CSIS Asia Maritime Transparency Initiative (AMTI) & Kemhan RI",
+    },
+    {
+        "id_insiden": "INS-AMTI-2026-17",
+        "tanggal_kejadian": "2024-11-05",
+        "wilayah_perairan": "Laut Sulu & Perbatasan Filipina Selatan",
+        "jenis_kejadian": "Trilateral Maritime Patrol (INDOMALPHI)",
+        "pihak_terlibat": "TNI AL, Tentera Laut Diraja Malaysia, Philippine Navy",
+        "koordinat_lat": 4.2500,
+        "koordinat_lon": 119.5000,
+        "tingkat_eskalasi": "Rendah",
+        "catatan_analisis": "Operasi pengamanan perbatasan laut mencegah perompakan dan infiltrasi kelompok separatis lintas negara.",
+        "data_source": "CSIS Asia Maritime Transparency Initiative (AMTI) & Kemhan RI",
+    },
+    {
+        "id_insiden": "INS-AMTI-2026-18",
+        "tanggal_kejadian": "2024-11-12",
+        "wilayah_perairan": "Selat Sunda (ALKI I)",
+        "jenis_kejadian": "Pengawasan Alur Laut Kepulauan Indonesia",
+        "pihak_terlibat": "Koarmada I TNI AL",
+        "koordinat_lat": -5.9500,
+        "koordinat_lon": 105.7500,
+        "tingkat_eskalasi": "Rendah",
+        "catatan_analisis": "Pemantauan lalu lintas kapal selam dan kapal riset hidrografi asing tanpa izin hak lintas alur laut kepulauan.",
+        "data_source": "CSIS Asia Maritime Transparency Initiative (AMTI) & Kemhan RI",
+    },
+    {
+        "id_insiden": "INS-AMTI-2026-19",
+        "tanggal_kejadian": "2024-11-20",
+        "wilayah_perairan": "Selat Lombok (ALKI II)",
+        "jenis_kejadian": "Pengamanan Rute Tanker Kapal VLCC Supertanker",
+        "pihak_terlibat": "Koarmada II TNI AL",
+        "koordinat_lat": -8.5000,
+        "koordinat_lon": 115.8000,
+        "tingkat_eskalasi": "Rendah",
+        "catatan_analisis": "Pengamanan alur laut dalam bagi kapal angkut curah batubara dan minyak mentah internasional rute Australia-Asia Timur.",
+        "data_source": "CSIS Asia Maritime Transparency Initiative (AMTI) & Kemhan RI",
+    },
+    {
+        "id_insiden": "INS-AMTI-2026-20",
+        "tanggal_kejadian": "2024-12-01",
+        "wilayah_perairan": "Selat Bab el-Mandeb & Teluk Aden",
+        "jenis_kejadian": "Serangan Rudal Anti-Kapal Terhadap Kapal Dagang",
+        "pihak_terlibat": "Milisi Houthi Yaman vs Kapal Komersial Multinasional",
+        "koordinat_lat": 12.5800,
+        "koordinat_lon": 43.3300,
+        "tingkat_eskalasi": "Kritis",
+        "catatan_analisis": "Pengalihan rute kapal kontainer global memutar Tanjung Harapan Afrika, mendongkrak biaya logistik ekspor Indonesia ke Eropa 40%.",
+        "data_source": "CSIS Asia Maritime Transparency Initiative (AMTI) & Kemhan RI",
+    },
 ]
 
 
@@ -132,7 +192,7 @@ class Extractor(BaseExtractor):
             os.environ.get("GEOPOLITIK__CSIS__AMTI_INSIDEN_MARITIM__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {

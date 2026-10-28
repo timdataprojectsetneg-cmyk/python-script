@@ -71,6 +71,96 @@ OFFLINE_FALLBACK_DATA = [
         "penanggung_jawab_pic": "Biro Protokol Setpres & Paspampres",
         "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
     },
+    {
+        "id_risiko": "RSK-2026-06",
+        "kategori_risiko": "Keamanan Pangan & Sanitasi",
+        "deskripsi_ancaman": "Kontaminasi mikrobiologi atau racun pada jamuan makan siang dan santapan VVIP",
+        "tingkat_probabilitas": "Rendah",
+        "tingkat_dampak": "Kritis",
+        "rencana_mitigasi": "Food security testing oleh tim Kesdam TNI dan Balai POM 2 jam sebelum penyajian",
+        "penanggung_jawab_pic": "Paspampres Grup A Medis & BPOM",
+        "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
+    },
+    {
+        "id_risiko": "RSK-2026-07",
+        "kategori_risiko": "Komunikasi & Siber Sandi",
+        "deskripsi_ancaman": "Gangguan frekuensi radio pengawalan dan jamming sinyal seluler di sekitar venue",
+        "tingkat_probabilitas": "Sedang",
+        "tingkat_dampak": "Signifikan",
+        "rencana_mitigasi": "Siagakan frekuensi cadangan UHF militer tersandi dan kendaraan Repeater Mobile BSSN",
+        "penanggung_jawab_pic": "BSSN & Hubdam TNI",
+        "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
+    },
+    {
+        "id_risiko": "RSK-2026-08",
+        "kategori_risiko": "Kelistrikan & Daya",
+        "deskripsi_ancaman": "Pemadaman aliran listrik PLN akibat gangguan transmisi gardu induk saat pidato kenegaraan",
+        "tingkat_probabilitas": "Rendah",
+        "tingkat_dampak": "Signifikan",
+        "rencana_mitigasi": "Pasang UPS tersinkronisasi 250 kVA dan 2 unit Genset Mobile cadangan otomatis tanpa jeda",
+        "penanggung_jawab_pic": "PLN Distribusi & Panitia Lokal Setpres",
+        "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
+    },
+    {
+        "id_risiko": "RSK-2026-09",
+        "kategori_risiko": "Maritim & Gelombang Laut",
+        "deskripsi_ancaman": "Gelombang tinggi menghambat sandar KRI dan perahu cepat penyeberangan rombongan kepresidenan",
+        "tingkat_probabilitas": "Sedang",
+        "tingkat_dampak": "Signifikan",
+        "rencana_mitigasi": "Pilihan rute helikopter VVIP alternatif dan pengawalan sea rider Koarmada di dermaga terlindung",
+        "penanggung_jawab_pic": "TNI AL & Ditpolairud",
+        "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
+    },
+    {
+        "id_risiko": "RSK-2026-10",
+        "kategori_risiko": "Jalur Udara & Cuaca Ekstrem",
+        "deskripsi_ancaman": "Jarak pandang runway di bawah minimum akibat kabut tebal di bandara tujuan kunker",
+        "tingkat_probabilitas": "Sedang",
+        "tingkat_dampak": "Kritis",
+        "rencana_mitigasi": "Tentukan bandara alternatif (alternate aerodrome) dengan fasilitas ILS Cat II dan siaga bahan bakar 90 menit",
+        "penanggung_jawab_pic": "Skuadron Udara 17 TNI AU & AirNav Indonesia",
+        "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
+    },
+    {
+        "id_risiko": "RSK-2026-11",
+        "kategori_risiko": "Infrastruktur Jembatan & Rute",
+        "deskripsi_ancaman": "Kapasitas tonase jembatan darurat tidak memadai menahan beban kendaraan dinas antipeluru",
+        "tingkat_probabilitas": "Rendah",
+        "tingkat_dampak": "Kritis",
+        "rencana_mitigasi": "Survei rute awal (advance reconnaissance) oleh Zeni Tempur TNI dan perkuatan struktur girder",
+        "penanggung_jawab_pic": "Denzipur TNI AD & Ditjen Bina Marga PU",
+        "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
+    },
+    {
+        "id_risiko": "RSK-2026-12",
+        "kategori_risiko": "Ketertiban & Unjuk Rasa",
+        "deskripsi_ancaman": "Aksi penyampaian aspirasi spontan memblokir persimpangan arteri jalur lintas rombongan",
+        "tingkat_probabilitas": "Tinggi",
+        "tingkat_dampak": "Signifikan",
+        "rencana_mitigasi": "Siapkan rute alternatif tiruan (decoy route) dan penempatan pagar betis personel Dalmas Brimob",
+        "penanggung_jawab_pic": "Kapolres Wilayah & Dirlantas Polda",
+        "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
+    },
+    {
+        "id_risiko": "RSK-2026-13",
+        "kategori_risiko": "Bencana Geologi / Vulkanik",
+        "deskripsi_ancaman": "Peningkatan status aktivitas gunung api dan hujan abu di area bandara transit",
+        "tingkat_probabilitas": "Rendah",
+        "tingkat_dampak": "Kritis",
+        "rencana_mitigasi": "Monitoring real-time seismik PVMBG dan persiapan koridor evakuasi darat menuju Lanud terdekat",
+        "penanggung_jawab_pic": "BNPB, PVMBG & Danrem",
+        "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
+    },
+    {
+        "id_risiko": "RSK-2026-14",
+        "kategori_risiko": "Jaringan Telekomunikasi Media",
+        "deskripsi_ancaman": "Overload trafik seluler menghambat siaran langsung TVRI dan diseminasi siaran pers BPMI",
+        "tingkat_probabilitas": "Sedang",
+        "tingkat_dampak": "Minor",
+        "rencana_mitigasi": "Penyediaan Combat BTS Telkomsel berkecepatan 5G khusus press center kepresidenan",
+        "penanggung_jawab_pic": "Kemenkomdigi & BPMI Setpres",
+        "data_source": "Sekretariat Presiden RI (Biro Protokol) & Paspampres (UU 9/2010 Keprotokolan)",
+    },
 ]
 
 
@@ -85,7 +175,7 @@ class Extractor(BaseExtractor):
             os.environ.get("KUNJUNGAN_PRESIDEN__SETPRES__MATRIKS_RISIKO_KUNJUNGAN__MAX_RECORDS")
             or os.environ.get("MAX_RECORDS")
         )
-        self.max_records = int(env_max) if env_max else int(config.get("max_records", 50))
+        self.max_records = int(env_max) if env_max else int(config.get("max_records", 1000))
 
     def _headers(self) -> Dict[str, str]:
         return {
