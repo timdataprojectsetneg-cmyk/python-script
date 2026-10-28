@@ -28,6 +28,7 @@ EXTRACTOR_BASES = {
     "api": ("ApiExtractor", "core.extractors.api_extractor"),
     "scraper": ("WebScraper", "core.extractors.web_scraper"),
     "pdf": ("PdfExtractor", "core.extractors.pdf_extractor"),
+    "json": ("DuckDBJSONExtractor", "core.extractors.duckdb_extractor"),
 }
 
 EMPTY = ""
@@ -272,7 +273,7 @@ def scaffold_usecase(
             continue
         publisher = publisher_slug(source)
         source_dir = usecase_dir / publisher / slug
-        access = derive_access(source.get("data_access"))
+        access = derive_access(source.get("data_access"), source)
         source_name = str(source.get("source_name") or slug)
 
         models_path = source_dir / "models.py"

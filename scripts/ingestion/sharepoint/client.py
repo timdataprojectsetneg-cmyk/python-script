@@ -419,18 +419,29 @@ class SharePointClient:
         header = list(matrix[header_index])
         sub = matrix[header_index + 1] if header_index + 1 < len(matrix) else []
 
-        names: List[str] = []
-        used_sub = False
-        for index, cell in enumerate(header):
-            if self._is_blank(cell) and index < len(sub) and not self._is_blank(sub[index]):
-                names.append(str(sub[index]).strip())
-                used_sub = True
-            elif self._is_blank(cell):
-                names.append(f"col_{index}")
-            else:
-                names.append(str(cell).strip())
+        # A second header row exists when a blank cell in the first row is
+        # filled by a sub-header (common for merged group headers such as
+        # "Data Engineer" spanning "Raw Data", "Raw Minio", ...). In that case
+        # the sub-header is the real column name for the whole group, including
+        # the first column where the merged group label sits.
+        has_subheader = any(
+            self._is_blank(cell) and index < len(sub) and not self._is_blank(sub[index])
+            for index, cell in enumerate(header)
+        )
 
-        data_start = header_index + 2 if used_sub else header_index + 1
+        names: List[str] = []
+        for index, cell in enumerate(header):
+            sub_cell = sub[index] if index < len(sub) else None
+            if has_subheader and not self._is_blank(sub_cell):
+                names.append(str(sub_cell).strip())
+            elif not self._is_blank(cell):
+                names.append(str(cell).strip())
+            elif not self._is_blank(sub_cell):
+                names.append(str(sub_cell).strip())
+            else:
+                names.append(f"col_{index}")
+
+        data_start = header_index + 2 if has_subheader else header_index + 1
         records: List[Dict[str, Any]] = []
         for offset, row in enumerate(matrix[data_start:]):
             if all(self._is_blank(cell) for cell in row):

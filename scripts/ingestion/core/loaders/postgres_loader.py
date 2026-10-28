@@ -6,10 +6,13 @@ and NiFi ``PutDatabaseRecord`` performs the load, so no DB credentials live here
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, Iterable
 import importlib
 import json
-from datetime import datetime, date
+from datetime import date, datetime, timezone
+from functools import lru_cache
+import re
 
 from ...config import HTTP_METHODS, get_raw, get_uri
 from ...exceptions import ConfigError
@@ -156,6 +159,141 @@ def _load_method(config: Dict[str, Any]) -> str:
     return method
 
 
+_METADATA_TYPES = {
+    "_source": "TEXT",
+    "_source_url": "TEXT",
+    "_published_date": "DATE",
+    "_created_at": "TIMESTAMP",
+    "_modified_at": "TIMESTAMP",
+}
+_METADATA_DEFAULTS = {
+    "_created_at": "DEFAULT CURRENT_TIMESTAMP",
+    "_modified_at": "DEFAULT CURRENT_TIMESTAMP",
+}
+_METADATA_COLUMNS = tuple(_METADATA_TYPES)
+
+
+def _parse_published_date(value: Any) -> date | None:
+    """Parse ``YYYY`` / ``YYYY-MM`` / ``YYYY-MM-DD``; other strings become NULL."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value or "").strip()
+    if not text:
+        return None
+    match = re.fullmatch(r"(\d{4})(?:-(\d{1,2}))?(?:-(\d{1,2}))?", text)
+    if not match:
+        return None
+    year = int(match.group(1))
+    month = int(match.group(2) or 1)
+    day = int(match.group(3) or 1)
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
+_DOCS_ROOT = Path(__file__).resolve().parents[3] / "docs"
+
+
+@lru_cache(maxsize=32)
+def _read_docs_sources(docs_dir: str, _mtime: float) -> list[Dict[str, Any]]:
+    """Parse one usecase.md; the mtime argument invalidates the cache."""
+    from ...catalog.docs_reader import read_usecase_sources
+
+    return read_usecase_sources(Path(docs_dir))
+
+
+def _clean_url(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return None if text in ("", "-", "–", "—") else text
+
+
+def _docs_metadata(
+    config: Dict[str, Any], docs_root: Path | None = None
+) -> tuple[Any, Any, Any]:
+    """Read publisher, last update and source URL from ``docs/<usecase>/usecase.md``.
+
+    The generated docs are the local copy of the catalog, so the loader can use
+    those columns without duplicating them in every env file.
+    """
+    from ...catalog.metadata_parser import derive_module_name, publisher_slug, source_slug
+
+    usecase = str(config.get("usecase") or "").strip()
+    publisher = str(config.get("publisher") or "").strip()
+    source = str(config.get("source") or "").strip()
+    if not (usecase and publisher and source):
+        return None, None, None
+
+    docs_dir = Path(docs_root or _DOCS_ROOT) / derive_module_name(usecase)
+    try:
+        mtime = (docs_dir / "usecase.md").stat().st_mtime
+        sources = _read_docs_sources(str(docs_dir), mtime)
+    except Exception:  # noqa: BLE001 - docs are optional for the loader
+        return None, None, None
+
+    for item in sources:
+        if (
+            publisher_slug(item) == publisher.lower()
+            and source_slug(item) == source.lower()
+        ):
+            return (
+                item.get("publisher"),
+                item.get("last_update"),
+                _clean_url(item.get("source_link") or item.get("resource_url")),
+            )
+    return None, None, None
+
+
+def _metadata_values(
+    config: Dict[str, Any], docs_root: Path | None = None
+) -> Dict[str, Any]:
+    docs_publisher, docs_last_update, docs_source_url = _docs_metadata(config, docs_root)
+    source = str(
+        config.get("publisher_name") or docs_publisher or config.get("publisher") or ""
+    ).strip() or None
+    source_url = str(
+        config.get("source_url")
+        or docs_source_url
+        or config.get("source_link")
+        or config.get("url")
+        or ""
+    ).strip() or None
+    last_update = config.get("last_update")
+    if last_update in (None, ""):
+        last_update = docs_last_update
+    return {
+        "_source": source,
+        "_source_url": source_url,
+        "_published_date": _parse_published_date(last_update),
+    }
+
+
+def _apply_metadata(
+    rows: list[Dict[str, Any]],
+    config: Dict[str, Any],
+    *,
+    reset_created_at: bool = False,
+    docs_root: Path | None = None,
+) -> list[Dict[str, Any]]:
+    """Attach loader lineage columns.
+
+    ``_created_at`` is preserved on upserts; ``reset_created_at`` is set for a
+    ``--full-refresh`` load so the recreated table gets a new creation time.
+    """
+    values = _metadata_values(config, docs_root)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    for row in rows:
+        row.update(values)
+        if reset_created_at:
+            row["_created_at"] = now
+        else:
+            row.setdefault("_created_at", now)
+        row["_modified_at"] = now
+    return rows
+
+
 def _column_type(values: list[Any]) -> str:
     """Choose a conservative PostgreSQL type from normalized Python values."""
     non_null = [value for value in values if value is not None]
@@ -220,7 +358,15 @@ def _ensure_table(
     ordered = list(dict.fromkeys(columns + observed))
     definitions = []
     for column in ordered:
-        definitions.append(sql.SQL("{} {}").format(sql.Identifier(column), sql.SQL(_column_type([row.get(column) for row in rows]))))
+        column_type = _METADATA_TYPES.get(column) or _column_type([row.get(column) for row in rows])
+        default = _METADATA_DEFAULTS.get(column, "")
+        definitions.append(
+            sql.SQL("{} {}{}").format(
+                sql.Identifier(column),
+                sql.SQL(column_type),
+                sql.SQL(f" {default}" if default else ""),
+            )
+        )
     if keys:
         definitions.append(sql.SQL("PRIMARY KEY ({})").format(sql.SQL(", ").join(sql.Identifier(key) for key in keys)))
     _run_ddl(
@@ -280,6 +426,21 @@ def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list
     )
 
 
+def _ensure_metadata_columns(cur: Any, sql: Any, schema: str, table: str) -> None:
+    """Add lineage columns to a table created by an older loader version."""
+    for column in _METADATA_COLUMNS:
+        default = _METADATA_DEFAULTS.get(column, "")
+        cur.execute(
+            sql.SQL("ALTER TABLE {}.{} ADD COLUMN IF NOT EXISTS {} {}{}").format(
+                sql.Identifier(schema),
+                sql.Identifier(table),
+                sql.Identifier(column),
+                sql.SQL(_METADATA_TYPES[column]),
+                sql.SQL(f" {default}" if default else ""),
+            )
+        )
+
+
 def _prepare_table(
     cur: Any,
     sql: Any,
@@ -304,6 +465,7 @@ def _prepare_table(
     if method == "replace" or full_refresh:
         cur.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(qualified))
     _ensure_table(cur, sql, schema, table, columns, rows, keys)
+    _ensure_metadata_columns(cur, sql, schema, table)
     _apply_comments(cur, sql, schema, table, columns, comments, table_comment)
     if method == "upsert":
         _ensure_unique_index(cur, sql, schema, table, keys)
@@ -339,11 +501,10 @@ class PostgresLoader(BaseLoader):
             # statement, so collapse duplicate keys within the batch (keep the last).
             rows = _dedupe_rows(rows, keys)
 
-        timestamp_column = str(self.config.get("load_timestamp_column") or "_loaded_at").strip()
-        if timestamp_column:
-            from datetime import datetime, timezone
-            stamp = datetime.now(timezone.utc)
-            rows = [{**row, timestamp_column: row.get(timestamp_column) or stamp} for row in rows]
+        full_refresh = bool(self.config.get("full_refresh"))
+        rows = _apply_metadata(
+            rows, self.config, reset_created_at=full_refresh
+        )
 
         _ensure_schema(schema)
         creds = _postgres_credentials()
@@ -351,11 +512,12 @@ class PostgresLoader(BaseLoader):
         model_fields = _model_columns(self.config)
         comments = _model_comments(self.config)
         columns = list(dict.fromkeys(model_fields + columns))
-        if timestamp_column and timestamp_column not in columns:
-            columns.append(timestamp_column)
+        for column in _METADATA_COLUMNS:
+            if column not in columns:
+                columns.append(column)
         if not columns:
             return 0
-        table_comment = str(self.config.get("source_link") or self.config.get("url") or "").strip()
+        table_comment = str(_metadata_values(self.config).get("_source_url") or "").strip()
         conn = psycopg2.connect(host=creds["host"], port=creds["port"], dbname=creds["database"], user=creds["username"], password=creds["password"])
         try:
             with conn, conn.cursor() as cur:
@@ -370,7 +532,7 @@ class PostgresLoader(BaseLoader):
                     method,
                     comments,
                     table_comment,
-                    bool(self.config.get("full_refresh")),
+                    full_refresh,
                 )
                 column_sql = sql.SQL(", ").join(sql.Identifier(column) for column in columns)
                 values = [
@@ -384,7 +546,12 @@ class PostgresLoader(BaseLoader):
                 ]
                 query = sql.SQL("INSERT INTO {} ({}) VALUES %s").format(qualified, column_sql)
                 if method == "upsert":
-                    updates = [column for column in columns if column not in keys]
+                    updates = [
+                        column
+                        for column in columns
+                        if column not in keys
+                        and (column != "_created_at" or full_refresh)
+                    ]
                     if updates:
                         query += sql.SQL(" ON CONFLICT ({}) DO UPDATE SET {}" ).format(
                             sql.SQL(", ").join(sql.Identifier(key) for key in keys),
@@ -417,10 +584,14 @@ class DltPostgresLoader(BaseLoader):
         keys = _unique_keys(self.config)
         if method == "upsert" and not keys:
             raise ConfigError("UNIQUE_KEY is required when METHOD=upsert")
+        full_refresh = bool(self.config.get("full_refresh"))
+        rows = _apply_metadata(
+            rows, self.config, reset_created_at=full_refresh
+        )
         # A recreated table is empty, so "replace" loads the same as a merge.
         disposition = (
             "replace"
-            if self.config.get("full_refresh") or method != "upsert"
+            if full_refresh or method != "upsert"
             else "merge"
         )
         pipeline = dlt.pipeline(pipeline_name=f"ingestion_{self.config.get('usecase')}", destination=postgres_destination(credentials=_postgres_credentials()), dataset_name=schema)

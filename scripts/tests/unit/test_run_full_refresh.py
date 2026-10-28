@@ -177,3 +177,41 @@ def test_run_defaults_to_no_full_refresh(monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert calls == [False]
+
+
+def test_loader_writes_metadata_columns_without_loaded_at(monkeypatch):
+    log = []
+    _install_fake_db(monkeypatch, log)
+
+    PostgresLoader(
+        _config(
+            publisher_name="BPS",
+            source_link="https://example.org/source",
+            last_update="2025-06",
+        )
+    ).load([{"nomor_perkara": "A"}])
+
+    create = next(statement for statement in log if statement.startswith("CREATE TABLE"))
+    assert "_source TEXT" in create
+    assert "_source_url TEXT" in create
+    assert "_published_date DATE" in create
+    assert "_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" in create
+    assert "_modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" in create
+    assert "_loaded_at" not in "\n".join(log)
+
+    insert = next(statement for statement in log if statement.startswith("INSERT"))
+    updates = insert.split("DO UPDATE SET", 1)[1]
+    assert '"_created_at"' not in updates
+    assert '"_modified_at"' in updates
+
+
+def test_full_refresh_upsert_updates_created_at(monkeypatch):
+    log = []
+    _install_fake_db(monkeypatch, log)
+
+    PostgresLoader(_config(full_refresh=True)).load([{"nomor_perkara": "A"}])
+
+    insert = next(statement for statement in log if statement.startswith("INSERT"))
+    updates = insert.split("DO UPDATE SET", 1)[1]
+    assert '"_created_at"' in updates
+    assert '"_modified_at"' in updates

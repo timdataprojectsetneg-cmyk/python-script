@@ -1,10 +1,19 @@
 """PostgreSQL loader helpers: upsert batch de-duplication and table prep."""
 
+from datetime import date, datetime
+
 import psycopg2
 import pytest
 from psycopg2 import sql
 
-from ingestion.core.loaders.postgres_loader import _dedupe_rows, _prepare_table, _run_ddl
+from ingestion.core.loaders.postgres_loader import (
+    _apply_metadata,
+    _dedupe_rows,
+    _docs_metadata,
+    _parse_published_date,
+    _prepare_table,
+    _run_ddl,
+)
 
 
 def _as_sql(node) -> str:
@@ -147,3 +156,89 @@ def test_dedupe_composite_key_and_no_keys():
     rows = [{"a": 1, "b": 1}, {"a": 1, "b": 2}, {"a": 1, "b": 1}]
     assert _dedupe_rows(rows, ["a", "b"]) == [{"a": 1, "b": 1}, {"a": 1, "b": 2}]
     assert _dedupe_rows(rows, []) is rows
+
+
+def test_parse_published_date_variants():
+    assert _parse_published_date("2025") == date(2025, 1, 1)
+    assert _parse_published_date("2025-06") == date(2025, 6, 1)
+    assert _parse_published_date("2025-6-15") == date(2025, 6, 15)
+    assert _parse_published_date(datetime(2025, 6, 15, 10, 30)) == date(2025, 6, 15)
+    assert _parse_published_date("") is None
+    assert _parse_published_date(None) is None
+    assert _parse_published_date("Terbit Mei 2025") is None
+    assert _parse_published_date("2025-13") is None
+
+
+def test_apply_metadata_uses_publisher_source_and_last_update():
+    rows = _apply_metadata(
+        [{"nilai": 1}],
+        {
+            "publisher_name": "BPS",
+            "source_link": "https://example.org/source",
+            "last_update": "2025-06",
+        },
+    )
+
+    assert rows[0]["_source"] == "BPS"
+    assert rows[0]["_source_url"] == "https://example.org/source"
+    assert rows[0]["_published_date"] == date(2025, 6, 1)
+    assert isinstance(rows[0]["_created_at"], datetime)
+    assert isinstance(rows[0]["_modified_at"], datetime)
+
+
+def test_prepare_table_adds_metadata_columns_with_defaults():
+    cur = _FakeCursor()
+
+    _prepare_table(
+        cur, sql, "raw_x", "data_y", ["nomor_perkara"], ROWS, [], "replace", {}, "",
+    )
+
+    statements = "\n".join(cur.statements)
+    assert "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _source TEXT" in statements
+    assert "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _source_url TEXT" in statements
+    assert "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _published_date DATE" in statements
+    assert (
+        "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        in statements
+    )
+    assert (
+        "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        in statements
+    )
+    assert "_loaded_at" not in statements
+
+
+def test_docs_metadata_reads_publisher_and_last_update(tmp_path):
+    docs = tmp_path / "demo"
+    docs.mkdir()
+    (docs / "usecase.md").write_text(
+        """# Use Case: demo
+
+## Sources
+
+| # | Source Name | Publisher | Data Access | Update Frequency | Is Official | Eligible | Last Update | Source Link | Resource URL | Data Dictionary |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | Demo Source | BPS | Download PDF | Monthly | Yes | True | 2025-06 | https://example.org | - | - |
+""",
+        encoding="utf-8",
+    )
+
+    assert _docs_metadata(
+        {"usecase": "demo", "publisher": "bps", "source": "demo_source"},
+        docs_root=tmp_path,
+    ) == ("BPS", "2025-06", "https://example.org")
+
+
+def test_apply_metadata_preserves_created_at_without_full_refresh():
+    old = datetime(2020, 1, 1)
+    rows = _apply_metadata([{"_created_at": old}], {"publisher": "bps"})
+    assert rows[0]["_created_at"] == old
+
+
+def test_apply_metadata_resets_created_at_on_full_refresh():
+    old = datetime(2020, 1, 1)
+    rows = _apply_metadata(
+        [{"_created_at": old}], {"publisher": "bps"}, reset_created_at=True
+    )
+    assert rows[0]["_created_at"] != old
+    assert rows[0]["_created_at"].year >= 2024

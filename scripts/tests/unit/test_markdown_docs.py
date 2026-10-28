@@ -16,6 +16,16 @@ def test_derive_access():
     assert derive_access("REST API") == "api"
     assert derive_access("Web Scraping") == "scraper"
     assert derive_access("Download PDF") == "pdf"
+    assert derive_access("Manual JSON") == "json"
+    assert derive_access("JSON (manual input)") == "json"
+    assert derive_access("Input Manual") == "json"
+    assert derive_access("Manual", {"resource_url": "s3://raw/x/file.xlsx"}) == "excel"
+    assert derive_access("Manual", {"resource_url": "s3://raw/x/file.json"}) == "json"
+    assert derive_access("Manual", {"resource_url": "s3://raw/x/file.pdf"}) == "pdf"
+    assert derive_access("Web Scraping", {"resource_url": "s3://raw/x/file.json"}) == "json"
+    assert derive_access("Web Scraping", {"resource_url": "https://example.org/page"}) == "scraper"
+    assert derive_access("Manual", {"resource_url": "file.unknown"}) == "json"
+    assert derive_access("Manual Excel", {"resource_url": "x.json"}) == "json"
     assert derive_access("") == "excel"
 
 
@@ -61,11 +71,27 @@ def test_render_usecase_markdown():
     assert "BPS Inflasi MoM" in md
 
 
+def test_render_usecase_markdown_shows_local_resource_path_as_code():
+    sources = [
+        {
+            "source_name": "Manual Oil Balance",
+            "publisher": "ESDM",
+            "data_access": "Manual JSON",
+            "resource_url": "/Users/me/data/oil_balance.json",
+            "eligible": True,
+        }
+    ]
+    md = render_usecase_markdown("ketahanan_energi", sources, "catalog.xlsx")
+    assert "`/Users/me/data/oil_balance.json`" in md
+    assert "](</Users/me/data/oil_balance.json>)" not in md
+
+
 def test_env_lines_are_flat_without_access():
     lines = env_lines("ketenagakerjaan", SOURCES)
     assert any(line.startswith("KETENAGAKERJAAN__KEMNAKER__KASUS_PERSELISIHAN__URL=") for line in lines)
     assert any(line.startswith("KETENAGAKERJAAN__BPS__BPS_INFLASI_MOM__URL=") for line in lines)
     assert all("__EXCEL__" not in line and "__API__" not in line for line in lines)
+    assert not any("__SOURCE_LINK=" in line for line in lines)
 
 
 def test_env_lines_prefer_resource_url():
@@ -135,3 +161,38 @@ def test_render_dictionary_markdown_json_nested():
     md = render_dictionary_markdown("ketenagakerjaan", "Direktori Putusan", schema, SOURCES[0], "a/b/models.py")
     assert "### JSON field: `putusan`" in md
     assert "| Nomor_Perkara | `nomor_perkara` | String | - | Nomor putusan |" in md
+
+
+
+def test_ineligible_long_names_are_not_slugged(caplog):
+    import logging
+
+    name = "Penduduk Berumur 15 Tahun Keatas yang Bekerja Selama Seminggu Terakhir Menurut Jenis Pekerjaan Utama dan Pendidikan Tertinggi yang Ditamatkan"
+    sources = [
+        {
+            "source_name": name,
+            "publisher": "BPS",
+            "data_access": "API",
+            "eligible": "-",
+        }
+    ]
+    with caplog.at_level(logging.WARNING):
+        markdown = render_usecase_markdown("ketenagakerjaan", sources)
+
+    assert "truncated" not in caplog.text
+    assert name in markdown
+
+
+def test_render_dictionary_manual_access_uses_file_extension():
+    source = {
+        "source_name": "Manual XLSX",
+        "publisher": "BPS",
+        "data_access": "Manual",
+        "resource_url": "s3://raw/x/manual.xlsx",
+        "eligible": True,
+    }
+    schema = [{"label": "nilai", "type": "Numeric", "satuan": "-", "deskripsi": "Nilai"}]
+    md = render_dictionary_markdown(
+        "ketenagakerjaan", "Manual XLSX", schema, source, "a/b/models.py"
+    )
+    assert "- Data access: `Manual`" in md

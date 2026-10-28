@@ -38,10 +38,146 @@ overrides what it needs.
 | `ExcelExtractor` | `core/extractors/excel_extractor.py` | normalized records |
 | `ApiExtractor` | `core/extractors/api_extractor.py` | normalized records |
 | `WebScraper` | `core/extractors/web_scraper.py` | normalized records |
-| `PdfExtractor` | `core/extractors/pdf_extractor.py` | **binary uploaded to MinIO/S3 on-prem**, metadata record emitted |
+| `PdfExtractor` | `core/extractors/pdf_extractor.py` | normalized records (table/chart) |
+| `LLMExtractor` | `core/extractors/llm_extractor.py` | normalized records (LLM PDF/Excel) |
+| `DuckDBExcelExtractor` | `core/extractors/duckdb_extractor.py` | normalized records (manual/curated Excel) |
+| `DuckDBJSONExtractor` | `core/extractors/duckdb_extractor.py` | normalized records (manual/curated JSON) |
+| `ExcelAutomationExtractor` | `core/extractors/excel_automation_extractor.py` | normalized records (multi-level workbook) |
 
-PDF flow: source/landing URL → resolve PDF URL → download → upload to MinIO →
-emit metadata (bucket, object_key, etag, size, sha256).
+The PDF engine lives in `core/extractors/pdf/`; the LLM engine in
+`core/extractors/llm/`; the DuckDB helpers in `core/extractors/duckdb/`; the
+workbook automation engine in `core/extractors/excel_automation/`. The
+top-level `*_extractor.py` modules are the stable public/adaptor entry points.
+
+PDF flow: `url`/`pdf_url`/`source_file` (or `minio://bucket/key.pdf`) → download
+→ optional raw upload to MinIO (`save_raw=True`) → deterministic table/chart
+extraction → records. The engine lives in `core/extractors/pdf/`; every PDF
+parameter is passed explicitly (no PDF-specific env vars): a source supplies its
+schema (`dictionary=Record`) and a marker, and may override pages/mode:
+
+```python
+class Extractor(PdfExtractor):
+    def __init__(self, config):
+        super().__init__(
+            config,                      # optional; only for MinIO settings
+            url="https://example.org/handbook.pdf",
+            dictionary=Record,           # Pydantic model from models.py
+            marker="Primary Energy Supply",
+            pages="12",                  # printed or physical (auto-detected)
+        )
+```
+
+All parameters can also be passed directly (notebooks/scripts):
+
+```python
+from ingestion.core.extractors.pdf_extractor import PdfExtractor
+
+extractor = PdfExtractor(
+    dictionary="dict.json",              # path, dict, or Pydantic model
+    marker="Primary Energy Supply",
+    source_file="handbook.pdf",          # or url="https://.../file.pdf"
+    pages="12",
+    mode="auto",                         # auto|table|chart
+    page_numbering="auto",               # auto|physical|printed
+)
+records = list(extractor.extract())
+extractor.result.status                  # success / partial / ...
+```
+
+CLI (no env needed, except `--save-raw` which uses MinIO settings):
+
+```bash
+python -m ingestion.core.extractors.pdf_extractor handbook.pdf \
+  --dictionary dict.json --marker "Primary Energy Supply" --pages 12
+
+# URL + NDJSON output
+python -m ingestion.core.extractors.pdf_extractor https://example.org/file.pdf \
+  --dictionary dict.json --marker "Indonesia Energy Balance Table 2025" \
+  --pages 18-19 --format ndjson -o records.ndjson
+```
+
+`save_raw=True` is the only option that reads external settings (MinIO
+credentials). PDF files must have a text layer (no OCR). Deterministic extraction
+is the default; LLM assistance is optional.
+
+### Manual JSON / Excel sources
+
+Some tables are curated by hand because the PDF/chart is unreliable or would need
+an AI pass on every run. Keep the records in a JSON/Excel file and put its
+location in the catalog **`Resource URL`** column (it becomes `__URL` in
+`usecase.env`). Set **`Data Access`** to `Manual`, `Manual JSON`, `JSON`, etc.;
+`docs --scaffold` then generates the extractor from the file extension:
+
+- `.json`/`.jsonl`/`.ndjson` → `DuckDBJSONExtractor`
+- `.xlsx`/`.xls`/`.xlsm` → `DuckDBExcelExtractor`
+- `.pdf` → `PdfExtractor`
+
+A direct file extension in `Resource URL`/`URL` takes precedence over the
+`Data Access` text (so `Web Scraping` + `s3://...json` still uses DuckDB). For
+manual sources the dictionary displays the catalog value as-is, e.g.
+`Data access: Manual`, even when the engine uses Excel/JSON internally.
+
+Supported locations (handled by `resolve_location`):
+
+- `s3://bucket/key.json` / `minio://bucket/key.json` (MinIO/S3 settings from
+  `MINIO_URI` or `MINIO__*`)
+- `file:///path/to/data.json`
+- local absolute paths, `~`, environment variables, and relative paths
+  (macOS, Linux, Windows — `C:\data\x.json` works on Windows)
+
+The file may be an array of objects (the usual manual shape):
+
+```json
+[
+  {"tahun": 2025, "produk": "Crude Oil", "komponen": "Production", "nilai": 221.2, "satuan": "Million Barrel", "pertumbuhan_yoy_persen": null}
+]
+```
+
+### LLM document extraction (PDF/Excel)
+
+`core/extractors/llm_extractor.py` (adapter/CLI) and `core/extractors/llm/`
+(engine) implement the LLM path. The PDF engine keeps its deterministic first
+pass and uses `core/extractors/llm/pdf_assist.py` only for the optional
+fallback.
+
+```python
+from ingestion.core.extractors.llm import extract_document
+
+result = extract_document(
+    "data/energy-statistics-2025.pdf",
+    "Ekstrak kapasitas terpasang per jenis pembangkit tahun 2025",
+    metadata=Record,          # optional: Pydantic model, dict, or JSON path/string
+    page="1-2",               # optional PDF pages (alias: pages="1,3" / "5-8")
+)
+print(result.status, result.records)
+```
+
+- `metadata=None` is permissive: the model proposes a consistent structure.
+- With metadata, the contract is sent to the model **and** enforced in Python
+  (`validator.py`): required fields, types, enums, nullability.
+- Missing values become `null`; values are not guessed or converted without an
+  explicit rule. Invalid records are reported and dropped.
+- Provider-agnostic: `LLM_MODEL`, `LLM_BASE_URL`, and `LLM_API_KEY` (or
+  `OPENAI_API_KEY`) configure the OpenAI-compatible endpoint. `--render-images`
+  sends rendered pages to a vision-capable model for scanned PDFs.
+- Files may be local, `file://`, `s3://`, `minio://`, or HTTP(S); `.xlsx`/`.xls`
+  are read per sheet.
+
+CLI with a reviewable JSON result under `scripts/out/`:
+
+```bash
+python -m ingestion.core.extractors.llm_extractor report.pdf \
+  --instruction "Ekstrak kapasitas terpasang per jenis pembangkit 2025" \
+  --metadata schema.json --page 1-2 --save-output
+
+# explicit file or directory
+python -m ingestion.core.extractors.llm_extractor report.xlsx \
+  --instruction "Ekstrak tabel ringkasan" --output out/review.json
+```
+
+`--save-output` writes `out/<source-stem>_<UTC timestamp>.json` (directory can
+be changed with `--output-dir`). The JSON contains `status`, `records`,
+`warnings`, `errors`, and run metadata (model, usage, page count, output path).
 
 A source extractor may combine several retrieval steps internally (e.g. scrape a
 landing page, then download the Excel it links to). This lives entirely in the
@@ -66,6 +202,35 @@ Some sites are behind bot protection (Cloudflare). For those, sources can accept
 a saved page via `{USECASE}__{PUBLISHER}__{SOURCE}__SOURCE_FILE` (local HTML) and parse
 it offline; see `usecases/ketenagakerjaan/goodstats/umk_sumut/extractor.py`.
 
+### Excel automation (multi-level headers + metadata sheets)
+
+`ExcelExtractor` only downloads/reads a file. For workbooks with multi-level or
+merged headers, a `Standar Data & Metadata` sheet, and wide/long outputs, use
+`ExcelAutomationExtractor`:
+
+```python
+class Extractor(ExcelAutomationExtractor):
+    def __init__(self, config):
+        super().__init__(
+            config,
+            source=config["url"],     # local, s3://, minio://, http(s)
+            output="data",            # data | data_long | ...
+            prefix="kemnaker",
+        )
+```
+
+The parsing engine is split under `core/extractors/excel_automation/` (`grid`,
+`metadata`, `tables`, `extraction`, `writers`, `cli`). Historical imports and the
+CLI still work:
+
+```python
+from ingestion.core.extractors.excel_automation import extract_workbook, tables_to_records
+```
+
+```bash
+python -m ingestion.core.extractors.excel_automation file.xlsx --out-dir ./out
+```
+
 ## Usage
 
 ```bash
@@ -74,8 +239,15 @@ it offline; see `usecases/ketenagakerjaan/goodstats/umk_sumut/extractor.py`.
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev
 python -m ingestion.cli docs --usecase ketenagakerjaan --source "Kasus Perselisihan" --env dev
 python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --scaffold
+# Fetch the per-source Data Dictionaries concurrently (I/O-bound)
+python -m ingestion.cli docs --usecase ketenagakerjaan --env dev --thread 4
 python -m ingestion.cli docs --list    # inventory only (bare = all; no env/credentials needed)
 python -m ingestion.cli docs --list sources --usecase ketenagakerjaan
+
+`docs --thread N` fetches dictionaries concurrently; `Fetching dictionary for ...`
+and `Wrote ...` are logged as each source finishes (not batched at the end). Only
+eligible sources are slugged, so long names on ineligible rows do not emit
+truncation warnings.
 
 # Run one source (PROD: NDJSON to stdout for NiFi)
 python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --mode prod
@@ -126,7 +298,7 @@ MINIO_URI=minio://access:secret@host/bucket?secure=true
 Per source, set `{USECASE}__{PUBLISHER}__{SOURCE}__METHOD`:
 
 - `replace` (default) — replace the target content before writing (PostgreSQL
-  `TRUNCATE`, Elasticsearch index delete).
+  drops/recreates the table, Elasticsearch index delete).
 - `upsert` — merge existing rows by `{USECASE}__{PUBLISHER}__{SOURCE}__UNIQUE_KEY`
   (comma/semicolon-separated, one or more columns, default empty). `upsert`
   without a unique key is a config error.
@@ -141,6 +313,25 @@ KETENAGAKERJAAN__KEMNAKER__SATU_DATA_KEMNAKER__UNIQUE_KEY=id
 For API sources the HTTP verb is `...__HTTP_METHOD` (legacy configs using
 `METHOD=GET`/`POST` still work).
 
+### PostgreSQL metadata columns
+
+`PostgresLoader` (and `DltPostgresLoader`) always adds these lineage columns:
+
+| Column | Type | Source / rule |
+|---|---|---|
+| `_source` | TEXT | Publisher from `docs/<usecase>/usecase.md` (fallback: publisher slug) |
+| `_source_url` | TEXT | Source Link → Resource URL from `usecase.md` (fallback: `source_link`/`url` config) |
+| `_published_date` | DATE | Last Update: `YYYY` → `YYYY-01-01`, `YYYY-MM` → `YYYY-MM-01`, full date kept; empty/free text → `NULL` |
+| `_created_at` | TIMESTAMP | `CURRENT_TIMESTAMP` on first insert |
+| `_modified_at` | TIMESTAMP | `CURRENT_TIMESTAMP` on every load/update |
+
+- On `METHOD=upsert`, `_created_at` is **not** updated; `_modified_at` is.
+- `--full-refresh` drops/recreates the table and resets `_created_at`.
+- `_loaded_at` and `LOAD_TIMESTAMP_COLUMN` were removed.
+- Publisher/Last Update/Source URL are read from `usecase.md`, not duplicated in
+  `usecase.env` (only `URL` remains, because extractors need it).
+- Existing `usecase.env` files should be regenerated after catalog changes.
+
 ## Layout
 
 ```
@@ -151,7 +342,7 @@ ingestion/
 ├── catalog/            # source-neutral catalog parsing, doc rendering, scaffolding
 ├── core/
 │   ├── base/           # Extractor / Normalizer / Loader / Storage ABCs + HttpClient
-│   ├── extractors/     # excel, api, web_scraper, pdf, excel_automation, text
+│   ├── extractors/     # excel/api/web_scraper/pdf/text + duckdb/, excel_automation/, llm/
 │   ├── normalizers/    # generic normalizer
 │   ├── loaders/        # DEV postgres (dlt) / elastic / minio
 │   └── storage/        # MinIO / S3 (URI or discrete keys; CA/insecure options)
@@ -179,7 +370,10 @@ case** under `docs/<usecase>/` (the flat layout grew too large):
   link. Only sources with **`Eligible = true`** appear in the proposed structure
   and env vars; ineligible sources are listed under "Skipped".
 - `usecase.env` — generated `{USECASE}__{PUBLISHER}__{SOURCE}__{KEY}` lines for
-  eligible sources; auto-loaded by `load_env()` when running that use case.
+  eligible sources (`URL`, targets, `METHOD`, `UNIQUE_KEY`); auto-loaded by
+  `load_env()` when running that use case. Publisher, Last Update and Source Link
+  are **not** duplicated here — the PostgreSQL loader reads them from
+  `usecase.md`.
 - `dictionary_<source>.md` — field table (Label / snake_case Name / Tipe Data /
   Satuan / Deskripsi) + generated Pydantic model. Dictionary reading starts at the
   header row containing `Label, Tipe Data, Satuan, Deskripsi` and stops at the
@@ -191,10 +385,10 @@ which lives in `.env.<profile>` (so run docs with `--env dev`). `docs --list`
 prints an inventory **without generating anything and without credentials/env**
 (bare `--list` = `all`, or `--list usecases|publishers|sources|all`).
 
-Sheet reading is header-aware: title/blank rows before the header are skipped, a
-two-row header is merged (blank header cells filled from the row below), empty
-rows are dropped, and section-title rows (e.g. "Kategori per Data Kemnaker") are
-ignored.
+Sheet reading is header-aware: title/blank rows before the header are skipped,
+a two-row header is merged (sub-headers win for merged groups, so `Data Engineer`
+→ `Raw Data`, `Raw Minio (Bucket)`, …), empty rows are dropped, and section-title
+rows (e.g. "Kategori per Data Kemnaker") are ignored.
 
 ### Scaffolding eligible sources
 
@@ -218,10 +412,13 @@ sources, and `--source "Kasus Perselisihan"` to limit dictionary generation.
 
 `Module Name` (aliases: Folder Name, Alias, Slug) is an optional catalog column.
 When set, it becomes the folder/module name; otherwise the slug is derived from
-the Source Name (parentheticals dropped, capped at 48 chars on a word boundary).
-For long names like "Direktori Putusan Perkara Pengadilan Hubungan Industrial
-(Mahkamah Agung RI)", set `Module Name = putusan_phi` — a human-chosen acronym is
-more reliable than auto-abbreviation.
+the Source Name: parentheticals dropped, leading section/table numbers removed
+(`6.2.9 LPG Supply and Demand` → `lpg_supply_and_demand`), names longer than 8
+words summarized, and the result capped at 63 characters on a word boundary. A
+warning is logged whenever truncation happens. For long names like
+"Direktori Putusan Perkara Pengadilan Hubungan Industrial (Mahkamah Agung RI)",
+set `Module Name = putusan_phi` — a human-chosen acronym is more reliable than
+auto-abbreviation.
 
 Pass `--source "Kasus Perselisihan"` to emit only that source's dictionary;
 omit it to emit dictionaries for eligible sources in the use case.

@@ -77,6 +77,16 @@ def _link_cell(value: Any, url: Any) -> str:
     return text
 
 
+def _resource_cell(value: Any) -> str:
+    """Resource URL is a web link or a copyable local/S3 path."""
+    if value in (None, ""):
+        return "-"
+    text = _cell(value)
+    if str(value).lower().startswith(("http://", "https://")):
+        return f"[{text}]({value})"
+    return f"`{text}`"
+
+
 def _group_sources(sources: List[Dict[str, Any]]) -> Dict[tuple, Dict[str, Any]]:
     grouped: Dict[tuple, Dict[str, Any]] = {}
     for source in sources:
@@ -87,7 +97,7 @@ def _group_sources(sources: List[Dict[str, Any]]) -> Dict[tuple, Dict[str, Any]]
         entry = grouped.setdefault(
             key, {"name": name, "accesses": [], "eligible": False}
         )
-        access = derive_access(source.get("data_access"))
+        access = derive_access(source.get("data_access"), source)
         if access not in entry["accesses"]:
             entry["accesses"].append(access)
         entry["eligible"] = entry["eligible"] or is_eligible(source)
@@ -113,7 +123,6 @@ def env_lines(
         slug = source_slug(source)
         prefix = f"{usecase_slug}__{publisher}__{slug}".upper()
         lines.append(f"{prefix}__URL={effective_url(source) or ''}")
-        lines.append(f"{prefix}__SOURCE_LINK={source.get('source_link') or effective_url(source) or ''}")
         schema, postgre_table = split_postgre(source.get("raw_postgre_table"))
         targets = (
             ("POSTGRE_SCHEMA", schema),
@@ -131,8 +140,10 @@ def env_lines(
 
 def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog_path: str = "") -> str:
     usecase_slug = derive_module_name(usecase)
-    grouped = _group_sources(sources)
-    eligible_grouped = {slug: entry for slug, entry in grouped.items() if entry["eligible"]}
+    # Only eligible rows are implemented/scaffolded. Slugging ineligible names
+    # here would emit pointless truncation warnings for rows that are never used.
+    eligible_sources = [source for source in sources if is_eligible(source)]
+    eligible_grouped = _group_sources(eligible_sources)
 
     out: List[str] = [
         f"# Use Case: {usecase}",
@@ -141,7 +152,7 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
         "Do not edit manually — regenerate with `python -m ingestion.cli docs --usecase "
         f"{usecase_slug} --env <profile>`.",
         "",
-        f"Source count: **{len(grouped)}** · eligible for implementation: **{len(eligible_grouped)}**",
+        f"Source count: **{len(sources)}** · eligible for implementation: **{len(eligible_sources)}**",
         "",
         "## Sources",
         "",
@@ -160,7 +171,7 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
                 eligible=_cell(source.get("eligible")),
                 updated=_cell(source.get("last_update")),
                 link=_link_cell(source.get("source_link"), source.get("source_link")),
-                resource=_link_cell(source.get("resource_url"), source.get("resource_url")),
+                resource=_resource_cell(source.get("resource_url")),
                 dict=_link_cell(source.get("data_dictionary"), source.get("data_dictionary_link")),
             )
         )
@@ -191,6 +202,14 @@ def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog
     return "\n".join(out)
 
 
+def _display_access(source_meta: Dict[str, Any]) -> str:
+    """Show the catalog value for manual sources; derive a module name otherwise."""
+    raw = source_meta.get("data_access")
+    if "manual" in str(raw or "").casefold():
+        return _cell(raw)
+    return derive_access(raw, source_meta)
+
+
 def render_dictionary_markdown(
     usecase: str,
     source_name: str,
@@ -211,7 +230,7 @@ def render_dictionary_markdown(
         f"- Use case: `{usecase}`",
         f"- Source: `{source_name}`",
         f"- Publisher: {_cell(source_meta.get('publisher'))}",
-        f"- Data access: `{derive_access(source_meta.get('data_access'))}`",
+        f"- Data access: `{_display_access(source_meta)}`",
         f"- Update frequency: {_cell(source_meta.get('update_frequency'))}",
         f"- Eligible: `{is_eligible(source_meta)}`",
         f"- Data Dictionary file: {_link_cell(source_meta.get('data_dictionary'), source_meta.get('data_dictionary_link'))}",
