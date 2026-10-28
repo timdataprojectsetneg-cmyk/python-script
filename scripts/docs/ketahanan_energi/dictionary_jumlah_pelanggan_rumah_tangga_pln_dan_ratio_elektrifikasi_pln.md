@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `Tabel Jumlah Pelanggan Rumah Tangga PLN dan Ratio Elektrifikasi PLN`
 - Publisher: pln
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
 - Data Dictionary file: [PLN - Tabel 1: Jumlah Pelanggan Rumah Tangga PLN dan Ratio Elektrifikasi PLN, 2022-2025](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Keandalan%20Penyediaan%20Tenaga%20Listrik.xlsx?d=we036a48c5f804babbfc372b88ffc10e5&csf=1&web=1&e=754fi5&nav=MTVfezRCMzRERDQzLTI1MTItNEU3NS04MkM4LTBBQjlCQUU2RUJDMn0)

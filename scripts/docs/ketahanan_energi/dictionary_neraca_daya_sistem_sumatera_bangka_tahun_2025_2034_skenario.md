@@ -1,15 +1,15 @@
-# Data Dictionary: Tabel 5.83 Neraca Daya Sistem Sumatera-Bangka Tahun 2025-2034 – Skenario ARED 
+# Data Dictionary: Tabel 5.83 Neraca Daya Sistem Sumatera-Bangka Tahun 2025-2034 Skenario ARED 
 
 > Generated from the SharePoint Data Dictionary. Use this as the reference for the Pydantic model in `models.py`.
 
 - Use case: `ketahanan_energi`
-- Source: `Tabel 5.83 Neraca Daya Sistem Sumatera-Bangka Tahun 2025-2034 – Skenario ARED `
+- Source: `Tabel 5.83 Neraca Daya Sistem Sumatera-Bangka Tahun 2025-2034 Skenario ARED `
 - Publisher: pln
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
 - Data Dictionary file: [PLN - Neraca Daya Sistem (Skenario ARED)](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Keandalan%20Penyediaan%20Tenaga%20Listrik.xlsx?d=we036a48c5f804babbfc372b88ffc10e5&csf=1&web=1&e=yPKLI2&nav=MTVfezY5REJBNjFBLUVFQUYtNDNGNC05ODJGLUE2MzZFNDg4MzVBNX0)
-- Target module: `ingestion/usecases/ketahanan_energi/pln/skenario_ared/models.py`
+- Target module: `ingestion/usecases/ketahanan_energi/pln/neraca_daya_sistem_sumatera_bangka_tahun_2025_2034_skenario/models.py`
 
 ## Fields
 
@@ -28,7 +28,7 @@
 from pydantic import BaseModel, Field
 
 
-class SkenarioAredRecord(BaseModel):
+class NeracaDayaSistemSumateraBangkaTahun20252034SkenarioRecord(BaseModel):
     sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
     skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
     kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")

@@ -158,26 +158,43 @@ print(result.status, result.records)
 - Missing values become `null`; values are not guessed or converted without an
   explicit rule. Invalid records are reported and dropped.
 - Provider-agnostic: `LLM_MODEL`, `LLM_BASE_URL`, and `LLM_API_KEY` (or
-  `OPENAI_API_KEY`) configure the OpenAI-compatible endpoint. `--render-images`
+  `OPENAI_MODEL`/`OPENAI_BASE_URL`/`OPENAI_API_KEY` as fallbacks) configure the
+  OpenAI-compatible endpoint. `--provider anthropic` (or `LLM_PROVIDER=anthropic`)
+  uses the official Anthropic SDK (`from anthropic import Anthropic`,
+  `messages.create`) instead; `LLM_BASE_URL` may then point at an
+  Anthropic-compatible gateway, the key falls back to `ANTHROPIC_API_KEY`,
+  output length is `LLM_MAX_TOKENS`/`--max-tokens` (default 16000), and
+  `--temperature`/`--json-mode` are not sent. `--render-images`
   sends rendered pages to a vision-capable model for scanned PDFs.
 - Files may be local, `file://`, `s3://`, `minio://`, or HTTP(S); `.xlsx`/`.xls`
   are read per sheet.
 
-CLI with a reviewable JSON result under `scripts/out/`:
+CLI — the result is always written (default directory `scripts/out/`):
 
 ```bash
-python -m ingestion.core.extractors.llm_extractor report.pdf \
+# settings from .env.dev (LLM_API_KEY, LLM_MODEL, LLM_BASE_URL, MINIO_URI)
+python -m ingestion.core.extractors.llm_extractor report.pdf --env dev \
   --instruction "Ekstrak kapasitas terpasang per jenis pembangkit 2025" \
-  --metadata schema.json --page 1-2 --save-output
+  --metadata schema.json --page 1-2
 
-# explicit file or directory
-python -m ingestion.core.extractors.llm_extractor report.xlsx \
-  --instruction "Ekstrak tabel ringkasan" --output out/review.json
+# explicit file, local directory, or S3/MinIO prefix
+python -m ingestion.core.extractors.llm_extractor report.xlsx --env dev \
+  --instruction "Ekstrak tabel ringkasan" -o out/review.json
+python -m ingestion.core.extractors.llm_extractor report.pdf --env dev \
+  --instruction "Ekstrak ..." -o s3://raw/esdm/
+
+# official Anthropic SDK instead of the OpenAI-compatible client
+python -m ingestion.core.extractors.llm_extractor report.pdf --env dev \
+  --provider anthropic --instruction "Ekstrak ..." --pages 40
 ```
 
-`--save-output` writes `out/<source-stem>_<UTC timestamp>.json` (directory can
-be changed with `--output-dir`). The JSON contains `status`, `records`,
-`warnings`, `errors`, and run metadata (model, usage, page count, output path).
+`-o/--output` is a single option: a directory (local, or `s3://bucket/prefix/`
+/ `minio://bucket/prefix/`) gets `<source-stem>_<UTC timestamp>.<format>`; a
+path with an extension is used as-is. S3 output is written with DuckDB
+(`core/extractors/duckdb/`, `COPY ... TO 's3://...'`) using the MinIO settings
+from `MINIO_URI` or `MINIO__*`. `--env dev` loads `.env` plus `.env.dev`
+before reading `LLM_*`. The JSON contains `status`, `records`, `warnings`,
+`errors`, and run metadata (model, usage, page count, output path).
 
 A source extractor may combine several retrieval steps internally (e.g. scrape a
 landing page, then download the Excel it links to). This lives entirely in the

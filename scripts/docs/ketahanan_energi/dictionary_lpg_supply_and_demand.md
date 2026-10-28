@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `6.2.9 LPG Supply and Demand`
 - Publisher: esdm
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
 - Data Dictionary file: [ESDM_LPG Supply and Demand](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Neraca%20dan%20Ketersediaan%20Energi.xlsx?d=wd12b6b06696f4510aefe45f87a69cd70&csf=1&web=1&e=WnPPUh&nav=MTVfe0RFQjczMkY3LThDRDctNDdBMS05MDU1LUM5MDU1OUE3QUFFQn0)

@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `Indonesia Energy Balance Table 2025`
 - Publisher: esdm
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
 - Data Dictionary file: [HEESI 2025 - Energy Balance](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Harga,%20Subsidi,%20dan%20Beban%20Fiskal%20Energi.xlsx?d=w8600be84249e4b8db4faec846dcce2da&csf=1&web=1&e=2pMWT6&nav=MTVfezVGRjBBODJELUM5QjctNDZBNS04QURDLTREMzM1M0Y5RUIxNH0)

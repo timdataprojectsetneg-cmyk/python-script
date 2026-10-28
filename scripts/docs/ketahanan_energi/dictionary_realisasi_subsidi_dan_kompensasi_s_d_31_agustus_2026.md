@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `Realisasi Subsidi dan Kompensasi s.d. 31 Agustus 2026`
 - Publisher: kemenkeu
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Monthly
 - Eligible: `True`
 - Data Dictionary file: [Kemenkeu - Realisasi Subsidi dan Kompensasi](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Harga,%20Subsidi,%20dan%20Beban%20Fiskal%20Energi.xlsx?d=w8600be84249e4b8db4faec846dcce2da&csf=1&web=1&e=Fdx1eD&nav=MTVfe0FFQjZBRUE5LUM5NEQtNDE3Ni04RkMwLUE2ODUxN0FBNjVDMn0)

@@ -22,7 +22,7 @@ from __future__ import annotations
 from .document_reader import Document, DocumentReadError, Segment, read_document
 from .extractor import DocumentResult, build_prompt, extract_document, resolve_output_path
 from .llm_client import LLMClient, LLMSettings, LLMUnavailable, parse_json_response
-from .output_writer import render_records, write_records, write_result
+from .output_writer import render_records, write_records, write_result, write_result_s3
 from .schema_builder import OutputField, OutputSchema, build_schema, schema_to_json
 from .validator import ValidationResult, validate_records
 
@@ -48,4 +48,5 @@ __all__ = [
     "validate_records",
     "write_records",
     "write_result",
+    "write_result_s3",
 ]

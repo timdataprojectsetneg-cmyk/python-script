@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `6.3.1 Natural Gas Reserves`
 - Publisher: esdm
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
 - Data Dictionary file: [ESDM_Natural Gas Reserves](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Neraca%20dan%20Ketersediaan%20Energi.xlsx?d=wd12b6b06696f4510aefe45f87a69cd70&csf=1&web=1&e=mRLX4V&nav=MTVfezc2NTIxRThDLTc0RTYtNEIzQS1BM0FCLUMxQzJCNEM4OEE3Mn0)

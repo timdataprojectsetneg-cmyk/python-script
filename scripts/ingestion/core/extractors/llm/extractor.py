@@ -103,20 +103,38 @@ def build_prompt(
     return prompt, truncated
 
 
+def _output_filename(file_path: str, output_format: str) -> str:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(urlparse(str(file_path)).path).stem or "result")
+    suffix = {"json": ".json", "ndjson": ".ndjson", "csv": ".csv"}.get(
+        (output_format or "json").lower(), ".json"
+    )
+    return f"{stem}_{stamp}{suffix}"
+
+
 def resolve_output_path(
     file_path: str,
     output_path: str | Path,
     output_format: str = "json",
-) -> Path:
-    """Use ``output_path`` as a file, or create a timestamped file in a directory."""
+) -> Path | str:
+    """Use ``output_path`` as a file, or create a timestamped file in a directory.
+
+    ``s3://bucket/prefix/`` (or ``minio://``) returns an ``s3://`` URI string; a
+    trailing ``/`` or a last segment without extension is treated as a prefix.
+    Locally, an existing directory or a missing path without extension is a
+    directory.
+    """
+    text = str(output_path)
+    if text.lower().startswith(("s3://", "minio://")):
+        if text.lower().startswith("minio://"):
+            text = "s3://" + text[len("minio://") :]
+        if text.endswith("/") or not Path(urlparse(text).path).suffix:
+            text = text.rstrip("/") + "/" + _output_filename(file_path, output_format)
+        return text
+
     target = Path(output_path)
-    if target.exists() and target.is_dir():
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        stem = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(urlparse(str(file_path)).path).stem or "result")
-        suffix = {"json": ".json", "ndjson": ".ndjson", "csv": ".csv"}.get(
-            (output_format or "json").lower(), ".json"
-        )
-        target = target / f"{stem}_{stamp}{suffix}"
+    if target.is_dir() or (not target.exists() and not target.suffix):
+        target = target / _output_filename(file_path, output_format)
     return target
 
 
@@ -141,6 +159,7 @@ def extract_document(
         metadata={
             "file": str(file_path),
             "instruction": instruction,
+            "provider": settings.provider,
             "model": settings.model,
             "base_url": settings.base_url,
             "started_at": datetime.now(timezone.utc).isoformat(),
@@ -231,7 +250,7 @@ def extract_document(
     if output_path:
         target = resolve_output_path(file_path, output_path, output_format)
         try:
-            write_result(result, target, output_format)
+            write_result(result, target, output_format, config=config)
             result.metadata["output"] = str(target)
         except Exception as exc:  # noqa: BLE001 - result still usable
             result.errors.append(f"output_write_failed: {exc}")

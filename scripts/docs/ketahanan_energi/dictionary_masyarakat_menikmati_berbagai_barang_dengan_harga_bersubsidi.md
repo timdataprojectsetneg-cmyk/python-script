@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `Masyarakat menikmati berbagai barang dengan harga bersubsidi`
 - Publisher: kemenkeu
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Monthly
 - Eligible: `True`
 - Data Dictionary file: [Kemenkeu - APBN KiTa Sep 2026](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Harga,%20Subsidi,%20dan%20Beban%20Fiskal%20Energi.xlsx?d=w8600be84249e4b8db4faec846dcce2da&csf=1&web=1&e=HVAb69&nav=MTVfe0E0MjA3MDZELUVDMjctNDk0MC1BOTM3LTI2NUYwMjg5REZFM30)

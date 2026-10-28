@@ -1,41 +1,38 @@
-# Data Dictionary: Tabel 17  Kuota dan Realisasi LPG Tabung 3 kg 
+# Data Dictionary: Tabel 17 Kuota dan Realisasi LPG Tabung 3 kg
 
 > Generated from the SharePoint Data Dictionary. Use this as the reference for the Pydantic model in `models.py`.
 
 - Use case: `ketahanan_energi`
-- Source: `Tabel 17  Kuota dan Realisasi LPG Tabung 3 kg `
+- Source: `Tabel 17 Kuota dan Realisasi LPG Tabung 3 kg`
 - Publisher: esdm
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
-- Data Dictionary file: [Ditjen Migas_Kuota LPG 3kg](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Pasokan,%20Stok,%20dan%20Distribusi%20Bahan%20Bakar%20dan%20Gas.xlsx?d=we099b80b8f6b4de780d6d9a7bd86fa8b&csf=1&web=1&e=gQagzL&nav=MTVfezAzNTRDQTFELTRBMTAtNEY5NC05NzVDLTA1MEIwNDE0NUQ1RH0)
+- Data Dictionary file: [LKJ - Kuota dan Realisasi LPG3](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Harga,%20Subsidi,%20dan%20Beban%20Fiskal%20Energi.xlsx?d=w8600be84249e4b8db4faec846dcce2da&csf=1&web=1&e=fFhh1E&nav=MTVfezBGMTlBNUIyLUQ5MjAtNEVGOC05QjlDLTAzNjQ5QzM4MzYxMX0)
 - Target module: `ingestion/usecases/ketahanan_energi/esdm/kuota_dan_realisasi_lpg_tabung_3_kg/models.py`
 
 ## Fields
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
+| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
+| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
+| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
+| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class KuotaDanRealisasiLpgTabung3KgRecord(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
+    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
+    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
+    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
+    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

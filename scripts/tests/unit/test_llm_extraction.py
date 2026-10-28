@@ -242,7 +242,60 @@ def test_output_writer_to_directory_and_json(tmp_path):
     assert payload["records"] == RECORDS
 
 
-def test_llm_extractor_adapter_and_save_output(tmp_path):
+def test_resolve_output_path_s3_prefix_and_new_local_dir(tmp_path):
+    s3 = resolve_output_path("data/report.pdf", "s3://raw/esdm/", "json")
+    assert isinstance(s3, str)
+    assert s3.startswith("s3://raw/esdm/report_") and s3.endswith(".json")
+    assert resolve_output_path("data/report.pdf", "minio://raw/esdm", "csv").startswith(
+        "s3://raw/esdm/report_"
+    )
+    assert resolve_output_path("data/report.pdf", "s3://raw/esdm/x.json") == "s3://raw/esdm/x.json"
+
+    local = resolve_output_path("data/report.pdf", tmp_path / "not-yet", "json")
+    assert local.parent == tmp_path / "not-yet"
+
+
+@pytest.mark.parametrize("fmt", ["json", "ndjson", "csv"])
+def test_write_result_s3_uses_duckdb_copy(tmp_path, fmt):
+    import duckdb
+
+    local_target = tmp_path / f"copied.{fmt}"
+    statements: list[str] = []
+
+    class FakeConnection:
+        """Run the COPY against a local file instead of S3."""
+
+        def __init__(self):
+            self.con = duckdb.connect()
+
+        def execute(self, sql):
+            statements.append(sql)
+            return self.con.execute(sql.replace("'s3://raw/esdm/out'", f"'{local_target.as_posix()}'"))
+
+        def close(self):
+            self.con.close()
+
+    result = DocumentResult(status="success", records=RECORDS, metadata={"model": "test"})
+    with patch(
+        "ingestion.core.extractors.duckdb.open_duckdb", return_value=FakeConnection()
+    ) as opened:
+        written = write_result(result, "s3://raw/esdm/out", fmt)
+
+    assert written == "s3://raw/esdm/out"
+    assert opened.call_args.args[1].kind == "s3"
+    assert "TO 's3://raw/esdm/out'" in statements[0]
+    text = local_target.read_text(encoding="utf-8")
+    if fmt == "json":
+        payload = json.loads(text)
+        assert payload["status"] == "success"
+        assert payload["records"] == RECORDS
+    elif fmt == "ndjson":
+        assert [json.loads(line) for line in text.splitlines()] == RECORDS
+    else:
+        assert text.splitlines()[0].startswith("tahun,")
+
+
+def test_llm_extractor_adapter_writes_output(tmp_path):
     pdf = make_pdf(tmp_path)
     out_dir = tmp_path / "out"
     payload = json.dumps({"records": RECORDS})
@@ -257,8 +310,7 @@ def test_llm_extractor_adapter_and_save_output(tmp_path):
             instruction="Ekstrak data",
             metadata=METADATA,
             settings=LLMSettings(model="test-model", api_key_env="TEST_KEY"),
-            save_output=True,
-            output_dir=out_dir,
+            output_path=out_dir,
         )
         records = list(extractor.extract())
 
@@ -285,7 +337,7 @@ def test_llm_extractor_raises_when_no_records(tmp_path):
             list(extractor.extract())
 
 
-def test_cli_save_output(tmp_path, monkeypatch):
+def test_cli_writes_output(tmp_path, monkeypatch):
     pdf = make_pdf(tmp_path)
     out_dir = tmp_path / "out-cli"
     payload = json.dumps({"records": RECORDS})
@@ -303,8 +355,7 @@ def test_cli_save_output(tmp_path, monkeypatch):
                 json.dumps(METADATA),
                 "--model",
                 "test-model",
-                "--save-output",
-                "--output-dir",
+                "--output",
                 str(out_dir),
             ]
         )
@@ -313,6 +364,115 @@ def test_cli_save_output(tmp_path, monkeypatch):
     files = list(out_dir.glob("*.json"))
     assert len(files) == 1
     assert json.loads(files[0].read_text(encoding="utf-8"))["status"] == "success"
+
+
+def test_cli_env_profile_loads_llm_settings(tmp_path, monkeypatch):
+    pdf = make_pdf(tmp_path)
+    (tmp_path / ".env.unittest").write_text(
+        "LLM_API_KEY=from-profile\nLLM_MODEL=profile-model\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    seen: dict[str, str] = {}
+
+    def fake_complete(self, system, user, images=None):
+        seen["model"] = self.settings.model
+        seen["key"] = self.settings.api_key()
+        return Completion(text=json.dumps({"records": RECORDS}))
+
+    from ingestion import config
+
+    monkeypatch.setattr(config, "_profile", None)
+    monkeypatch.setattr(config, "_loaded", False)
+    with patch("ingestion.core.extractors.llm.extractor.LLMClient.complete", fake_complete):
+        code = main(
+            [str(pdf), "--instruction", "Ekstrak data", "--env", "unittest", "-o", str(tmp_path / "o")]
+        )
+
+    assert code == 0
+    assert seen == {"model": "profile-model", "key": "from-profile"}
+
+
+def test_cli_env_profile_missing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from ingestion import config
+
+    monkeypatch.setattr(config, "_profile", None)
+    assert main(["x.pdf", "--instruction", "x", "--env", "does-not-exist"]) != 0
+
+
+class _FakeAnthropicMessages:
+    def __init__(self, text: str):
+        self.text = text
+        self.calls: list[dict] = []
+
+    def create(self, **kwargs):
+        from types import SimpleNamespace
+
+        self.calls.append(kwargs)
+        return SimpleNamespace(
+            content=[
+                SimpleNamespace(type="thinking", thinking="..."),
+                SimpleNamespace(type="text", text=self.text),
+            ],
+            usage={"input_tokens": 10, "output_tokens": 5},
+        )
+
+
+def test_llm_client_anthropic_provider_uses_messages_api(monkeypatch):
+    from types import SimpleNamespace
+
+    from ingestion.core.extractors.llm import LLMClient, LLMSettings
+
+    messages = _FakeAnthropicMessages(json.dumps({"records": RECORDS}))
+    monkeypatch.setenv("LLM_API_KEY", "test-key")
+    settings = LLMSettings(provider="anthropic", model="claude-test", base_url="https://gw.example")
+    client = LLMClient(settings)
+    with patch.object(LLMClient, "_anthropic_client", return_value=SimpleNamespace(messages=messages)):
+        completion = client.complete("sys", "user prompt", images=[b"png-bytes"])
+
+    assert json.loads(completion.text)["records"] == RECORDS
+    assert completion.usage == {"input_tokens": 10, "output_tokens": 5}
+    call = messages.calls[0]
+    assert call["model"] == "claude-test"
+    assert call["system"] == "sys"
+    assert call["max_tokens"] == settings.max_tokens
+    assert "temperature" not in call
+    content = call["messages"][0]["content"]
+    assert content[0]["type"] == "image"
+    assert content[0]["source"]["media_type"] == "image/png"
+    assert content[-1] == {"type": "text", "text": "user prompt"}
+
+
+def test_llm_client_anthropic_kwargs_and_unknown_provider(monkeypatch):
+    from ingestion.core.extractors.llm import LLMClient, LLMSettings, LLMUnavailable
+
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "anthropic-key")
+    kwargs = LLMClient(LLMSettings(provider="anthropic", model="m", base_url="https://gw"))._client_kwargs()
+    assert kwargs["api_key"] == "anthropic-key"
+    assert kwargs["base_url"] == "https://gw"
+
+    with pytest.raises(LLMUnavailable, match="Unknown LLM provider"):
+        LLMClient(LLMSettings(provider="gemini", model="m"))._client_kwargs()
+
+
+def test_cli_provider_flag_and_env(tmp_path, monkeypatch):
+    pdf = make_pdf(tmp_path)
+    seen: list[str] = []
+
+    def fake_complete(self, system, user, images=None):
+        seen.append(self.settings.provider)
+        return Completion(text=json.dumps({"records": RECORDS}))
+
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    with patch("ingestion.core.extractors.llm.extractor.LLMClient.complete", fake_complete):
+        base = [str(pdf), "--instruction", "Ekstrak data", "-o", str(tmp_path / "o")]
+        assert main(base) == 0
+        assert main(base + ["--provider", "openai"]) == 0
+
+    assert seen == ["anthropic", "openai"]
 
 
 def make_multipage_pdf(tmp_path: Path) -> Path:

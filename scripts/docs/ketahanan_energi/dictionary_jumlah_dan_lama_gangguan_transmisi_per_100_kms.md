@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `Table 17 : Jumlah dan Lama Gangguan Transmisi per 100 kms`
 - Publisher: pln
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
 - Data Dictionary file: [PLN - Jumlah gangguan per wilayah](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Keandalan%20Penyediaan%20Tenaga%20Listrik.xlsx?d=we036a48c5f804babbfc372b88ffc10e5&csf=1&web=1&e=Nl91UU&nav=MTVfezg5QUMyMTlCLTRCNzMtNEVFNS1COTIyLUI0MUExOTg1QzQ2OH0)

@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `ESDM - PETA SEBARAN RASIO ELEKTRIFIKASI (RE) TRIWULAN I 2026`
 - Publisher: esdm
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Triwulan
 - Eligible: `True`
 - Data Dictionary file: [ESDM - Rasio Elektrifikasi Nasional](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Keandalan%20Penyediaan%20Tenaga%20Listrik.xlsx?d=we036a48c5f804babbfc372b88ffc10e5&csf=1&web=1&e=72JsWU&nav=MTVfezUzODgyRjYzLTQzQjAtNDVENy05NTlCLUJFODg1ODFEM0Y3Mn0)

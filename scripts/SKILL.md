@@ -338,8 +338,13 @@ Verifikasi: python -m ingestion run --usecase ketenagakerjaan --source data_mogo
   (`core/extractors/llm_extractor.py`, engine `core/extractors/llm/`). Metadata
   is optional; with metadata the model contract is enforced by `validator.py`
   (types/enums/required/null). `page`/`pages` limits PDF pages; unsupported
-  values become `NULL`, not guesses. `--save-output` writes a reviewable JSON
-  under `scripts/out/` (or `--output`/`--output-dir`).
+  values become `NULL`, not guesses. The CLI always writes a reviewable JSON:
+  `-o/--output` defaults to `scripts/out/` and also accepts a file or
+  `s3://bucket/prefix/` (written via DuckDB `COPY`, MinIO from `MINIO_URI`).
+  `--env dev` loads `LLM_API_KEY`/`LLM_MODEL`/`LLM_BASE_URL` from `.env.dev`.
+  `--provider openai|anthropic` (or `LLM_PROVIDER`) picks the client:
+  OpenAI-compatible chat API (default) or the official Anthropic SDK
+  (`messages.create`; no temperature/json_mode, `LLM_MAX_TOKENS`/`--max-tokens`).
 
 ## `docs` command behavior
 

@@ -1,14 +1,15 @@
-"""Write LLM extraction results to JSON, NDJSON or CSV."""
+"""Write LLM extraction results to JSON, NDJSON or CSV (local or S3/MinIO)."""
 
 from __future__ import annotations
 
 import csv
 import io
 import json
+import tempfile
 from pathlib import Path
 from typing import Any
 
-__all__ = ["render_records", "write_records", "write_result"]
+__all__ = ["render_records", "write_records", "write_result", "write_result_s3"]
 
 
 def _rows(records: list[dict[str, Any]]) -> tuple[list[str], list[dict[str, Any]]]:
@@ -52,8 +53,63 @@ def write_records(
     return target
 
 
-def write_result(result: Any, path: str | Path, fmt: str = "json") -> Path:
-    """Write the complete result (JSON) or only its records (NDJSON/CSV)."""
+_RESULT_COLUMNS = (
+    "{'status': 'VARCHAR', 'records': 'JSON', 'warnings': 'JSON', "
+    "'errors': 'JSON', 'metadata': 'JSON'}"
+)
+
+
+def write_result_s3(
+    result: Any,
+    uri: str,
+    fmt: str = "json",
+    config: dict[str, Any] | None = None,
+) -> str:
+    """Write the result to ``s3://bucket/key`` with DuckDB (MinIO settings from env).
+
+    The payload is staged in a temp file, then ``COPY ... TO`` the S3 URI; JSON
+    columns are emitted as raw JSON so the object matches the local output.
+    """
+    from ..duckdb import S3, Location, open_duckdb
+    from ..duckdb.sql import literal
+
+    fmt = (fmt or "json").lower()
+    if fmt not in ("json", "ndjson", "csv"):
+        raise ValueError(f"Unsupported output format: {fmt}")
+    if fmt != "json" and not result.records:
+        raise ValueError("no records to write")
+
+    with tempfile.TemporaryDirectory(prefix="ingestion_llm_out_") as tmp:
+        staged = Path(tmp) / "payload.json"
+        if fmt == "json":
+            write_result(result, staged, "json")
+            source = f"read_json({literal(staged.as_posix())}, columns={_RESULT_COLUMNS})"
+            options = "FORMAT JSON"
+        else:
+            write_records(result.records, staged, "ndjson")
+            source = f"read_json({literal(staged.as_posix())}, format='newline_delimited')"
+            options = "FORMAT CSV, HEADER true" if fmt == "csv" else "FORMAT JSON"
+
+        con = open_duckdb(config, Location(S3, uri))
+        try:
+            con.execute(f"COPY (SELECT * FROM {source}) TO {literal(uri)} ({options})")
+        finally:
+            con.close()
+    return uri
+
+
+def write_result(
+    result: Any,
+    path: str | Path,
+    fmt: str = "json",
+    config: dict[str, Any] | None = None,
+) -> Path | str:
+    """Write the complete result (JSON) or only its records (NDJSON/CSV).
+
+    ``path`` may be a local path or an ``s3://`` URI (written via DuckDB).
+    """
+    if str(path).lower().startswith("s3://"):
+        return write_result_s3(result, str(path), fmt, config)
     fmt = (fmt or "json").lower()
     if fmt == "json":
         target = Path(path)

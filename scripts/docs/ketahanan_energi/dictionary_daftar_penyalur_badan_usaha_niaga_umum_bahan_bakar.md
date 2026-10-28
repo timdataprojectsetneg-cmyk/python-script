@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `DAFTAR PENYALUR BADAN USAHA NIAGA UMUM BAHAN BAKAR MINYAK MELALUI STASIUN PENGISIAN BBM (KBLI 47301)`
 - Publisher: esdm
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Per Semester
 - Eligible: `True`
 - Data Dictionary file: [Ditjen Migas_Penyalur BBM Umum](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Pasokan,%20Stok,%20dan%20Distribusi%20Bahan%20Bakar%20dan%20Gas.xlsx?d=we099b80b8f6b4de780d6d9a7bd86fa8b&csf=1&web=1&e=K4BVh9&nav=MTVfezgxNzVERjhFLTk1MTctNDBGQy05MTZDLTZGRjgxQTBDNDUyNX0)

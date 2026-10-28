@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `Tabel 5.52 Daftar Kebutuhan Infrastruktur untuk mendukung Program Anti Blackout`
 - Publisher: pln
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
 - Data Dictionary file: [PLN -Daftar Kebutuhan Infrastruktur](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Keandalan%20Penyediaan%20Tenaga%20Listrik.xlsx?d=we036a48c5f804babbfc372b88ffc10e5&csf=1&web=1&e=xOgNdW&nav=MTVfe0U5QzVCMTg2LTNDOTMtNDY2Qi1COUQ5LTNFRTJCQjYyMjRCMX0)

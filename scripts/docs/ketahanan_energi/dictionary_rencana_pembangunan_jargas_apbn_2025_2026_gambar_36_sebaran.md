@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `Gambar 33- Rencana Pembangunan Jargas APBN 2025-2026 , Gambar 36 Sebaran Kilang Minyak Bumi `
 - Publisher: esdm
-- Data access: `pdf`
+- Data access: `Manual`
 - Update frequency: Yearly
 - Eligible: `True`
 - Data Dictionary file: [Ditjen Migas_Sebaran Kilang](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Pasokan,%20Stok,%20dan%20Distribusi%20Bahan%20Bakar%20dan%20Gas.xlsx?d=we099b80b8f6b4de780d6d9a7bd86fa8b&csf=1&web=1&e=maJZnX&nav=MTVfezg3QjcxQTY5LUI5NjktNEM1RS1BRThBLTYwODQ1MkFEOTBEM30)
