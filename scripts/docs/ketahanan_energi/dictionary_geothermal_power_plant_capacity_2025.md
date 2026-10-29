@@ -16,10 +16,13 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| kategori | `kategori` | Categorical | - | Tidak terisi pada sumber (selalu `null`) |
+| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | Nama PLTP (mis. PLTP Sibayak, PLTP Salak), atau `Total` untuk jumlah keseluruhan |
+| nilai | `nilai` | Numeric (Decimal) | MW | Kapasitas terpasang PLTP |
+| satuan | `satuan` | Categorical | - | MW |
+| provinsi | `provinsi` | Categorical | - | Provinsi lokasi PLTP (`null` untuk baris Total) |
+| kode_provinsi | `kode_provinsi` | Integer | - | Kode provinsi (`null` untuk baris Total) |
+| ipb_owner | `ipb_owner` | Categorical | - | Pemilik IPB (Izin Panas Bumi) atau pengembang PLTP (`null` untuk baris Total) |
 
 ## Generated Pydantic model
 
@@ -29,10 +32,13 @@ from pydantic import BaseModel, Field
 
 class GeothermalPowerPlantCapacity2025Record(BaseModel):
     tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    kategori: str | None = Field(default=None, alias="kategori", description="Tidak terisi pada sumber (selalu null)")
+    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="Nama PLTP, atau Total untuk jumlah keseluruhan")
+    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas terpasang PLTP")
+    satuan: str | None = Field(default=None, alias="satuan", description="MW")
+    provinsi: str | None = Field(default=None, alias="provinsi", description="Provinsi lokasi PLTP")
+    kode_provinsi: int | None = Field(default=None, alias="kode_provinsi", description="Kode provinsi")
+    ipb_owner: str | None = Field(default=None, alias="ipb_owner", description="Pemilik IPB atau pengembang PLTP")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

@@ -16,10 +16,9 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| kategori | `kategori` | Categorical | - | Jenis energi yang dikonsumsi sektor komersial, mis. Traditional Biomass, Solar Water Heater, Total |
+| nilai | `nilai` | Numeric (Decimal) | Thousand BOE | Konsumsi energi per kategori dan tahun |
+| satuan | `satuan` | Categorical | - | Thousand BOE |
 
 ## Generated Pydantic model
 
@@ -29,10 +28,9 @@ from pydantic import BaseModel, Field
 
 class EnergyConsumptionInCommercialSectorInEnergyUnitRecord(BaseModel):
     tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    kategori: str | None = Field(default=None, alias="kategori", description="Jenis energi yang dikonsumsi sektor komersial, mis. Traditional Biomass, Solar Water Heater, Total")
+    nilai: str | None = Field(default=None, alias="nilai", description="Konsumsi energi per kategori dan tahun")
+    satuan: str | None = Field(default=None, alias="satuan", description="Thousand BOE")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

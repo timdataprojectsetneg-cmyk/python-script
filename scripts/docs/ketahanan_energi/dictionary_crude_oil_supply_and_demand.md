@@ -16,10 +16,9 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| kategori | `kategori` | Categorical | - | Komponen neraca minyak bumi, mis. Production |
+| nilai | `nilai` | Numeric (Decimal) | Thousand bbl | Volume minyak bumi per kategori dan tahun |
+| satuan | `satuan` | Categorical | - | Thousand bbl |
 
 ## Generated Pydantic model
 
@@ -29,10 +28,9 @@ from pydantic import BaseModel, Field
 
 class CrudeOilSupplyAndDemandRecord(BaseModel):
     tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    kategori: str | None = Field(default=None, alias="kategori", description="Komponen neraca minyak bumi, mis. Production")
+    nilai: str | None = Field(default=None, alias="nilai", description="Volume minyak bumi per kategori dan tahun")
+    satuan: str | None = Field(default=None, alias="satuan", description="Thousand bbl")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

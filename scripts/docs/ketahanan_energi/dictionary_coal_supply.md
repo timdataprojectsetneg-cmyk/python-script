@@ -16,10 +16,9 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| kategori | `kategori` | Categorical | - | Komponen neraca batu bara: Production, Import, atau Export |
+| nilai | `nilai` | Numeric (Decimal) | Ton | Volume batu bara per kategori dan tahun |
+| satuan | `satuan` | Categorical | - | Ton |
 
 ## Generated Pydantic model
 
@@ -29,10 +28,9 @@ from pydantic import BaseModel, Field
 
 class CoalSupplyRecord(BaseModel):
     tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    kategori: str | None = Field(default=None, alias="kategori", description="Komponen neraca batu bara: Production, Import, atau Export")
+    nilai: str | None = Field(default=None, alias="nilai", description="Volume batu bara per kategori dan tahun")
+    satuan: str | None = Field(default=None, alias="satuan", description="Ton")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```
