@@ -274,6 +274,13 @@ def execute_run(
             targets_label,
         )
 
+    if mode == "dev" and "postgres" in effective_targets:
+        from .core.loaders.postgres_loader import read_watermark
+
+        config["watermark"] = read_watermark(config)
+        if config["watermark"]:
+            logger.info("Incremental: %s >= %s", config["timestamp_key"], config["watermark"])
+
     normalizer = resolve_normalizer(config["usecase"], config["publisher"], config["source"], config)
     records = normalizer.normalize(
         _extract(config["usecase"], config["publisher"], config["source"], config)
@@ -956,7 +963,7 @@ def _generate_docs(
     logger.info("Wrote %s (%s sources)", usecase_path, len(sources))
 
     env_path = docs_dir / "usecase.env"
-    preserved = _preserve_env_values(env_path, ("METHOD", "UNIQUE_KEY"))
+    preserved = _preserve_env_values(env_path, ("METHOD", "UNIQUE_KEY", "TIMESTAMP_KEY"))
     env_path.write_text(
         "\n".join(env_lines(usecase, sources, preserved=preserved, max_words=max_words)) + "\n",
         encoding="utf-8",

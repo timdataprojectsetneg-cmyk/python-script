@@ -159,6 +159,51 @@ def _load_method(config: Dict[str, Any]) -> str:
     return method
 
 
+def read_watermark(config: Dict[str, Any]) -> str | None:
+    """Return ``max(TIMESTAMP_KEY)`` of the target table for incremental upsert.
+
+    ``None`` means "no filter": not an upsert, no ``TIMESTAMP_KEY``, a full refresh,
+    or a target table that does not exist yet or has no rows.
+    """
+    column = str(config.get("timestamp_key") or "").strip()
+    if not column or _load_method(config) != "upsert" or config.get("full_refresh"):
+        return None
+
+    import psycopg2
+    from psycopg2 import sql
+
+    default_schema = get_raw("DEV__POSTGRES_DATASET", "ingestion_dev")
+    schema, table = _split_schema_table(
+        config.get("postgre_table") or config.get("table"),
+        config.get("postgre_schema") or default_schema,
+    )
+    table = table or config.get("source")
+    creds = _postgres_credentials()
+    conn = psycopg2.connect(
+        host=creds["host"],
+        port=creds["port"],
+        dbname=creds["database"],
+        user=creds["username"],
+        password=creds["password"],
+    )
+    try:
+        with conn, conn.cursor() as cur:
+            cur.execute("SELECT to_regclass(%s)", (f"{schema}.{table}",))
+            if cur.fetchone()[0] is None:
+                return None
+            cur.execute(
+                sql.SQL("SELECT max({}) FROM {}.{}").format(
+                    sql.Identifier(column), sql.Identifier(schema), sql.Identifier(table)
+                )
+            )
+            value = cur.fetchone()[0]
+    finally:
+        conn.close()
+    if value is None:
+        return None
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
 _METADATA_TYPES = {
     "_source": "TEXT",
     "_source_url": "TEXT",
@@ -426,6 +471,22 @@ def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list
     )
 
 
+def _ensure_timestamp_index(cur: Any, sql: Any, schema: str, table: str, column: str) -> None:
+    """Index ``TIMESTAMP_KEY`` so the incremental ``max(...)`` watermark stays cheap."""
+    if not column:
+        return
+    index_name = "ix_" + "_".join([table, column])[:60]
+    _run_ddl(
+        cur,
+        sql.SQL("CREATE INDEX IF NOT EXISTS {} ON {}.{} ({})").format(
+            sql.Identifier(index_name),
+            sql.Identifier(schema),
+            sql.Identifier(table),
+            sql.Identifier(column),
+        ),
+    )
+
+
 def _ensure_metadata_columns(cur: Any, sql: Any, schema: str, table: str) -> None:
     """Add lineage columns to a table created by an older loader version."""
     for column in _METADATA_COLUMNS:
@@ -453,13 +514,14 @@ def _prepare_table(
     comments: Dict[str, str],
     table_comment: str,
     full_refresh: bool = False,
+    timestamp_key: str = "",
 ) -> Any:
     """Create/refresh the target table and its comments for the current load.
 
     ``replace`` drops the table first so column types and comments are rebuilt
     from the current model/extractor result; ``upsert`` keeps the existing table
     but refreshes comments and ensures the unique index — unless ``full_refresh``
-    forces the drop anyway.
+    forces the drop anyway. ``TIMESTAMP_KEY`` is indexed whenever it is set.
     """
     qualified = sql.SQL("{}.{}").format(sql.Identifier(schema), sql.Identifier(table))
     if method == "replace" or full_refresh:
@@ -469,6 +531,7 @@ def _prepare_table(
     _apply_comments(cur, sql, schema, table, columns, comments, table_comment)
     if method == "upsert":
         _ensure_unique_index(cur, sql, schema, table, keys)
+    _ensure_timestamp_index(cur, sql, schema, table, timestamp_key)
     return qualified
 
 
@@ -533,6 +596,7 @@ class PostgresLoader(BaseLoader):
                     comments,
                     table_comment,
                     full_refresh,
+                    str(self.config.get("timestamp_key") or "").strip(),
                 )
                 column_sql = sql.SQL(", ").join(sql.Identifier(column) for column in columns)
                 values = [

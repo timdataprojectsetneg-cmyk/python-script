@@ -2,10 +2,11 @@
 
 NiFi-orchestrated, Python-powered ingestion for Setneg use cases. Python handles
 extraction and normalization; NiFi handles scheduling, routing, retry and load to
-PostgreSQL / Elasticsearch. Python can also load directly when a connection URI
-is supplied (`PG_URI` / `ELASTICSEARCH_URL` / `MINIO_URI`, or `--pg-uri` /
-`--elasticsearch-url` / `--minio-uri`) — then NiFi may instead just trigger the
-command. See `PRD_NiFi_Python_Ingestion.md` (repository root).
+PostgreSQL / Elasticsearch. Python can also load directly in dev mode (`--env dev` or
+`--mode dev`) using the connection URIs (`PG_URI` / `ELASTICSEARCH_URL` / `MINIO_URI`,
+or `--pg-uri` / `--elasticsearch-url` / `--minio-uri`), in which case NiFi may instead
+just trigger the command. In prod, `PG_URI` only supplies the watermark for incremental
+extraction. See `PRD_NiFi_Python_Ingestion.md` (repository root).
 
 > Existing scripts in this directory (`jdih_*.py`, `rpjmn_*.py`, `sample.py`) are
 > untouched. The framework lives in the `ingestion/` package and is invoked via
@@ -274,12 +275,15 @@ python -m ingestion.cli run --usecase ketenagakerjaan --publisher kemnaker --mod
 # Run all selected sources concurrently (threads recommended: I/O-bound)
 python -m ingestion.cli run --usecase ketenagakerjaan --publisher kemnaker --thread 4
 
-# DEV: load directly. Loading is enabled by --env dev and/or a connection URI;
-# each URI adds a sink. There is no --target.
+# DEV: load directly (--env dev or --mode dev); each URI adds a sink. There is no --target.
 python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --env dev
-python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan \
+python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --mode dev \
   --pg-uri "postgresql://user:pass@postgres:5432/mydb" \
   --minio-uri "minio://access:secret@host:9000/raw?secure=true"
+
+# PROD with PG_URI: NDJSON to stdout; the watermark is read from the target table
+python -m ingestion.cli run --usecase ketenagakerjaan --source kasus_perselisihan --mode prod \
+  --pg-uri "postgresql://user:pass@postgres:5432/mydb"
 
 # Pass a secret/extra source key from the orchestrator (survives arg quoting)
 python -m ingestion.cli run --usecase ketenagakerjaan --source bps_inflasi_mom \
@@ -292,8 +296,11 @@ python run_ingestion.py run --usecase ... --source ... --mode prod
 ### Connection URIs (load targets)
 
 Set `PG_URI`, `ELASTICSEARCH_URL`, `MINIO_URI` (env, case-insensitive) or pass
-`--pg-uri` / `--elasticsearch-url` / `--minio-uri`. When any is set the run also
-loads — no `--env dev` required — to **every** sink whose URI is present.
+`--pg-uri` / `--elasticsearch-url` / `--minio-uri`. A URI selects its sink but does not
+switch the run to loading. Loading happens in dev mode (`--env dev` or `--mode dev`) and
+goes to **every** sink whose URI is present. In prod (default `--mode prod`) the run
+emits NDJSON; `PG_URI` there is used only to read the watermark for incremental
+extraction (see below).
 
 ```
 PG_URI=postgresql://user:password@host:5432/db
@@ -329,6 +336,29 @@ KETENAGAKERJAAN__KEMNAKER__SATU_DATA_KEMNAKER__UNIQUE_KEY=id
 
 For API sources the HTTP verb is `...__HTTP_METHOD` (legacy configs using
 `METHOD=GET`/`POST` still work).
+
+### Incremental load (`TIMESTAMP_KEY`)
+
+Optional `{USECASE}__{PUBLISHER}__{SOURCE}__TIMESTAMP_KEY` (default empty; `docs`
+preserves it, like `UNIQUE_KEY`).
+
+- Before extraction, the dev loader reads `max(TIMESTAMP_KEY)` from the target table and
+  passes it to the extractor as `watermark`. Extractors that support it fetch rows `>=`
+  that value, and the upsert merges them by `UNIQUE_KEY`. Currently only the shared CEIC
+  extractor (`ceicdata/_ceic.py`) does.
+- No `TIMESTAMP_KEY`, `METHOD=replace`, `--full-refresh`, or a missing or empty target
+  table means no filter: the full source is fetched.
+- The watermark is read in dev mode, or in prod when `PG_URI` is set.
+- When `UNIQUE_KEY` and `TIMESTAMP_KEY` are set, their columns are indexed on the target
+  table (`CREATE INDEX IF NOT EXISTS`). The unique index is created for `upsert`.
+- Date-only timestamps (CEIC `last_update_time` is `YYYY-MM-DD`) re-fetch the boundary
+  day on every run; the unique key absorbs the duplicates.
+
+```bash
+KETENAGAKERJAAN__CEICDATA__TABEL_ID_GBA_PENGANGGURAN_MENURUT_USIA__METHOD=upsert
+KETENAGAKERJAAN__CEICDATA__TABEL_ID_GBA_PENGANGGURAN_MENURUT_USIA__UNIQUE_KEY=series_id,date
+KETENAGAKERJAAN__CEICDATA__TABEL_ID_GBA_PENGANGGURAN_MENURUT_USIA__TIMESTAMP_KEY=last_update_time
+```
 
 ### PostgreSQL metadata columns
 

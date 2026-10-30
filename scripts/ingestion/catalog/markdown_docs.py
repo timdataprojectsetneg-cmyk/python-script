@@ -141,6 +141,7 @@ def env_lines(
                 lines.append(f"{prefix}__{key}={value}")
         lines.append(f"{prefix}__METHOD={preserved.get(f'{prefix}__METHOD') or 'replace'}")
         lines.append(f"{prefix}__UNIQUE_KEY={preserved.get(f'{prefix}__UNIQUE_KEY', '')}")
+        lines.append(f"{prefix}__TIMESTAMP_KEY={preserved.get(f'{prefix}__TIMESTAMP_KEY', '')}")
     return lines
 
 

@@ -49,11 +49,12 @@ extractor.py  ──▶  normalizer.py  (Pydantic models.py)  ──▶  loader
    normalization is **skipped** (records pass through: extractor → load) and a
    WARNING is logged.
 3. **Load** — PROD (default) emits NDJSON to stdout for NiFi
-   (`PutDatabaseRecord`). Loading **also** runs when a connection URI is present
-   (`PG_URI`/`ELASTICSEARCH_URL`/`MINIO_URI` or `--pg-uri`/`--elasticsearch-url`/
-   `--minio-uri`) — each URI = one sink — written via
+   (`PutDatabaseRecord`). Loading runs only in dev mode (`--env dev` or `--mode dev`);
+   each connection URI (`PG_URI`/`ELASTICSEARCH_URL`/`MINIO_URI` or `--pg-uri`/
+   `--elasticsearch-url`/`--minio-uri`) is one sink, written via
    `PostgresLoader`/`ElasticLoader`/`MinioLoader` (`--use-dlt` switches postgres
-   to dlt). PROD Python holds no DB credentials.
+   to dlt). In PROD, `PG_URI` only lets Python read the incremental watermark
+   (`TIMESTAMP_KEY`); PROD never writes to the DB.
 
 ## Folder convention
 
@@ -126,7 +127,7 @@ Common keys: `URL`, `TABLE`, `SCHEMA`, `POSTGRE_SCHEMA`, `POSTGRE_TABLE`,
 `API_KEY`, `TOKEN`, `PAGINATION_TYPE`,
 `PAGINATION_PARAM`, `DATA_PATH`, `ITEM_SELECTOR`, `FIELDS`, `DOWNLOAD_SELECTOR`,
 `DOWNLOAD_URL`, `SOURCE_FILE`, `SHEET`, `HEADER_ROW`, `METHOD`,
-`UNIQUE_KEY`, `HTTP_METHOD`, `IMPERSONATE`.
+`UNIQUE_KEY`, `TIMESTAMP_KEY`, `HTTP_METHOD`, `IMPERSONATE`.
 
 `PUBLISHER_NAME`, `LAST_UPDATE`, and `SOURCE_LINK` are **not** emitted; the
 PostgreSQL loader reads Publisher, Last Update, and Source Link/Resource URL from
@@ -138,6 +139,13 @@ more columns, default empty). `replace` **drops the table before recreating it**
 so column types and comments always track the current dictionary/extractor result
 (a plain truncate would leave stale metadata). For API sources the HTTP verb is
 `HTTP_METHOD` (legacy: `METHOD` is still honored when it is a verb like `GET`/`POST`).
+
+Incremental: optional `TIMESTAMP_KEY` (default empty, preserved by `docs`). For `upsert`
+the dev loader reads `max(TIMESTAMP_KEY)` from the target table and passes it to the
+extractor as `watermark`; the CEIC shared extractor (`ceicdata/_ceic.py`) fetches `>=`
+it. No `TIMESTAMP_KEY`, `replace`, `--full-refresh`, or a missing/empty table means full
+fetch. CEIC sources use `METHOD=upsert`, `UNIQUE_KEY=series_id,date`,
+`TIMESTAMP_KEY=last_update_time`. `UNIQUE_KEY` and `TIMESTAMP_KEY` columns get indexes.
 
 `PostgresLoader`/`DltPostgresLoader` also add lineage columns:
 `_source` (Publisher from `usecase.md`), `_source_url` (Source Link → Resource
@@ -155,9 +163,9 @@ Source Link (falling back to Resource URL) from `usecase.md`, e.g.
 Global (non-namespaced) secrets live directly in `.env.dev` and are read with
 `config.get_raw("KEY")`, e.g. `BPS_WEBAPI_KEY` for the BPS WebAPI extractors.
 
-Global **connection URIs** (names matched case-insensitively). When any is set,
-`python -m ingestion run` also runs the loader step — **no `--env dev` needed** —
-and loads to every sink whose URI is present:
+Global **connection URIs** (names matched case-insensitively). They select sinks for
+dev-mode runs (`--env dev` or `--mode dev`). In PROD they do not trigger loading, but
+`PG_URI` lets Python read the incremental watermark:
 
 ```
 PG_URI=postgresql://user:password@host:5432/db
@@ -185,9 +193,10 @@ python -m ingestion run --usecase ketenagakerjaan --publisher bps --exclude bps_
 python -m ingestion run --usecase ketenagakerjaan --publisher kemnaker --thread 4
 # Drop + create tabel PostgreSQL sebelum load (juga saat METHOD=upsert)
 python -m ingestion run --usecase ketenagakerjaan --source kasus_perselisihan --env dev --full-refresh
-# PROD NDJSON vs direct load (URI present enables loading; each URI = one sink)
-python -m ingestion run --usecase ... --source ... --mode dev --env dev
-python -m ingestion run --usecase ... --source ... --pg-uri "$PG_URI" --minio-uri "$MINIO_URI"
+# PROD (default): NDJSON; PG_URI enables the incremental watermark read
+python -m ingestion run --usecase ... --source ... --mode prod --pg-uri "$PG_URI"
+# DEV: direct load; each URI = one sink
+python -m ingestion run --usecase ... --source ... --mode dev --pg-uri "$PG_URI" --minio-uri "$MINIO_URI"
 # Pass a secret/extra source key (JSON) from the orchestrator
 python -m ingestion run --usecase ... --source ... --env dev --extra-vars '{"BPS_WEBAPI_KEY":"..."}'
 
@@ -206,10 +215,9 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
 ```
 
 - The source's single `extractor.py` owns the whole retrieval pipeline.
-- Loading happens when a connection URI is present
-  (`--pg-uri`/`--elasticsearch-url`/`--minio-uri` or the `PG_URI`/
-  `ELASTICSEARCH_URL`/`MINIO_URI` env) or with `--env dev`; each URI = one sink.
-  `--use-dlt` uses dlt instead of the direct writer.
+- Loading happens in dev mode only (`--env dev` or `--mode dev`); each connection URI
+  (`--pg-uri`/`--elasticsearch-url`/`--minio-uri` or `PG_URI`/`ELASTICSEARCH_URL`/
+  `MINIO_URI`) is one sink. `--use-dlt` uses dlt instead of the direct writer.
 - **Concurrency (multiple sources)**: when more than one source is selected (e.g.
   `--usecase X --publisher Y`), `--thread N` runs them with a thread pool — the
   pipeline is I/O-bound, so threads is the right choice. Output is captured per
@@ -431,11 +439,12 @@ a sink, and the same normalized records go to every sink.
 
 - **MinIO → Postgres** (file already in MinIO): set
   `{...}__URL=minio://<bucket>/<key>.xlsx` (connection from `MINIO_URI` or
-  `MINIO__*`), then pass `--pg-uri`/`PG_URI` to insert. `ExcelExtractor` reads the
+  `MINIO__*`), then run with `--mode dev` and `--pg-uri`/`PG_URI` to insert.
+  `ExcelExtractor` reads the
   object bytes directly instead of HTTP.
 - **Scrape → download → MinIO + Postgres**: set `{...}__SAVE_RAW=true` so the
   downloaded raw file lands in MinIO (`<minio_prefix|source>/<filename>`), and
-  pass `--minio-uri` + `--pg-uri` to land the file and insert the records.
+  run with `--mode dev` and pass `--minio-uri` + `--pg-uri` to land the file and insert the records.
 - **Multiple sinks**: pass several URIs (`--pg-uri`, `--minio-uri`,
   `--elasticsearch-url`, or the matching env vars); each one is loaded.
 
@@ -450,19 +459,20 @@ referenced with `#{...}`):
 
 - Command Path: the venv python
 - Command Arguments:
-  `run_ingestion.py run --usecase #{usecase} --source #{source} --pg-uri #{pg.uri} --minio-uri #{minio.uri}`
+  `run_ingestion.py run --usecase #{usecase} --source #{source} --mode prod --pg-uri #{pg.uri}`
 - `Ignore STDIN=true` (the `run` command does not read stdin)
 
 Notes:
 
-- `--pg-uri` / `--elasticsearch-url` / `--minio-uri` **imply their target** (there
-  is no `--target`). When any is given the run **also loads** — no `--env dev`
-  required. To restrict to a subset, pass only the URIs you want.
+- `--pg-uri` / `--elasticsearch-url` / `--minio-uri` **select their sink** (there is no
+  `--target`). They load only in `--mode dev`; in `--mode prod` (default) the run emits
+  NDJSON and `--pg-uri` only enables the watermark read. To restrict to a subset, pass
+  only the URIs you want.
 - Same URIs also work as env vars `PG_URI`, `ELASTICSEARCH_URL`, `MINIO_URI`
   (case-insensitive). Set them on the NiFi service to keep secrets out of argv.
 - Keep secrets out of the repo: use sensitive Parameters (`#{pg.uri}`), pass via
   service env, or an inline `env` wrapper.
-- When NiFi owns the load instead, drop the URIs and consume stdout NDJSON →
+- NiFi owns the load: keep `--mode prod` (optionally keep `--pg-uri` for the watermark) and consume stdout NDJSON →
   `ConvertRecord`/`JsonTreeReader` → `PutDatabaseRecord` + `DBCPConnectionPool`.
 - Route on `exit.code` (0 ok, 1/4 retry, 2/3 alert). See `scripts/nifi/README.md`.
 
@@ -470,5 +480,5 @@ Concrete `ExecuteStreamCommand` Command Arguments:
 
 ```
 run_ingestion.py run --usecase #{usecase} --source #{source} \
-  --pg-uri #{pg.uri} --minio-uri #{minio.uri}
+  --mode prod --pg-uri #{pg.uri}
 ```
