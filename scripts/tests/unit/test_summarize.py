@@ -94,7 +94,7 @@ def test_year_range_is_not_a_title_separator():
         "RUPTL 2021 – 2030 Indonesia"
     )
     assert derive_module_name(name) == (
-        "perubahan_ruptl_2025_2034_skenario_ared_terhadap_ruptl_2021"
+        "skenario_ared_terhadap_ruptl_2021_2030_indonesia"
     )
 
 

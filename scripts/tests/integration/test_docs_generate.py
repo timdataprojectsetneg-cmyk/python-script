@@ -283,3 +283,16 @@ def test_generate_docs_spreadsheet_multiple_tables_in_one_sheet(monkeypatch, tmp
     assert "Tingkat_Proses" in content
 
 
+
+
+def test_generate_docs_removes_stale_dictionary_after_slug_change(monkeypatch, tmp_path):
+    _install_stub(monkeypatch)
+    docs_dir = tmp_path / "docs" / "ketenagakerjaan"
+    docs_dir.mkdir(parents=True)
+    stale = docs_dir / "dictionary_kasus_perselisihan_lama.md"
+    stale.write_text("- Source: Kasus Perselisihan\n", encoding="utf-8")
+
+    _generate_docs("ketenagakerjaan", None, str(tmp_path / "docs"), None)
+
+    assert not stale.exists()
+    assert (docs_dir / "dictionary_kasus_perselisihan.md").is_file()

@@ -963,14 +963,15 @@ def _generate_docs(
     )
     logger.info("Wrote %s (env vars for eligible sources)", env_path)
 
-    # Dictionary markdown is generated per source; remove stale ineligible
-    # dictionaries so the use case folder reflects the current catalog.
+    # Dictionary markdown is generated per source; remove stale files whose slug
+    # changed (e.g. a different --max-words) or that are no longer eligible, so
+    # the folder always matches the current catalog.
     eligible_slugs = {source_slug(source, max_words=max_words) for source in eligible}
     for stale in docs_dir.glob("dictionary_*.md"):
         slug = stale.stem.removeprefix("dictionary_")
         if slug not in eligible_slugs:
             stale.unlink()
-            logger.info("Removed ineligible documentation: %s", stale)
+            logger.info("Removed stale documentation: %s", stale)
 
     if source_name:
         wanted = normalize_name(source_name)

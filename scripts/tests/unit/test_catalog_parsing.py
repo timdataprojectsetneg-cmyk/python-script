@@ -146,3 +146,10 @@ def test_truncated_name_logs_warning(caplog):
 
     assert len(slug) <= 63
     assert "truncated" in caplog.text
+
+
+def test_truncated_slug_drops_leading_words():
+    name = "Tabel ID.GBA: Survei Angkatan Kerja: Pengangguran: Menurut Tingkat Pendidikan"
+    slug = derive_module_name(name, max_words=9)
+    assert slug == "survei_angkatan_kerja_pengangguran_menurut_tingkat_pendidikan"
+    assert len(slug) <= 63

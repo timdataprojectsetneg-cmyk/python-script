@@ -379,8 +379,9 @@ def derive_module_name(source_name: str, max_words: int = DEFAULT_MAX_WORDS) -> 
 
     Parentheticals are dropped, leading section/table numbers are removed
     (``6.2.9 LPG Supply and Demand`` -> ``lpg_supply_and_demand``), and long
-    names are capped on a word boundary. Use the catalog ``Module Name`` column
-    to override with a preferred acronym. ``max_words`` bounds the summary.
+    names are capped on a word boundary by dropping leading words, keeping the
+    distinguishing tail. Use the catalog ``Module Name`` column to override
+    with a preferred acronym. ``max_words`` bounds the summary.
     """
     text = re.sub(r"\([^)]*\)", " ", str(source_name or "").strip())
     text = _strip_leading_numbering(text)
@@ -391,15 +392,14 @@ def derive_module_name(source_name: str, max_words: int = DEFAULT_MAX_WORDS) -> 
     name = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
     name = _SLUG_NUMBERING.sub("", name, count=1) or name
     if len(name) > MAX_SLUG_LENGTH:
-        parts: List[str] = []
-        total = 0
-        for word in name.split("_"):
-            extra = len(word) + (1 if parts else 0)
-            if total + extra > MAX_SLUG_LENGTH:
-                break
-            parts.append(word)
-            total += extra
-        name = "_".join(parts) or name[:MAX_SLUG_LENGTH].rstrip("_")
+        parts = name.split("_")
+        total = len(name)
+        while len(parts) > 1 and total > MAX_SLUG_LENGTH:
+            total -= len(parts.pop(0)) + 1
+        name = "_".join(parts)
+        if len(name) > MAX_SLUG_LENGTH:
+            name = name[-MAX_SLUG_LENGTH:].lstrip("_")
+        name = _SLUG_NUMBERING.sub("", name, count=1) or name
         if source_name not in _TRUNCATED_SLUGS:
             _TRUNCATED_SLUGS.add(source_name)
             logger.warning(
