@@ -15,27 +15,24 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| gambar | `gambar` | Categorical | - | Sumber gambar: Gambar 33 (Rencana Pembangunan Jargas APBN 2025-2026) atau Gambar 36 (Sebaran Kilang Minyak Bumi) |
+| periode | `periode` | String | - | Periode rencana: 2025-2026 (Gambar 33) atau 2025 (Gambar 36) |
+| nama_wilayah | `nama_wilayah` | String | - | Kab/Kota penerima jargas (Gambar 33) atau nama kilang (Gambar 36) |
+| nilai | `nilai` | Numeric (Decimal) | SR atau MBSD | Target pembangunan jargas dalam SR (Gambar 33) atau kapasitas kilang dalam MBSD (Gambar 36) |
+| satuan | `satuan` | Categorical | - | SR (Gambar 33) atau MBSD (Gambar 36) |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class RencanaPembangunanJargasApbn20252026Gambar36SebaranRecord(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    gambar: str | None = Field(default=None, alias="gambar", description="Sumber gambar: Gambar 33 atau Gambar 36")
+    periode: str | None = Field(default=None, alias="periode", description="Periode rencana: 2025-2026 (Gambar 33) atau 2025 (Gambar 36)")
+    nama_wilayah: str | None = Field(default=None, alias="nama_wilayah", description="Kab/Kota penerima jargas (Gambar 33) atau nama kilang (Gambar 36)")
+    nilai: float | None = Field(default=None, alias="nilai", description="Target jargas dalam SR (Gambar 33) atau kapasitas kilang dalam MBSD (Gambar 36)")
+    satuan: str | None = Field(default=None, alias="satuan", description="SR (Gambar 33) atau MBSD (Gambar 36)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

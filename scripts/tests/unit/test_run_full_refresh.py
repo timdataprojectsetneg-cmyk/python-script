@@ -195,8 +195,8 @@ def test_loader_writes_metadata_columns_without_loaded_at(monkeypatch):
     assert "_source TEXT" in create
     assert "_source_url TEXT" in create
     assert "_published_date DATE" in create
-    assert "_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" in create
-    assert "_modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" in create
+    assert "_created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP" in create
+    assert "_modified_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP" in create
     assert "_loaded_at" not in "\n".join(log)
 
     insert = next(statement for statement in log if statement.startswith("INSERT"))

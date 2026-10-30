@@ -15,27 +15,26 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| Nama Penyalur | `nama_penyalur` | String | - | Nama badan usaha penyalur BBM |
+| Alamat Penyalur | `alamat_penyalur` | String | - | Alamat penyalur sebagaimana tertulis di laporan |
+| Wilayah Penyaluran | `wilayah_penyaluran` | String | - | Provinsi wilayah penyaluran penyalur agen BBM industri (KBLI 47302); satu record per provinsi. Null untuk baris microsite |
+| Nomor Microsite | `nomor_microsite` | String | - | Nomor microsite sarana fasilitas penyalur, mis. 1223-31004. Null untuk baris wilayah penyaluran |
+| Kota/Kabupaten | `kota_kabupaten` | String | - | Kota/kabupaten lokasi microsite. Null untuk baris wilayah penyaluran |
+| Provinsi | `provinsi` | String | - | Provinsi lokasi microsite. Null untuk baris wilayah penyaluran |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class PenyalurBbmPtExxonmobilLubricantsIndonesiaRecord(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    nama_penyalur: str | None = Field(default=None, alias="nama_penyalur", description="Nama badan usaha penyalur BBM")
+    alamat_penyalur: str | None = Field(default=None, alias="alamat_penyalur", description="Alamat penyalur sebagaimana tertulis di laporan")
+    wilayah_penyaluran: str | None = Field(default=None, alias="wilayah_penyaluran", description="Provinsi wilayah penyaluran penyalur agen BBM industri (KBLI 47302)")
+    nomor_microsite: str | None = Field(default=None, alias="nomor_microsite", description="Nomor microsite sarana fasilitas penyalur")
+    kota_kabupaten: str | None = Field(default=None, alias="kota_kabupaten", description="Kota/kabupaten lokasi microsite")
+    provinsi: str | None = Field(default=None, alias="provinsi", description="Provinsi lokasi microsite")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

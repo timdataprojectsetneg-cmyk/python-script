@@ -15,12 +15,11 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Sistem | `sistem` | String | - | Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka) |
-| Skenario | `skenario` | String | - | Skenario perencanaan: ARED atau RE Base |
-| Kelompok | `kelompok` | String | - | Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi |
-| Uraian | `uraian` | String | - | Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin |
-| Satuan | `satuan` | String | - | Satuan indikator: GWh, MW, atau % |
-| 2025 s.d. 2034 | `2025_s_d_2034` | Numeric | Sesuai kolom Satuan | Nilai proyeksi per tahun (satu kolom per tahun |
+| Periode | `periode` | String | - | Periode data peta, mis. Triwulan I 2026 |
+| Provinsi | `provinsi` | String | - | Nama provinsi sebagaimana tertulis pada peta (huruf kapital) |
+| RE PLN | `re_pln_persen` | Numeric (Decimal) | % | Rasio elektrifikasi PLN per provinsi (angka biru pada peta) |
+| RE NAS | `re_nas_persen` | Numeric (Decimal) | % | Rasio elektrifikasi nasional per provinsi (angka merah pada peta) |
+| Satuan | `satuan` | String | - | Satuan nilai RE: % |
 
 ## Generated Pydantic model
 
@@ -29,12 +28,11 @@ from pydantic import BaseModel, Field
 
 
 class PetaSebaranRasioElektrifikasiTriwulanI2026Record(BaseModel):
-    sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
-    kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")
-    uraian: str | None = Field(default=None, alias="Uraian", description="Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin")
-    satuan: str | None = Field(default=None, alias="Satuan", description="Satuan indikator: GWh, MW, atau %")
-    2025_s_d_2034: str | None = Field(default=None, alias="2025 s.d. 2034", description="Nilai proyeksi per tahun (satu kolom per tahun")
+    periode: str | None = Field(default=None, alias="periode", description="Periode data peta, mis. Triwulan I 2026")
+    provinsi: str | None = Field(default=None, alias="provinsi", description="Nama provinsi sebagaimana tertulis pada peta")
+    re_pln_persen: float | None = Field(default=None, alias="re_pln_persen", description="Rasio elektrifikasi PLN per provinsi (%)")
+    re_nas_persen: float | None = Field(default=None, alias="re_nas_persen", description="Rasio elektrifikasi nasional per provinsi (%)")
+    satuan: str | None = Field(default=None, alias="satuan", description="Satuan nilai RE: %")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

@@ -163,8 +163,8 @@ _METADATA_TYPES = {
     "_source": "TEXT",
     "_source_url": "TEXT",
     "_published_date": "DATE",
-    "_created_at": "TIMESTAMP",
-    "_modified_at": "TIMESTAMP",
+    "_created_at": "TIMESTAMP WITH TIME ZONE",
+    "_modified_at": "TIMESTAMP WITH TIME ZONE",
 }
 _METADATA_DEFAULTS = {
     "_created_at": "DEFAULT CURRENT_TIMESTAMP",
@@ -283,7 +283,7 @@ def _apply_metadata(
     ``--full-refresh`` load so the recreated table gets a new creation time.
     """
     values = _metadata_values(config, docs_root)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     for row in rows:
         row.update(values)
         if reset_created_at:

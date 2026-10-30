@@ -15,11 +15,10 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| tahun | `tahun` | Integer | - | Tahun data |
+| kelompok | `kelompok` | Categorical | - | Kelompok pengguna: Rumah Tangga, Usaha Mikro, Petani Sasaran, Nelayan Sasaran, Pengecer, atau TOTAL |
+| nilai | `nilai` | Numeric (Decimal) | Juta atau ribu | Jumlah NIK pengguna LPG 3 kg per kelompok |
+| satuan | `satuan` | Categorical | - | Juta atau ribu, sesuai baris (tidak dikonversi) |
 
 ## Generated Pydantic model
 
@@ -28,11 +27,10 @@ from pydantic import BaseModel, Field
 
 
 class JumlahNikPenggunaLpg3KgBerdasarkanKelompokRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
+    kelompok: str | None = Field(default=None, alias="kelompok", description="Kelompok pengguna: Rumah Tangga, Usaha Mikro, Petani Sasaran, Nelayan Sasaran, Pengecer, atau TOTAL")
+    nilai: float | None = Field(default=None, alias="nilai", description="Jumlah NIK pengguna LPG 3 kg per kelompok")
+    satuan: str | None = Field(default=None, alias="satuan", description="Juta atau ribu, sesuai baris (tidak dikonversi)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

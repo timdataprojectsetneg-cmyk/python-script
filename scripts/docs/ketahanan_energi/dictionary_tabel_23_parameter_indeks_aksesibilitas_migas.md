@@ -15,12 +15,11 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| tahun | `tahun` | Integer | - | Tahun data |
+| jenis | `jenis` | Categorical | - | Kelompok: Infrastruktur, Fasilitas Pengolahan, Fasilitas Penyimpanan, atau Fasilitas Pengangkutan |
+| kapasitas | `kapasitas` | Categorical | - | Jenis kapasitas, mis. Jargas (APBN+Non-APBN) Kumulatif, Konkit Nelayan, Kilang Minyak, LPG, LNG, CNG, Gas Bumi melalui Pipa |
+| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Nilai kapasitas per tahun; null bila tidak tersedia |
+| satuan | `satuan` | Categorical | - | Satuan per baris, mis. SR, Paket, MBCD, Juta Ton/tahun, KL, Mton, m3, mmscfd |
 
 ## Generated Pydantic model
 
@@ -30,12 +29,11 @@ from pydantic import BaseModel, Field
 
 
 class Tabel23ParameterIndeksAksesibilitasMigasRecord(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
+    jenis: str | None = Field(default=None, alias="jenis", description="Kelompok: Infrastruktur, Fasilitas Pengolahan, Fasilitas Penyimpanan, atau Fasilitas Pengangkutan")
+    kapasitas: str | None = Field(default=None, alias="kapasitas", description="Jenis kapasitas, mis. Jargas (APBN+Non-APBN) Kumulatif, Kilang Minyak, LPG, LNG")
+    nilai: str | None = Field(default=None, alias="nilai", description="Nilai kapasitas per tahun; null bila tidak tersedia")
+    satuan: str | None = Field(default=None, alias="satuan", description="Satuan per baris, mis. SR, Paket, MBCD, KL, m3")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

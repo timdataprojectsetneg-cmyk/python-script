@@ -15,27 +15,32 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| No. Badan Usaha | `no_badan_usaha` | Integer | - | Nomor urut badan usaha niaga |
+| Nama Badan Usaha | `nama_badan_usaha` | String | - | Nama badan usaha niaga |
+| No. Penyalur | `no_penyalur` | Integer | - | Nomor urut penyalur dalam badan usaha |
+| Nama Penyalur | `nama_penyalur` | String | - | Nama penyalur (agen/SPBU/SPBN/SPBKB) |
+| Bentuk Penyalur | `bentuk_penyalur` | Categorical | - | Bentuk penyalur: SPBU, SPBN, SPBKB, SPBKB (3T), dan sejenisnya |
+| Alamat Fasilitas | `alamat_fasilitas` | String | - | Alamat fasilitas penyalur |
+| Nama Stasiun | `nama_stasiun` | String | - | Nama stasiun pengisian BBM (SPBU BP ...). Hanya terisi untuk badan usaha yang mencantumkannya; null bila tidak ada |
+| Kota/Kabupaten | `kota_kabupaten` | String | - | Kota/kabupaten lokasi fasilitas |
+| Provinsi | `provinsi` | String | - | Provinsi lokasi fasilitas. Null bila dokumen tidak mencantumkan provinsi |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class DaftarPenyalurBadanUsahaNiagaUmumBahanBakarRecord(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    no_badan_usaha: int | None = Field(default=None, alias="no_badan_usaha", description="Nomor urut badan usaha niaga")
+    nama_badan_usaha: str | None = Field(default=None, alias="nama_badan_usaha", description="Nama badan usaha niaga")
+    no_penyalur: int | None = Field(default=None, alias="no_penyalur", description="Nomor urut penyalur dalam badan usaha")
+    nama_penyalur: str | None = Field(default=None, alias="nama_penyalur", description="Nama penyalur")
+    bentuk_penyalur: str | None = Field(default=None, alias="bentuk_penyalur", description="Bentuk penyalur: SPBU, SPBN, SPBKB, SPBKB (3T), dan sejenisnya")
+    alamat_fasilitas: str | None = Field(default=None, alias="alamat_fasilitas", description="Alamat fasilitas penyalur")
+    nama_stasiun: str | None = Field(default=None, alias="nama_stasiun", description="Nama stasiun pengisian BBM")
+    kota_kabupaten: str | None = Field(default=None, alias="kota_kabupaten", description="Kota/kabupaten lokasi fasilitas")
+    provinsi: str | None = Field(default=None, alias="provinsi", description="Provinsi lokasi fasilitas")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

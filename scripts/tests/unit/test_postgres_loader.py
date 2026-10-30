@@ -184,6 +184,8 @@ def test_apply_metadata_uses_publisher_source_and_last_update():
     assert rows[0]["_published_date"] == date(2025, 6, 1)
     assert isinstance(rows[0]["_created_at"], datetime)
     assert isinstance(rows[0]["_modified_at"], datetime)
+    assert rows[0]["_created_at"].tzinfo is not None
+    assert rows[0]["_modified_at"].tzinfo is not None
 
 
 def test_prepare_table_adds_metadata_columns_with_defaults():
@@ -198,11 +200,11 @@ def test_prepare_table_adds_metadata_columns_with_defaults():
     assert "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _source_url TEXT" in statements
     assert "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _published_date DATE" in statements
     assert (
-        "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
         in statements
     )
     assert (
-        "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        "ALTER TABLE raw_x.data_y ADD COLUMN IF NOT EXISTS _modified_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
         in statements
     )
     assert "_loaded_at" not in statements

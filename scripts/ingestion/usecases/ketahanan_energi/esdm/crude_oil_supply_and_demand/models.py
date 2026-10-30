@@ -9,5 +9,5 @@ class Record(BaseModel):
     nilai: str | None = Field(default=None, alias="nilai", description="Volume minyak bumi per kategori dan tahun")
     satuan: str | None = Field(default=None, alias="satuan", description="Thousand bbl")
 
-    model_config = {"populate_by_name": True, "extra": "ignore"}
+    model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}
 

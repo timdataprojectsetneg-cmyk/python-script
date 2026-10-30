@@ -1,14 +1,14 @@
 """Extractor — 6.2.3 Crude Oil Supply and Demand.
 
-Scaffolded from the catalog Data Access 'pdf'; the extractor may combine
+Scaffolded from the catalog Data Access 'json'; the extractor may combine
 several retrieval steps internally (e.g. scrape a page, then download the Excel
 it links to).
 """
 
 from __future__ import annotations
 
-from .....core.extractors.pdf_extractor import PdfExtractor
+from .....core.extractors.duckdb_extractor import DuckDBJSONExtractor
 
 
-class Extractor(PdfExtractor):
+class Extractor(DuckDBJSONExtractor):
     """Implemented per source; subclass the generic base and override as needed."""

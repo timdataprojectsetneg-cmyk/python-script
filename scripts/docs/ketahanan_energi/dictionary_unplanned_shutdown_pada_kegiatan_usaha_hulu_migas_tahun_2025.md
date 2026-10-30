@@ -17,12 +17,10 @@ Tahun 2025 `
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| no | `no` | Integer | - | Nomor urut baris tabel |
+| nama_perusahaan | `nama_perusahaan` | String | - | Nama perusahaan kegiatan usaha hulu migas |
+| tanggal_kejadian | `tanggal_kejadian` | Date | YYYY-MM-DD | Tanggal kejadian unplanned shutdown |
+| penyebab | `penyebab` | String | - | Penyebab unplanned shutdown |
 
 ## Generated Pydantic model
 
@@ -32,12 +30,10 @@ from pydantic import BaseModel, Field
 
 
 class UnplannedShutdownPadaKegiatanUsahaHuluMigasTahun2025Record(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    no: int | None = Field(default=None, alias="no", description="Nomor urut baris tabel")
+    nama_perusahaan: str | None = Field(default=None, alias="nama_perusahaan", description="Nama perusahaan kegiatan usaha hulu migas")
+    tanggal_kejadian: date | None = Field(default=None, alias="tanggal_kejadian", description="Tanggal kejadian unplanned shutdown")
+    penyebab: str | None = Field(default=None, alias="penyebab", description="Penyebab unplanned shutdown")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```
