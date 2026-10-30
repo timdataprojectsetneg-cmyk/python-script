@@ -12,6 +12,7 @@ import shutil
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from .metadata_parser import derive_access, derive_module_name, publisher_slug, source_slug, to_pydantic_source
+from .summarize import DEFAULT_MAX_WORDS
 
 __all__ = [
     "SCAFFOLD_ROOT",
@@ -256,6 +257,7 @@ def scaffold_usecase(
     sources: List[Dict[str, Any]],
     schemas: Dict[str, List[Dict[str, Any]]] | None = None,
     overwrite: bool = False,
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> Tuple[List[str], List[str]]:
     """Create folders/files for eligible sources.
 
@@ -268,7 +270,7 @@ def scaffold_usecase(
     skipped: List[str] = []
 
     for source in sources:
-        slug = source_slug(source)
+        slug = source_slug(source, max_words=max_words)
         if not slug:
             continue
         publisher = publisher_slug(source)
@@ -304,6 +306,7 @@ def sync_dictionary_models(
     usecase: str,
     sources: List[Dict[str, Any]],
     schemas: Dict[str, List[Dict[str, Any]]] | None = None,
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> Tuple[List[str], List[str], List[str]]:
     """Refresh only ``models.py`` from the dictionary, keeping hand-written code.
 
@@ -317,7 +320,7 @@ def sync_dictionary_models(
     missing: List[str] = []
 
     for source in sources:
-        slug = source_slug(source)
+        slug = source_slug(source, max_words=max_words)
         if not slug:
             continue
         models_path = usecase_dir / publisher_slug(source) / slug / "models.py"
@@ -337,6 +340,7 @@ def remove_ineligible_sources(
     eligible_sources: List[Dict[str, Any]],
     publishers: Optional[Set[str]] = None,
     sources: Optional[Set[str]] = None,
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> List[str]:
     """Remove generated source structures no longer marked eligible.
 
@@ -344,7 +348,7 @@ def remove_ineligible_sources(
     run (``--publisher`` / ``--source``) never deletes other sources.
     """
     usecase_dir = Path(root) / derive_module_name(usecase)
-    allowed = {(publisher_slug(source), source_slug(source)) for source in eligible_sources}
+    allowed = {(publisher_slug(source), source_slug(source, max_words=max_words)) for source in eligible_sources}
     removed: List[str] = []
     if not usecase_dir.is_dir():
         return removed

@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Tuple
 
 from ..exceptions import ConfigError
 from .metadata_parser import derive_module_name, to_snake_case
+from .summarize import DEFAULT_MAX_WORDS
 
 __all__ = ["read_dictionary_schemas", "read_usecase_sources", "SOURCE_COLUMNS"]
 
@@ -189,7 +190,9 @@ def _source_name(lines: List[str]) -> str:
     )
 
 
-def read_dictionary_schemas(docs_dir: Path) -> Dict[str, List[Dict[str, Any]]]:
+def read_dictionary_schemas(
+    docs_dir: Path, max_words: int = DEFAULT_MAX_WORDS
+) -> Dict[str, List[Dict[str, Any]]]:
     """Map ``derive_module_name(<source name>)`` to its dictionary schema."""
     schemas: Dict[str, List[Dict[str, Any]]] = {}
     for path in sorted(Path(docs_dir).glob("dictionary_*.md")):
@@ -198,5 +201,5 @@ def read_dictionary_schemas(docs_dir: Path) -> Dict[str, List[Dict[str, Any]]]:
         if not schema:
             continue
         name = _source_name(lines) or path.stem.removeprefix("dictionary_")
-        schemas[derive_module_name(name)] = schema
+        schemas[derive_module_name(name, max_words=max_words)] = schema
     return schemas

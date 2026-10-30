@@ -193,12 +193,12 @@ def effective_url(source: Dict[str, Any]) -> Any:
     return source.get("resource_url") or source.get("source_link")
 
 
-def source_slug(source: Dict[str, Any]) -> str:
+def source_slug(source: Dict[str, Any], max_words: int = DEFAULT_MAX_WORDS) -> str:
     """Folder slug for a source: explicit Module Name override, else derived."""
     override = source.get("module_name")
     if override:
-        return derive_module_name(str(override))
-    return derive_module_name(str(source.get("source_name") or ""))
+        return derive_module_name(str(override), max_words=max_words)
+    return derive_module_name(str(source.get("source_name") or ""), max_words=max_words)
 
 
 def publisher_slug(source: Dict[str, Any]) -> str:
@@ -374,20 +374,20 @@ def _strip_leading_numbering(text: str) -> str:
     return stripped or text
 
 
-def derive_module_name(source_name: str) -> str:
+def derive_module_name(source_name: str, max_words: int = DEFAULT_MAX_WORDS) -> str:
     """Slug a name into a snake_case module/folder name.
 
     Parentheticals are dropped, leading section/table numbers are removed
     (``6.2.9 LPG Supply and Demand`` -> ``lpg_supply_and_demand``), and long
     names are capped on a word boundary. Use the catalog ``Module Name`` column
-    to override with a preferred acronym.
+    to override with a preferred acronym. ``max_words`` bounds the summary.
     """
     text = re.sub(r"\([^)]*\)", " ", str(source_name or "").strip())
     text = _strip_leading_numbering(text)
     # Long captions are summarized first (only when they exceed the word limit),
     # so the slug keeps the main subject instead of a chopped prefix.
-    if len(text.split()) > DEFAULT_MAX_WORDS:
-        text = summarize_context(text, max_words=DEFAULT_MAX_WORDS)
+    if len(text.split()) > max_words:
+        text = summarize_context(text, max_words=max_words)
     name = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
     name = _SLUG_NUMBERING.sub("", name, count=1) or name
     if len(name) > MAX_SLUG_LENGTH:

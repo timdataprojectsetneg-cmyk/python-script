@@ -279,3 +279,20 @@ def test_delete_reports_missing_paths(monkeypatch, tmp_path):
 
     assert result.exit_code == 0, result.output
     assert str(Path("docs") / "ketenagakerjaan") in result.output
+
+
+def test_docs_max_words_is_passed_to_scaffold(monkeypatch, tmp_path):
+    seen = {}
+
+    def fake_scaffold(usecase, source_name, output, publisher, overwrite, include_ineligible, max_words):
+        seen["max_words"] = max_words
+
+    monkeypatch.setattr("ingestion.cli._scaffold_from_docs", fake_scaffold)
+    result = _run(
+        monkeypatch,
+        tmp_path,
+        ["--usecase", "ketenagakerjaan", "--scaffold", "--max-words", "3"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert seen["max_words"] == 3

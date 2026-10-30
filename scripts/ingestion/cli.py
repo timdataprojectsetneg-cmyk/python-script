@@ -23,6 +23,7 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional
 import click
 
 from . import __version__
+from .catalog.summarize import DEFAULT_MAX_WORDS
 from .config import load_config
 from .exceptions import ConfigError, ExitCode, IngestionError, exit_code_for
 from .usecases.registry import resolve_extractor_class, resolve_normalizer
@@ -613,6 +614,14 @@ def run(
 )
 @click.option("--include-ineligible", is_flag=True, help="Also emit dictionaries for ineligible sources")
 @click.option(
+    "--max-words",
+    "max_words",
+    type=click.IntRange(min=1),
+    default=DEFAULT_MAX_WORDS,
+    show_default=True,
+    help="Maximum words kept when summarizing long source names into slugs.",
+)
+@click.option(
     "--thread",
     "thread_workers",
     type=int,
@@ -633,6 +642,7 @@ def docs(
     delete_usecase: bool,
     sync_dictionary: bool,
     include_ineligible: bool,
+    max_words: int,
     thread_workers: int,
     env_profile: Optional[str],
     log_level: str,
@@ -669,9 +679,9 @@ def docs(
         if len(chosen) > 1:
             raise ConfigError(f"Use only one of {', '.join(chosen)}")
         if delete_usecase:
-            _delete_usecase(usecase, output, source_name, publisher)
+            _delete_usecase(usecase, output, source_name, publisher, max_words)
         elif sync_dictionary:
-            _sync_dictionary(usecase, source_name, output, publisher, include_ineligible)
+            _sync_dictionary(usecase, source_name, output, publisher, include_ineligible, max_words)
         elif scaffold or scaffold_overwrite:
             _scaffold_from_docs(
                 usecase,
@@ -680,6 +690,7 @@ def docs(
                 publisher,
                 scaffold_overwrite,
                 include_ineligible,
+                max_words,
             )
         else:
             _apply_env(env_profile)
@@ -691,6 +702,7 @@ def docs(
                 include_ineligible,
                 publisher,
                 thread_workers,
+                max_words,
             )
     except Exception as exc:  # noqa: BLE001
         code = exit_code_for(exc)
@@ -727,14 +739,14 @@ def _preserve_env_values(path: Path, keys: tuple) -> Dict[str, str]:
 
 
 def _duplicate_source_slugs(
-    sources: List[Dict[str, Any]],
+    sources: List[Dict[str, Any]], max_words: int = DEFAULT_MAX_WORDS
 ) -> Dict[str, List[str]]:
     """Map duplicate slugs to the source names that produced them."""
     from .catalog.metadata_parser import source_slug
 
     by_slug: Dict[str, List[str]] = {}
     for source in sources:
-        by_slug.setdefault(source_slug(source), []).append(
+        by_slug.setdefault(source_slug(source, max_words=max_words), []).append(
             str(source.get("source_name") or "")
         )
     return {slug: names for slug, names in by_slug.items() if len(names) > 1}
@@ -764,6 +776,7 @@ def _dictionary_doc_for_source(
     sheet: str,
     docs_dir: Path,
     link_by_text: Dict[str, str],
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> Dict[str, Any]:
     """Fetch one source's Data Dictionary and write its Markdown.
 
@@ -786,7 +799,7 @@ def _dictionary_doc_for_source(
 
     name = source["source_name"]
     logger.info("Fetching dictionary for %s", name)
-    slug = source_slug(source)
+    slug = source_slug(source, max_words=max_words)
     dictionary = source.get("data_dictionary")
     dict_link = source.get("data_dictionary_link") or link_by_text.get(
         str(dictionary or "").strip()
@@ -865,6 +878,7 @@ def _generate_docs(
     include_ineligible: bool = False,
     publisher: Optional[str] = None,
     thread_workers: int = 0,
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> None:
     docs_source = os.environ.get("DOCS_SOURCE", "sharepoint").strip().lower()
     if docs_source == "spreadsheet":
@@ -935,7 +949,7 @@ def _generate_docs(
     docs_dir.mkdir(parents=True, exist_ok=True)
 
     usecase_path = write_markdown(
-        render_usecase_markdown(usecase, sources, catalog_ref),
+        render_usecase_markdown(usecase, sources, catalog_ref, max_words=max_words),
         str(docs_dir),
         usecase_filename(usecase),
     )
@@ -944,13 +958,14 @@ def _generate_docs(
     env_path = docs_dir / "usecase.env"
     preserved = _preserve_env_values(env_path, ("METHOD", "UNIQUE_KEY"))
     env_path.write_text(
-        "\n".join(env_lines(usecase, sources, preserved=preserved)) + "\n", encoding="utf-8"
+        "\n".join(env_lines(usecase, sources, preserved=preserved, max_words=max_words)) + "\n",
+        encoding="utf-8",
     )
     logger.info("Wrote %s (env vars for eligible sources)", env_path)
 
     # Dictionary markdown is generated per source; remove stale ineligible
     # dictionaries so the use case folder reflects the current catalog.
-    eligible_slugs = {source_slug(source) for source in eligible}
+    eligible_slugs = {source_slug(source, max_words=max_words) for source in eligible}
     for stale in docs_dir.glob("dictionary_*.md"):
         slug = stale.stem.removeprefix("dictionary_")
         if slug not in eligible_slugs:
@@ -994,7 +1009,7 @@ def _generate_docs(
         if text and link and text not in link_by_text:
             link_by_text[text] = link
 
-    duplicates = _duplicate_source_slugs(targets)
+    duplicates = _duplicate_source_slugs(targets, max_words=max_words)
     if duplicates:
         detail = "; ".join(
             f"{slug} <- {', '.join(names)}"
@@ -1014,6 +1029,7 @@ def _generate_docs(
             sheet=sheet,
             docs_dir=docs_dir,
             link_by_text=link_by_text,
+            max_words=max_words,
         )
 
     if thread_workers > 1 and len(targets) > 1:
@@ -1034,6 +1050,7 @@ def _generate_docs(
                 sheet=sheet,
                 docs_dir=docs_dir,
                 link_by_text=link_by_text,
+                max_words=max_words,
             )
 
         with ThreadPoolExecutor(max_workers=thread_workers) as executor:
@@ -1068,6 +1085,7 @@ def _scaffold_from_docs(
     publisher: Optional[str] = None,
     overwrite: bool = False,
     include_ineligible: bool = False,
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> None:
     """Create module folders/files from the local docs (no catalog sync).
 
@@ -1087,7 +1105,7 @@ def _scaffold_from_docs(
     scaffold_targets = [s for s in targets if is_eligible(s)]
     if source_name:
         scope_publishers = {publisher_slug(s) for s in targets}
-        scope_sources = {source_slug(s) for s in targets}
+        scope_sources = {source_slug(s, max_words=max_words) for s in targets}
     elif publisher:
         scope_publishers = {publisher_slug(s) for s in targets}
         scope_sources = None
@@ -1095,7 +1113,12 @@ def _scaffold_from_docs(
         scope_publishers = None
         scope_sources = None
     removed = remove_ineligible_sources(
-        SCAFFOLD_ROOT, usecase, scaffold_targets, scope_publishers, scope_sources
+        SCAFFOLD_ROOT,
+        usecase,
+        scaffold_targets,
+        scope_publishers,
+        scope_sources,
+        max_words=max_words,
     )
     for path in removed:
         logger.info("Removed ineligible scaffold: %s", path)
@@ -1104,8 +1127,9 @@ def _scaffold_from_docs(
         SCAFFOLD_ROOT,
         usecase,
         scaffold_targets,
-        read_dictionary_schemas(docs_dir),
+        read_dictionary_schemas(docs_dir, max_words=max_words),
         overwrite=overwrite,
+        max_words=max_words,
     )
     for path in created:
         logger.info("  created %s", path)
@@ -1120,6 +1144,7 @@ def _sync_dictionary(
     output: str,
     publisher: Optional[str] = None,
     include_ineligible: bool = False,
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> None:
     """Refresh only ``models.py`` for the selected sources from the local docs."""
     from .catalog.docs_reader import read_dictionary_schemas, read_usecase_sources
@@ -1132,7 +1157,11 @@ def _sync_dictionary(
     targets = [s for s in _select_sources(sources, source_name, publisher, include_ineligible, docs_dir) if is_eligible(s)]
 
     updated, unchanged, missing = sync_dictionary_models(
-        SCAFFOLD_ROOT, usecase, targets, read_dictionary_schemas(docs_dir)
+        SCAFFOLD_ROOT,
+        usecase,
+        targets,
+        read_dictionary_schemas(docs_dir, max_words=max_words),
+        max_words=max_words,
     )
     for path in updated:
         logger.info("Synced %s", path)
@@ -1188,6 +1217,7 @@ def _delete_usecase(
     output: str,
     source_name: Optional[str] = None,
     publisher: Optional[str] = None,
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> None:
     """Delete a use case's docs and module folders/files.
 
@@ -1215,13 +1245,13 @@ def _delete_usecase(
 
     field = "source_name" if source_name else "publisher"
     value = source_name or publisher
-    targets = _match_sources(read_usecase_sources(docs_dir), field, value)
+    targets = _match_sources(read_usecase_sources(docs_dir), field, value, max_words)
     if not targets:
         label = "Source" if source_name else "Publisher"
         raise ConfigError(f"{label} '{value}' not found in {docs_dir / 'usecase.md'}")
 
     for source in targets:
-        _remove_path(docs_dir / dictionary_filename(source_slug(source)))
+        _remove_path(docs_dir / dictionary_filename(source_slug(source, max_words=max_words)))
 
     if publisher:
         # The whole publisher is in scope, so drop its folder (including __init__.py).
@@ -1231,20 +1261,26 @@ def _delete_usecase(
 
     for source in targets:
         publisher_dir = root / publisher_slug(source)
-        _remove_path(publisher_dir / source_slug(source))
+        _remove_path(publisher_dir / source_slug(source, max_words=max_words))
         if publisher_dir.is_dir() and not any(child.is_dir() for child in publisher_dir.iterdir()):
             _remove_path(publisher_dir)
 
 
 def _match_sources(
-    sources: List[Dict[str, Any]], field: str, value: str
+    sources: List[Dict[str, Any]],
+    field: str,
+    value: str,
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> List[Dict[str, Any]]:
     """Sources whose ``field`` (name or slug) equals or contains ``value``."""
     from .catalog.metadata_parser import normalize_name, publisher_slug, source_slug
 
     def keys(source: Dict[str, Any]) -> List[str]:
         if field == "source_name":
-            return [normalize_name(source.get(field)), normalize_name(source_slug(source))]
+            return [
+                normalize_name(source.get(field)),
+                normalize_name(source_slug(source, max_words=max_words)),
+            ]
         return [normalize_name(source.get(field)), normalize_name(publisher_slug(source))]
 
     wanted = normalize_name(value)

@@ -28,6 +28,7 @@ from .metadata_parser import (
     to_pydantic_source,
     to_snake_case,
 )
+from .summarize import DEFAULT_MAX_WORDS
 
 __all__ = [
     "dictionary_filename", "env_lines", "render_dictionary_markdown",
@@ -87,13 +88,15 @@ def _resource_cell(value: Any) -> str:
     return f"`{text}`"
 
 
-def _group_sources(sources: List[Dict[str, Any]]) -> Dict[tuple, Dict[str, Any]]:
+def _group_sources(
+    sources: List[Dict[str, Any]], max_words: int = DEFAULT_MAX_WORDS
+) -> Dict[tuple, Dict[str, Any]]:
     grouped: Dict[tuple, Dict[str, Any]] = {}
     for source in sources:
         name = source.get("source_name")
         if not name:
             continue
-        key = (publisher_slug(source), source_slug(source))
+        key = (publisher_slug(source), source_slug(source, max_words=max_words))
         entry = grouped.setdefault(
             key, {"name": name, "accesses": [], "eligible": False}
         )
@@ -105,7 +108,10 @@ def _group_sources(sources: List[Dict[str, Any]]) -> Dict[tuple, Dict[str, Any]]
 
 
 def env_lines(
-    usecase: str, sources: List[Dict[str, Any]], preserved: Dict[str, str] | None = None
+    usecase: str,
+    sources: List[Dict[str, Any]],
+    preserved: Dict[str, str] | None = None,
+    max_words: int = DEFAULT_MAX_WORDS,
 ) -> List[str]:
     """Env var lines for eligible sources: {UC}__{PUBLISHER}__{SOURCE}__{KEY}.
 
@@ -120,7 +126,7 @@ def env_lines(
         if not is_eligible(source):
             continue
         publisher = publisher_slug(source)
-        slug = source_slug(source)
+        slug = source_slug(source, max_words=max_words)
         prefix = f"{usecase_slug}__{publisher}__{slug}".upper()
         lines.append(f"{prefix}__URL={effective_url(source) or ''}")
         schema, postgre_table = split_postgre(source.get("raw_postgre_table"))
@@ -138,12 +144,17 @@ def env_lines(
     return lines
 
 
-def render_usecase_markdown(usecase: str, sources: List[Dict[str, Any]], catalog_path: str = "") -> str:
+def render_usecase_markdown(
+    usecase: str,
+    sources: List[Dict[str, Any]],
+    catalog_path: str = "",
+    max_words: int = DEFAULT_MAX_WORDS,
+) -> str:
     usecase_slug = derive_module_name(usecase)
     # Only eligible rows are implemented/scaffolded. Slugging ineligible names
     # here would emit pointless truncation warnings for rows that are never used.
     eligible_sources = [source for source in sources if is_eligible(source)]
-    eligible_grouped = _group_sources(eligible_sources)
+    eligible_grouped = _group_sources(eligible_sources, max_words=max_words)
 
     out: List[str] = [
         f"# Use Case: {usecase}",

@@ -114,3 +114,11 @@ def test_numbers_special_chars_and_connectors_do_not_consume_slots():
     assert summarize_context(text, max_words=8) == (
         "Satu dan Dua 2025 – 2034 Tiga Empat Lima Enam Tujuh Delapan"
     )
+
+
+def test_derive_module_name_respects_max_words():
+    name = (
+        "Tabel Konsumsi Energi Nasional dari Pemakaian Sumber Energi "
+        "Tahun 2025 Menurut Sektor"
+    )
+    assert derive_module_name(name, max_words=2) == "konsumsi_energi"
