@@ -24,4 +24,4 @@ numpy>=2.0,<2.5
 pillow==12.3.0
 pypdf>=4.0.0
 # rapidocr-onnxruntime==1.4.4
-
+ceic-api-client @ https://downloads.ceicdata.com/python/ceic-api-client/ceic_api_client-2.11.6.13.tar.gz
