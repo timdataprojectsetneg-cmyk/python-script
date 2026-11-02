@@ -13,10 +13,18 @@ def test_to_pydantic_source_maps_date_and_datetime():
         {"label": "Jumlah", "name": "jumlah", "type": "Integer"},
     ]
     source = to_pydantic_source("XRecord", schema)
-    assert "from datetime import date, datetime" in source
-    assert "tanggal: date | None" in source
-    assert "dicatat: datetime | None" in source
+    assert "from datetime import date as DateType, datetime as DateTimeType" in source
+    assert "tanggal: DateType | None" in source
+    assert "dicatat: DateTimeType | None" in source
     assert "jumlah: int | None" in source
+
+
+def test_to_pydantic_source_date_field_does_not_shadow_type():
+    schema = [{"label": "date", "name": "date", "type": "Date"}]
+    source = to_pydantic_source("DateRecord", schema)
+    namespace: dict = {}
+    exec(source, namespace)
+    assert "date" in namespace["DateRecord"].model_fields
 
 
 def test_column_type_prefers_date_over_text():

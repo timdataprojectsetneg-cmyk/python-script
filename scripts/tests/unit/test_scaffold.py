@@ -132,6 +132,43 @@ def test_merge_preserves_custom_field_aliases():
     assert 'validation_alias="upah"' in merged
 
 
+def test_merge_removes_stale_generated_fields_but_keeps_custom():
+    schema = [{"label": "Tahun", "name": "tahun", "type": "Integer"}]
+    generated = to_pydantic_source("Record", schema)
+    existing = (
+        "from pydantic import BaseModel, Field\n\n\n"
+        "class Record(BaseModel):\n"
+        '    periode: str | None = Field(default=None, alias="Periode")\n'
+        '    umk: int | None = Field(default=None, validation_alias="upah")\n\n'
+        '    model_config = {"populate_by_name": True, "extra": "ignore"}\n'
+    )
+
+    merged = merge_models_source(existing, generated)
+
+    assert "periode" not in merged
+    assert 'validation_alias="upah"' in merged
+    assert "tahun" in merged
+
+
+def test_merge_adds_aliased_datetime_import():
+    generated = to_pydantic_source(
+        "Record", [{"label": "date", "name": "date", "type": "Date"}]
+    )
+    existing = (
+        "from datetime import date\n"
+        "from pydantic import BaseModel, Field\n\n\n"
+        "class Record(BaseModel):\n"
+        '    old: str | None = Field(default=None)\n'
+    )
+
+    merged = merge_models_source(existing, generated)
+
+    assert "from datetime import date as DateType" in merged
+    namespace: dict = {}
+    exec(merged, namespace)
+    assert "date" in namespace["Record"].model_fields
+
+
 def test_merge_uses_record_alias_target():
     schema = [{"label": "Judul", "name": "judul", "type": "Text"}]
     generated = to_pydantic_source("Record", schema)

@@ -30,11 +30,19 @@ def _as_sql(node) -> str:
 
 
 class _FakeCursor:
-    def __init__(self):
+    def __init__(self, unique_key_exists=False):
         self.statements = []
+        self.unique_key_exists = unique_key_exists
+        self._result = (unique_key_exists,)
 
     def execute(self, statement, params=None):
-        self.statements.append(_as_sql(statement))
+        statement_text = _as_sql(statement)
+        self.statements.append(statement_text)
+        if statement_text.lstrip().startswith("SELECT EXISTS"):
+            self._result = (self.unique_key_exists,)
+
+    def fetchone(self):
+        return self._result
 
 
 class _DuplicateCursor(_FakeCursor):
@@ -77,6 +85,17 @@ def test_prepare_table_upsert_keeps_table_and_ensures_unique_index():
     assert not any(s.startswith("DROP TABLE") for s in cur.statements)
     assert any(s.startswith("CREATE UNIQUE INDEX IF NOT EXISTS") for s in cur.statements)
     assert not any(s.startswith("COMMENT ON TABLE") for s in cur.statements)
+
+
+def test_prepare_table_upsert_reuses_existing_primary_key_or_unique_index():
+    cur = _FakeCursor(unique_key_exists=True)
+
+    _prepare_table(
+        cur, sql, "raw_x", "data_y", ["series_id", "date"], ROWS,
+        ["series_id", "date"], "upsert", {}, "",
+    )
+
+    assert not any(s.startswith("CREATE UNIQUE INDEX IF NOT EXISTS") for s in cur.statements)
 
 
 def test_run_ddl_releases_savepoint_on_success():

@@ -24,7 +24,7 @@ import click
 
 from . import __version__
 from .catalog.summarize import DEFAULT_MAX_WORDS
-from .config import load_config
+from .config import get_uri, load_config
 from .exceptions import ConfigError, ExitCode, IngestionError, exit_code_for
 from .usecases.registry import resolve_extractor_class, resolve_normalizer
 
@@ -274,7 +274,7 @@ def execute_run(
             targets_label,
         )
 
-    if mode == "dev" and "postgres" in effective_targets:
+    if "postgres" in effective_targets and (mode == "dev" or get_uri("PG_URI")):
         from .core.loaders.postgres_loader import read_watermark
 
         config["watermark"] = read_watermark(config)
@@ -489,8 +489,7 @@ def run(
                 logger.info("--env dev selected; enabling DEV loader")
             mode = "dev"
         elif uri_targets:
-            logger.info("Connection URI detected (%s); enabling loaders", ", ".join(uri_targets))
-            mode = "dev"
+            logger.info("Connection URI detected (%s)", ", ".join(uri_targets))
         elif mode == "dev":
             raise ConfigError(
                 "Loading requires --env dev or a connection URI "
@@ -830,32 +829,23 @@ def _dictionary_doc_for_source(
     result["ref"] = dict_ref
     try:
         dict_sheets = client.list_sheets(dict_ref)
-        dict_sheet = resolve_sheet_name(dict_sheets, name)
+        # The cell text carries the full intended sheet name; dictionary sheets
+        # are prefixed/truncated to Excel's 31-character limit (e.g.
+        # "CEIC - pekerja_formal_informal_"), so use that text before the source
+        # name to pick the sheet.
+        dict_sheet = resolve_sheet_name(dict_sheets, str(dictionary or "").strip()) or resolve_sheet_name(dict_sheets, name)
         if not dict_sheet and dict_link:
             hint = client.link_sheet_hint(dict_link)
             if hint is not None and 0 <= hint < len(dict_sheets):
                 dict_sheet = dict_sheets[hint]
-        dict_sheet = dict_sheet or (dict_sheets[0] if dict_sheets else None)
+        if not dict_sheet:
+            raise ValueError(
+                f"no sheet matches '{name}' (sheets: {', '.join(dict_sheets)})"
+            )
         # One sheet may hold several dictionary tables: the record fields and,
         # under a ``Data Dictionary <field>`` title, the fields of a JSON
         # column such as ``putusan``. ``parse_dictionary_matrix`` reads them all.
-        schema = (
-            parse_dictionary_matrix(client.read_matrix(dict_ref, dict_sheet))
-            if dict_sheet
-            else []
-        )
-        # A shared workbook may lead with an empty sheet (e.g. ``Summary``);
-        # fall back to the first sheet that actually holds a dictionary.
-        if not schema:
-            for candidate in dict_sheets:
-                if candidate == dict_sheet:
-                    continue
-                candidate_schema = parse_dictionary_matrix(
-                    client.read_matrix(dict_ref, candidate)
-                )
-                if candidate_schema:
-                    dict_sheet, schema = candidate, candidate_schema
-                    break
+        schema = parse_dictionary_matrix(client.read_matrix(dict_ref, dict_sheet))
         result["fields"] = len(schema)
         if not schema:
             result["warning"] = (

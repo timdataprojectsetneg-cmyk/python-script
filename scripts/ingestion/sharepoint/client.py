@@ -291,14 +291,16 @@ class SharePointClient:
         A hyperlink is preferred over the cell text because the text is only a
         display name. Non-URL values are treated as an item id or explicit path,
         else resolved as a bare filename via :meth:`dictionary_ref`. URLs are
-        decoded to a drive path first, then resolved via the Graph ``/shares`` API.
+        resolved via the Graph ``/shares`` API first: SharePoint share links keep
+        opening after a file is renamed, while the path embedded in the link goes
+        stale. Decoding the URL to a drive path is the fallback.
         """
         link = (link or "").strip()
         if not link:
             return None
         if "://" not in link:
             return link if (is_item_id(link) or "/" in link) else self.dictionary_ref(link, sheet)
-        return self.share_url_to_path(link) or self.resolve_share_url(link)
+        return self.resolve_share_url(link) or self.share_url_to_path(link)
 
     @staticmethod
     def link_sheet_hint(url: str) -> Optional[int]:

@@ -36,6 +36,29 @@ def test_resolve_sheet_name():
     assert resolve_sheet_name(sheets, "Geopolitik") is None
 
 
+def test_resolve_sheet_name_truncated_dictionary_sheets():
+    sheets = [
+        "Summary (2)",
+        "CEIC - pekerja_formal_informal_",
+        "CEIC - upah_rata_rata_bulanan_m",
+        "CEIC -  upah_rata_rata_bulanan_",
+        "CEIC - pengangguran_menurut_umu",
+        "CEIC - pengangguran_menurut_usi",
+    ]
+    assert resolve_sheet_name(
+        sheets,
+        "Data Dictionary - Ketenagakerjaan - pekerja_formal_informal_menurut_provinsi",
+    ) == "CEIC - pekerja_formal_informal_"
+    assert resolve_sheet_name(
+        sheets,
+        "Data Dictionary - Ketenagakerjaan - upah_rata_rata_bulanan_menurut_industri",
+    ) == "CEIC - upah_rata_rata_bulanan_m"
+    assert resolve_sheet_name(
+        sheets,
+        "Data Dictionary - Ketenagakerjaan - upah_rata_rata_bulanan_bersih_menurut_provinsi",
+    ) == "CEIC -  upah_rata_rata_bulanan_"
+
+
 def test_filenames():
     assert usecase_dir("ketenagakerjaan") == "ketenagakerjaan"
     assert usecase_filename("ketenagakerjaan") == "usecase.md"

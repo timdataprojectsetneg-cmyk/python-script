@@ -418,8 +418,8 @@ PYDANTIC_TYPE_MAP = {
     "number": "float",
     "float": "float",
     "decimal": "float",
-    "date": "date",
-    "datetime": "datetime",
+    "date": "DateType",
+    "datetime": "DateTimeType",
     "boolean": "bool",
     "bool": "bool",
     "json": "dict[str, Any]",
@@ -490,8 +490,8 @@ def to_pydantic_source(class_name: str, schema: List[Dict[str, Any]]) -> str:
                     str(field.get("type") or "").strip().lower(), "str"
                 )
                 needs_any = needs_any or annotation == "dict[str, Any]"
-                needs_date = needs_date or annotation == "date"
-                needs_datetime = needs_datetime or annotation == "datetime"
+                needs_date = needs_date or annotation == "DateType"
+                needs_datetime = needs_datetime or annotation == "DateTimeType"
             body.append(
                 f"    {safe_name}: {annotation} | None = Field({_field_kwargs(field)})"
             )
@@ -502,7 +502,11 @@ def to_pydantic_source(class_name: str, schema: List[Dict[str, Any]]) -> str:
     render(class_name, schema)
 
     imports: List[str] = []
-    datetime_names = [n for n, flag in (("date", needs_date), ("datetime", needs_datetime)) if flag]
+    datetime_names = [
+        name
+        for name, flag in (("date as DateType", needs_date), ("datetime as DateTimeType", needs_datetime))
+        if flag
+    ]
     if datetime_names:
         imports.append("from datetime import " + ", ".join(datetime_names))
     if needs_any:
@@ -580,7 +584,14 @@ def derive_access(data_access: Any, source: Dict[str, Any] | None = None) -> str
 
 
 def resolve_sheet_name(sheet_names: List[str], target: str) -> str | None:
-    """Find the catalog/dictionary sheet matching ``target`` (usecase or source name)."""
+    """Find the catalog/dictionary sheet matching ``target`` (usecase or source name).
+
+    Excel caps sheet names at 31 characters, so dictionary sheets are often
+    truncated and prefixed (``CEIC - pekerja_formal_informal_``) while the target
+    carries the full label. When the whole-name comparisons fail, compare the
+    meaningful segments of each sheet name and keep the longest one contained in
+    the target.
+    """
     wanted = normalize_name(target)
     if not wanted:
         return None
@@ -590,4 +601,11 @@ def resolve_sheet_name(sheet_names: List[str], target: str) -> str | None:
     for norm, original in normalized.items():
         if norm and (norm in wanted or wanted in norm):
             return original
-    return None
+    best: str | None = None
+    best_length = 0
+    for name in sheet_names:
+        for segment in re.split(r"\s*[-–—:|]\s*", str(name)):
+            norm = normalize_name(segment)
+            if len(norm) >= 6 and norm in wanted and len(norm) > best_length:
+                best, best_length = name, len(norm)
+    return best

@@ -451,13 +451,35 @@ def _apply_comments(
         )
 
 
-def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list[str]) -> None:
-    """Ensure a unique index on ``keys`` so ``ON CONFLICT`` can target it.
+def _has_unique_key(cur: Any, schema: str, table: str, keys: list[str]) -> bool:
+    """Return whether a table has a unique index or constraint on ``keys``."""
+    cur.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1
+            FROM pg_index AS idx
+            JOIN pg_class AS rel ON rel.oid = idx.indrelid
+            JOIN pg_namespace AS ns ON ns.oid = rel.relnamespace
+            WHERE ns.nspname = %s
+              AND rel.relname = %s
+              AND idx.indisunique
+              AND (
+                  SELECT array_agg(att.attname ORDER BY key.ordinality)
+                  FROM unnest(idx.indkey) WITH ORDINALITY AS key(attnum, ordinality)
+                  JOIN pg_attribute AS att
+                    ON att.attrelid = idx.indrelid
+                   AND att.attnum = key.attnum
+              ) = %s
+        )
+        """,
+        (schema, table, keys),
+    )
+    return bool(cur.fetchone()[0])
 
-    Needed when the table already existed (e.g. created by a previous
-    ``replace`` load) without a matching primary key/unique constraint.
-    """
-    if not keys:
+
+def _ensure_unique_index(cur: Any, sql: Any, schema: str, table: str, keys: list[str]) -> None:
+    """Ensure ``keys`` are backed by a unique index or constraint."""
+    if not keys or _has_unique_key(cur, schema, table, keys):
         return
     index_name = "uq_" + "_".join([table] + keys)[:60]
     _run_ddl(

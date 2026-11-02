@@ -270,20 +270,17 @@ def test_share_url_to_path_without_marker_or_url(client):
     assert client.share_url_to_path("") is None
 
 
-def test_resolve_dictionary_link_prefers_path_over_shares(client, monkeypatch):
-    called = {"shares": False}
+def test_resolve_dictionary_link_prefers_shares_over_path(client, monkeypatch):
+    monkeypatch.setattr(client, "resolve_share_url", lambda url: "id:01SHAREDITEM")
+    assert client.resolve_dictionary_link(SHARE_URL, "Ketenagakerjaan") == "id:01SHAREDITEM"
 
-    def fake_shares(url):
-        called["shares"] = True
-        return "id:SHOULD_NOT_BE_USED"
 
-    monkeypatch.setattr(client, "resolve_share_url", fake_shares)
-    ref = client.resolve_dictionary_link(SHARE_URL, "Ketenagakerjaan")
-    assert ref == (
+def test_resolve_dictionary_link_falls_back_to_path(client, monkeypatch):
+    monkeypatch.setattr(client, "resolve_share_url", lambda url: None)
+    assert client.resolve_dictionary_link(SHARE_URL, "Ketenagakerjaan") == (
         "Sitroom-2026/PROJECT/DATA/1 - Discover/Data Dictionary - Ketenagakerjaan/"
         "1. Data Dictionary - Ketenagakerjaan - Hubungan Industrial dan Pengupahan (1).xlsx"
     )
-    assert called["shares"] is False
 
 
 def test_resolve_dictionary_link_falls_back_to_shares(client, monkeypatch):

@@ -154,10 +154,13 @@ def _imported_names(tree: ast.Module) -> Dict[str, Set[str]]:
     modules: Dict[str, Set[str]] = {}
     for node in tree.body:
         if isinstance(node, ast.ImportFrom):
-            modules.setdefault(node.module or "", set()).update(a.name for a in node.names)
+            modules.setdefault(node.module or "", set()).update(
+                f"{a.name} as {a.asname}" if a.asname else a.name for a in node.names
+            )
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                modules.setdefault(alias.name, set()).add(alias.name)
+                name = f"{alias.name} as {alias.asname}" if alias.asname else alias.name
+                modules.setdefault(alias.name, set()).add(name)
     return modules
 
 
@@ -168,8 +171,9 @@ def merge_models_source(existing: str, generated: str) -> str:
     classes, imports) while preserving hand-written code: the module docstring,
     extra imports, extra classes, methods, ``Record = <Custom>`` rebinds, and
     any custom field definition (multi-line or using ``validation_alias`` /
-    ``AliasChoices``). New dictionary fields are added; plain generated fields
-    are updated in place.
+    ``AliasChoices``). New dictionary fields are added, plain generated fields
+    are updated in place, and generated fields that are no longer in the
+    dictionary are removed.
     """
     if not existing.strip():
         return generated
@@ -202,7 +206,9 @@ def merge_models_source(existing: str, generated: str) -> str:
 
         ex_fields = {name: node for name, node in _iter_fields(ex_cls)}
         missing: List[str] = []
+        generated_names: Set[str] = set()
         for name, gen_node in _iter_fields(gen_cls):
+            generated_names.add(name)
             gen_segment = _field_segment(generated, gen_node)
             ex_node = ex_fields.get(name)
             if ex_node is None:
@@ -211,6 +217,12 @@ def merge_models_source(existing: str, generated: str) -> str:
             ex_segment = "\n".join(lines[ex_node.lineno - 1 : ex_node.end_lineno])
             if _is_plain_field(ex_segment):
                 edits.append((ex_node.lineno, ex_node.end_lineno, gen_segment))
+        for name, ex_node in ex_fields.items():
+            if name in generated_names:
+                continue
+            ex_segment = "\n".join(lines[ex_node.lineno - 1 : ex_node.end_lineno])
+            if _is_plain_field(ex_segment):
+                edits.append((ex_node.lineno, ex_node.end_lineno, ""))
         if missing:
             insert_at = _field_insert_line(ex_cls)
             edits.append((insert_at, insert_at - 1, "\n".join(missing)))

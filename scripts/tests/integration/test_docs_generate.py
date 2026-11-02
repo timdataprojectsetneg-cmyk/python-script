@@ -1,5 +1,7 @@
 """Integration test for the ``docs`` CLI command with a stubbed SharePoint client."""
 
+import pytest
+
 from ingestion.cli import _generate_docs
 from ingestion.sharepoint.client import SharePointClient
 
@@ -80,7 +82,7 @@ def test_generate_docs_single_source(monkeypatch, tmp_path):
     assert not (uc / "dictionary_kasus_perselisihan.md").exists()
 
 
-def test_generate_docs_falls_back_from_empty_summary_sheet(monkeypatch, tmp_path):
+def test_generate_docs_skips_dictionary_without_matching_sheet(monkeypatch, tmp_path):
     source = dict(CATALOG_ROWS[0], **{"Source Name": "Direktori Putusan PHI"})
 
     monkeypatch.setattr(
@@ -101,10 +103,10 @@ def test_generate_docs_falls_back_from_empty_summary_sheet(monkeypatch, tmp_path
         lambda self, ref, sheet: [] if sheet == "Summary (2)" else DICTIONARY_MATRIX,
     )
 
-    _generate_docs("ketenagakerjaan", "Direktori Putusan PHI", str(tmp_path / "docs"), None)
+    with pytest.raises(ValueError, match="no sheet matches"):
+        _generate_docs("ketenagakerjaan", "Direktori Putusan PHI", str(tmp_path / "docs"), None)
 
-    content = (tmp_path / "docs" / "ketenagakerjaan" / "dictionary_direktori_putusan_phi.md").read_text()
-    assert "Jenis_Perselisihan" in content
+    assert not (tmp_path / "docs" / "ketenagakerjaan" / "dictionary_direktori_putusan_phi.md").exists()
 
 
 def test_generate_docs_prefers_file_id(monkeypatch, tmp_path):
@@ -175,6 +177,7 @@ def test_generate_docs_uses_dictionary_hyperlink(monkeypatch, tmp_path):
     monkeypatch.setattr(
         SharePointClient, "read_matrix", lambda self, ref, sheet: DICTIONARY_MATRIX
     )
+    monkeypatch.setattr(SharePointClient, "resolve_share_url", lambda self, url: None)
 
     _generate_docs("ketenagakerjaan", None, str(tmp_path / "docs"), None)
 
@@ -214,6 +217,7 @@ def test_generate_docs_shares_dictionary_link_across_sources(monkeypatch, tmp_pa
     monkeypatch.setattr(
         SharePointClient, "read_matrix", lambda self, ref, sheet: DICTIONARY_MATRIX
     )
+    monkeypatch.setattr(SharePointClient, "resolve_share_url", lambda self, url: None)
 
     _generate_docs("ketenagakerjaan", None, str(tmp_path / "docs"), None)
 
