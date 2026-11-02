@@ -28,7 +28,7 @@
 ## Generated Pydantic model
 
 ```python
-from datetime import date
+from datetime import date as DateType
 from pydantic import BaseModel, Field
 
 
@@ -39,9 +39,9 @@ class TabelIdGbaTingkatPengangguranMenurutProvinsiRecord(BaseModel):
     unit: str | None = Field(default=None, alias="unit", description="Satuan nilai dari metadata CEIC (mis. Person th)")
     frequency: str | None = Field(default=None, alias="frequency", description="Frekuensi data (mis. Semiannually, Annual, Monthly)")
     province: str | None = Field(default=None, alias="province", description="Provinsi dari metadata series; null bila series nasional")
-    date: date | None = Field(default=None, alias="date", description="Periode observasi (YYYY-MM-DD)")
+    date: DateType | None = Field(default=None, alias="date", description="Periode observasi (YYYY-MM-DD)")
     value: float | None = Field(default=None, alias="value", description="Nilai observasi")
-    last_update_time: date | None = Field(default=None, alias="last_update_time", description="Tanggal terakhir data diperbarui di CEIC (YYYY-MM-DD)")
+    last_update_time: DateType | None = Field(default=None, alias="last_update_time", description="Tanggal terakhir data diperbarui di CEIC (YYYY-MM-DD)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

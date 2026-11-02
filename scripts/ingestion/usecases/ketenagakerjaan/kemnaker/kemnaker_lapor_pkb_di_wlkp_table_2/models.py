@@ -28,4 +28,3 @@ class Record(BaseModel):
     jumlah: int | None = Field(default=None, alias="Jumlah", description="Total seluruh lapangan usaha.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
-

@@ -25,12 +25,12 @@
 ## Generated Pydantic model
 
 ```python
-from datetime import date
+from datetime import date as DateType
 from pydantic import BaseModel, Field
 
 
 class SignalKetenagakerjaanRecord(BaseModel):
-    tanggal: date | None = Field(default=None, alias="Tanggal", description="Tanggal publikasi berita.")
+    tanggal: DateType | None = Field(default=None, alias="Tanggal", description="Tanggal publikasi berita.")
     judul_berita: str | None = Field(default=None, alias="Judul_Berita", description="Judul berita.")
     isi_berita: str | None = Field(default=None, alias="Isi_Berita", description="Isi berita (pada halaman rubrik tampil sebagai ringkasan).")
     sumber_berita: str | None = Field(default=None, alias="Sumber_Berita", description="Nama media (The Signal).")

@@ -15,33 +15,15 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| table_id | `table_id` | String | - | Kode tabel CEIC (TBxxxx) sumber data |
-| series_id | `series_id` | Integer | - | ID series CEIC |
-| series_name | `series_name` | String | - | Nama lengkap series; memuat dimensi seperti provinsi, usia, atau industri |
-| unit | `unit` | String | - | Satuan nilai dari metadata CEIC (mis. Person th) |
-| frequency | `frequency` | String | - | Frekuensi data (mis. Semiannually, Annual, Monthly) |
-| province | `province` | String | - | Provinsi dari metadata series; null bila series nasional |
-| date | `date` | Date | - | Periode observasi (YYYY-MM-DD) |
-| value | `value` | Float | sesuai unit | Nilai observasi |
-| last_update_time | `last_update_time` | Date | - | Tanggal terakhir data diperbarui di CEIC (YYYY-MM-DD) |
+| - | - | - | - | No fields parsed from the Data Dictionary. |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class KerjaDalamNegeriKementerianKetenagakerjaanMenurutProvinsiRecord(BaseModel):
-    table_id: str | None = Field(default=None, alias="table_id", description="Kode tabel CEIC (TBxxxx) sumber data")
-    series_id: int | None = Field(default=None, alias="series_id", description="ID series CEIC")
-    series_name: str | None = Field(default=None, alias="series_name", description="Nama lengkap series; memuat dimensi seperti provinsi, usia, atau industri")
-    unit: str | None = Field(default=None, alias="unit", description="Satuan nilai dari metadata CEIC (mis. Person th)")
-    frequency: str | None = Field(default=None, alias="frequency", description="Frekuensi data (mis. Semiannually, Annual, Monthly)")
-    province: str | None = Field(default=None, alias="province", description="Provinsi dari metadata series; null bila series nasional")
-    date: date | None = Field(default=None, alias="date", description="Periode observasi (YYYY-MM-DD)")
-    value: float | None = Field(default=None, alias="value", description="Nilai observasi")
-    last_update_time: date | None = Field(default=None, alias="last_update_time", description="Tanggal terakhir data diperbarui di CEIC (YYYY-MM-DD)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

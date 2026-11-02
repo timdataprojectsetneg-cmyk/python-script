@@ -9,22 +9,21 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class Record(BaseModel):
-    periode: str | None = Field(default=None, alias="Periode", description="Periode bulan, format YYYY-MM.")
-    tahun: int | None = Field(default=None, alias="Tahun", description="Tahun data.")
+    periode: str | None = Field(default=None, alias="Periode", description="Periode data, kumulatif sejak Januari (contoh: \"Januari s.d. Juni 2025\").")
     jenis_perselisihan: str | None = Field(
         default=None, alias="Jenis_Perselisihan",
         description="Perselisihan Hak / Kepentingan / PHK / Serikat Pekerja.",
     )
-    jumlah_pusat: int | None = Field(default=None, alias="Jumlah_Pusat", description="Jumlah perselisihan di tingkat pusat.")
-    jumlah_daerah: int | None = Field(default=None, alias="Jumlah_Daerah", description="Jumlah perselisihan di tingkat daerah.")
-    jumlah: int | None = Field(default=None, alias="Jumlah", description="Total jumlah perselisihan (pusat + daerah).")
-    bipartit: int | None = Field(default=None, alias="Bipartit", description="Diselesaikan melalui Bipartit.")
-    mediasi_pb: int | None = Field(default=None, alias="Mediasi_PB", description="Diselesaikan melalui Mediasi (PB).")
-    mediasi_anjuran: int | None = Field(default=None, alias="Mediasi_Anjuran", description="Diselesaikan melalui Mediasi (Anjuran).")
-    konsiliasi: int | None = Field(default=None, alias="Konsiliasi", description="Diselesaikan melalui Konsiliasi.")
-    arbitrasi: int | None = Field(default=None, alias="Arbitrasi", description="Diselesaikan melalui Arbitrasi.")
-    hakim_hi: int | None = Field(default=None, alias="Hakim_HI", description="Diselesaikan melalui Hakim Hubungan Industrial.")
-    jumlah_penyelesaian: int | None = Field(default=None, alias="Jumlah_Penyelesaian", description="Total perselisihan yang diselesaikan.")
-    sisa_kasus: int | None = Field(default=None, alias="Sisa_Kasus", description="Kasus yang belum terselesaikan.")
+    mediasi_pb: int | None = Field(default=None, alias="Mediasi_PB", description="Diselesaikan mediasi dengan Perjanjian Bersama.")
+    mediasi_anjuran: int | None = Field(default=None, alias="Mediasi_Anjuran", description="Diselesaikan mediasi dengan anjuran mediator.")
+    hakim_hi: int | None = Field(default=None, alias="Hakim_HI", description="Diselesaikan melalui Pengadilan Hubungan Industrial.")
+    sisa_kasus: int | None = Field(default=None, alias="Sisa_Kasus", description="Kasus yang belum selesai.")
 
+    kasus_pusat: int | None = Field(default=None, alias="Kasus_Pusat", description="Perselisihan tercatat di tingkat pusat.")
+    kasus_daerah: int | None = Field(default=None, alias="Kasus_Daerah", description="Perselisihan tercatat di tingkat daerah.")
+    jumlah_kasus: int | None = Field(default=None, alias="Jumlah_Kasus", description="Jumlah perselisihan yang ditangani mediator.")
+    selesai_bipartit: int | None = Field(default=None, alias="Selesai_Bipartit", description="Diselesaikan melalui bipartit.")
+    selesai_konsiliasi: int | None = Field(default=None, alias="Selesai_Konsiliasi", description="Diselesaikan melalui konsiliasi.")
+    selesai_arbitrase: int | None = Field(default=None, alias="Selesai_Arbitrase", description="Diselesaikan melalui arbitrase.")
+    jumlah_selesai: int | None = Field(default=None, alias="Jumlah_Selesai", description="Total kasus yang telah diselesaikan.")
     model_config = ConfigDict(populate_by_name=True, extra="ignore")

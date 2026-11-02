@@ -9,4 +9,3 @@ class Record(BaseModel):
     tahun: int | None = Field(default=None, alias="tahun", description="Tahun Perhitungan")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
-

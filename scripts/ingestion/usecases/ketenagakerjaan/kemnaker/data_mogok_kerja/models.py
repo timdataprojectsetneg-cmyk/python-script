@@ -8,13 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class Record(BaseModel):
-    provinsi: str | None = Field(default=None, alias="Provinsi", description="Nama provinsi.")
-    kasus: int | None = Field(default=None, alias="Kasus", description="Jumlah kejadian mogok kerja tercatat.")
+    provinsi: str | None = Field(default=None, alias="Provinsi", description="Provinsi lokasi mogok kerja (\"Jumlah\" = nasional).")
     tenaga_kerja_yang_terlibat: int | None = Field(
         default=None,
         alias="Tenaga Kerja yang Terlibat (orang)",
         description="Jumlah tenaga kerja yang terlibat dalam mogok kerja.",
     )
-    tahun: int | None = Field(default=None, alias="Tahun", description="Tahun penarikan data.")
 
+    periode: str | None = Field(default=None, alias="Periode", description="Periode data, kumulatif sejak Januari.")
+    jumlah_kasus: int | None = Field(default=None, alias="Jumlah_Kasus", description="Jumlah kasus mogok kerja; \"-\" = tidak ada kasus.")
+    tk_terlibat: int | None = Field(default=None, alias="TK_Terlibat", description="Jumlah tenaga kerja yang terlibat mogok.")
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
