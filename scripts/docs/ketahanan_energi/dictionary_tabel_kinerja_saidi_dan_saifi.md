@@ -15,12 +15,10 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Sistem | `sistem` | String | - | Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka) |
-| Skenario | `skenario` | String | - | Skenario perencanaan: ARED atau RE Base |
-| Kelompok | `kelompok` | String | - | Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi |
-| Uraian | `uraian` | String | - | Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin |
-| Satuan | `satuan` | String | - | Satuan indikator: GWh, MW, atau % |
-| 2025 s.d. 2034 | `2025_s_d_2034` | Numeric | Sesuai kolom Satuan | Nilai proyeksi per tahun (satu kolom per tahun |
+| keterangan | `keterangan` | string | - | Indikator kinerja keandalan listrik: "Rerata Durasi Gangguan Per Pelanggan (SAIDI)" atau "Rerata Frekuensi Gangguan Per Pelanggan (SAIFI)" |
+| satuan | `satuan` | string | - | Satuan nilai pada indikator tersebut: "Menit/Pelanggan" (SAIDI) atau "Kali/Pelanggan" (SAIFI) |
+| tahun | `tahun` | integer | Tahun | Tahun data (2023, 2024, 2025) |
+| nilai | `nilai` | number | Menit/Pelanggan atau Kali/Pelanggan (sesuai kolom satuan) | Nilai SAIDI atau SAIFI pada tahun terkait, dalam format desimal standar (titik) |
 
 ## Generated Pydantic model
 
@@ -29,12 +27,10 @@ from pydantic import BaseModel, Field
 
 
 class TabelKinerjaSaidiDanSaifiRecord(BaseModel):
-    sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
-    kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")
-    uraian: str | None = Field(default=None, alias="Uraian", description="Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin")
-    satuan: str | None = Field(default=None, alias="Satuan", description="Satuan indikator: GWh, MW, atau %")
-    2025_s_d_2034: str | None = Field(default=None, alias="2025 s.d. 2034", description="Nilai proyeksi per tahun (satu kolom per tahun")
+    keterangan: str | None = Field(default=None, alias="keterangan", description="Indikator kinerja keandalan listrik: \"Rerata Durasi Gangguan Per Pelanggan (SAIDI)\" atau \"Rerata Frekuensi Gangguan Per Pelanggan (SAIFI)\"")
+    satuan: str | None = Field(default=None, alias="satuan", description="Satuan nilai pada indikator tersebut: \"Menit/Pelanggan\" (SAIDI) atau \"Kali/Pelanggan\" (SAIFI)")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data (2023, 2024, 2025)")
+    nilai: float | None = Field(default=None, alias="nilai", description="Nilai SAIDI atau SAIFI pada tahun terkait, dalam format desimal standar (titik)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

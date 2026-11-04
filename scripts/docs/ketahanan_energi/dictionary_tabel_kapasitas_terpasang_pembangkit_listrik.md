@@ -15,12 +15,12 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Sistem | `sistem` | String | - | Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka) |
-| Skenario | `skenario` | String | - | Skenario perencanaan: ARED atau RE Base |
-| Kelompok | `kelompok` | String | - | Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi |
-| Uraian | `uraian` | String | - | Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin |
-| Satuan | `satuan` | String | - | Satuan indikator: GWh, MW, atau % |
-| 2025 s.d. 2034 | `2025_s_d_2034` | Numeric | Sesuai kolom Satuan | Nilai proyeksi per tahun (satu kolom per tahun |
+| Regional | `regional` | String | - | Wilayah regional PLN (misal: Sumatera dan Kalimantan; Jawa, Madura, dan Bali; Sulawesi, Maluku, Papua, dan Nusa Tenggara) beserta baris total (Jumlah SAIDI) |
+| Tahun | `tahun` | Year | - | Tahun pengukuran SAIDI (2023, 2024, 2025) |
+| SAIDI | `saidi` | Float | menit/pelanggan | Rata-rata durasi gangguan listrik yang dialami setiap pelanggan dalam satu tahun pada regional tersebut |
+| Selisih | `selisih` | Float | menit/pelanggan | Selisih perubahan SAIDI antara tahun 2024 dan 2025 (2025 - 2024). Nilai negatif berarti durasi gangguan berkurang (keandalan membaik). Hanya terisi pada baris tahun 2025; tahun lain null |
+| Persentase | `persentase` | Percent | % | Persentase perubahan SAIDI dari tahun 2024 ke 2025. Nilai negatif berarti penurunan. Hanya terisi pada baris tahun 2025; tahun lain null |
+| tipe_baris | `tipe_baris` | String | - | Tipe baris: detail (data per regional) atau total (Jumlah SAIDI nasional) |
 
 ## Generated Pydantic model
 
@@ -29,12 +29,12 @@ from pydantic import BaseModel, Field
 
 
 class TabelKapasitasTerpasangPembangkitListrikRecord(BaseModel):
-    sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
-    kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")
-    uraian: str | None = Field(default=None, alias="Uraian", description="Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin")
-    satuan: str | None = Field(default=None, alias="Satuan", description="Satuan indikator: GWh, MW, atau %")
-    2025_s_d_2034: str | None = Field(default=None, alias="2025 s.d. 2034", description="Nilai proyeksi per tahun (satu kolom per tahun")
+    regional: str | None = Field(default=None, alias="Regional", description="Wilayah regional PLN (misal: Sumatera dan Kalimantan; Jawa, Madura, dan Bali; Sulawesi, Maluku, Papua, dan Nusa Tenggara) beserta baris total (Jumlah SAIDI)")
+    tahun: str | None = Field(default=None, alias="Tahun", description="Tahun pengukuran SAIDI (2023, 2024, 2025)")
+    saidi: float | None = Field(default=None, alias="SAIDI", description="Rata-rata durasi gangguan listrik yang dialami setiap pelanggan dalam satu tahun pada regional tersebut")
+    selisih: float | None = Field(default=None, alias="Selisih", description="Selisih perubahan SAIDI antara tahun 2024 dan 2025 (2025 - 2024). Nilai negatif berarti durasi gangguan berkurang (keandalan membaik). Hanya terisi pada baris tahun 2025; tahun lain null")
+    persentase: str | None = Field(default=None, alias="Persentase", description="Persentase perubahan SAIDI dari tahun 2024 ke 2025. Nilai negatif berarti penurunan. Hanya terisi pada baris tahun 2025; tahun lain null")
+    tipe_baris: str | None = Field(default=None, alias="tipe_baris", description="Tipe baris: detail (data per regional) atau total (Jumlah SAIDI nasional)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

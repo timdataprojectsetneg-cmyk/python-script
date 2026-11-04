@@ -16,13 +16,13 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Tidak terisi pada sumber (selalu `null`) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | Nama PLTP (mis. PLTP Sibayak, PLTP Salak), atau `Total` untuk jumlah keseluruhan |
-| nilai | `nilai` | Numeric (Decimal) | MW | Kapasitas terpasang PLTP |
-| satuan | `satuan` | Categorical | - | MW |
-| provinsi | `provinsi` | Categorical | - | Provinsi lokasi PLTP (`null` untuk baris Total) |
-| kode_provinsi | `kode_provinsi` | Integer | - | Kode provinsi (`null` untuk baris Total) |
-| ipb_owner | `ipb_owner` | Categorical | - | Pemilik IPB (Izin Panas Bumi) atau pengembang PLTP (`null` untuk baris Total) |
+| kategori | `kategori` | Categorical | - | Kategori (null pada dataset ini) |
+| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | Nama pembangkit listrik tenaga panas bumi (PLTP) |
+| nilai | `nilai` | Numeric (Float) | Tergantung kolom | Nilai kapasitas atau produksi |
+| satuan | `satuan` | Categorical | - | Satuan nilai (mis. MW, TWh) |
+| provinsi | `provinsi` | Categorical | - | Provinsi lokasi PLTP |
+| kode_provinsi | `kode_provinsi` | Categorical | - | Kode wilayah Kemendagri (bisa null) |
+| ipb_owner | `ipb_owner` | Categorical | - | Pemilik/operator PLTP (bisa null) |
 
 ## Generated Pydantic model
 
@@ -32,13 +32,13 @@ from pydantic import BaseModel, Field
 
 class GeothermalPowerPlantCapacity2025Record(BaseModel):
     tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Tidak terisi pada sumber (selalu null)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="Nama PLTP, atau Total untuk jumlah keseluruhan")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas terpasang PLTP")
-    satuan: str | None = Field(default=None, alias="satuan", description="MW")
+    kategori: str | None = Field(default=None, alias="kategori", description="Kategori (null pada dataset ini)")
+    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="Nama pembangkit listrik tenaga panas bumi (PLTP)")
+    nilai: str | None = Field(default=None, alias="nilai", description="Nilai kapasitas atau produksi")
+    satuan: str | None = Field(default=None, alias="satuan", description="Satuan nilai (mis. MW, TWh)")
     provinsi: str | None = Field(default=None, alias="provinsi", description="Provinsi lokasi PLTP")
-    kode_provinsi: int | None = Field(default=None, alias="kode_provinsi", description="Kode provinsi")
-    ipb_owner: str | None = Field(default=None, alias="ipb_owner", description="Pemilik IPB atau pengembang PLTP")
+    kode_provinsi: str | None = Field(default=None, alias="kode_provinsi", description="Kode wilayah Kemendagri (bisa null)")
+    ipb_owner: str | None = Field(default=None, alias="ipb_owner", description="Pemilik/operator PLTP (bisa null)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

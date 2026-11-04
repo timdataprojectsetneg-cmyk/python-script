@@ -15,13 +15,14 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Infrastruktur | `infrastruktur` | String | - | Kelompok infrastruktur: Pembangkit, Transmisi, Gardu Induk, atau Distribusi |
-| Jenis | `jenis` | String | - | Sub-jenis infrastruktur, misalnya PLTU, PLTS, 500 kV, 150/115/70/20 kV, atau JTM |
-| RUPTL_Sebelumnya | `ruptl_sebelumnya` | Numeric | MW / kms / MVA (sesuai kolom Satuan) | Kapasitas pada RUPTL 2021-2030 |
-| Usulan_Perubahan | `usulan_perubahan` | Numeric | MW / kms / MVA (sesuai kolom Satuan) | Kapasitas pada RUPTL 2025-2034 skenario ARED, dipakai sebagai target kapasitas |
-| Selisih | `selisih` | Numeric | MW / kms / MVA (sesuai kolom Satuan) | Usulan_Perubahan dikurangi RUPTL_Sebelumnya. Nilai negatif berarti kapasitas direncanakan turun |
-| Satuan | `satuan` | String | - | MW (pembangkit), kms (transmisi), MVA (gardu induk). Distribusi: kms untuk JTM dan JTR, MVA untuk trafo distribusi (perlu diverifikasi ke teks bab) |
-| Skenario | `skenario` | String | - | Skenario perencanaan sumber data (ARED) |
+| unit_pln | `unit_pln` | string | - | Nama unit PLN (UID, UIW, UIP3B, UIK, PLN Indonesia Power, PLN Nusantara Power, dll.), baris agregat "Luar Jawa" dan "Jawa", "Proyek Pembangkitan", atau "Indonesia" |
+| tipe_baris | `tipe_baris` | string | - | Jenis baris: "unit", "sub_unit" (provinsi di bawah unit induk, bertanda "-" di sumber), "subtotal_wilayah" (Luar Jawa atau Jawa), "proyek", atau "total" |
+| induk_unit | `induk_unit` | string | - | Nama unit induk untuk baris "sub_unit" (misalnya "UID Riau dan Kepulauan Riau" untuk Riau). Bernilai null untuk baris lain |
+| kelompok_wilayah | `kelompok_wilayah` | string | - | Kelompok wilayah baris tersebut: "Luar Jawa" atau "Jawa". Bernilai null untuk baris proyek dan total |
+| tahun | `tahun` | integer | Tahun | Tahun data (2025) |
+| kapasitas_terpasang_mw | `kapasitas_terpasang_mw` | number | MW | Kapasitas terpasang pembangkit milik PLN, sewa, dan IPP. Bernilai null jika di tabel tertulis "-" |
+| daya_mampu_mw | `daya_mampu_mw` | number | MW | Daya mampu pembangkit milik PLN, sewa, dan IPP. Bernilai null jika di tabel tertulis "-" |
+| beban_puncak_mw | `beban_puncak_mw` | number | MW | Beban puncak. Bernilai null jika di tabel tertulis "-" |
 
 ## Generated Pydantic model
 
@@ -30,13 +31,14 @@ from pydantic import BaseModel, Field
 
 
 class Table1NeracaDayaPowerBalanceRecord(BaseModel):
-    infrastruktur: str | None = Field(default=None, alias="Infrastruktur", description="Kelompok infrastruktur: Pembangkit, Transmisi, Gardu Induk, atau Distribusi")
-    jenis: str | None = Field(default=None, alias="Jenis", description="Sub-jenis infrastruktur, misalnya PLTU, PLTS, 500 kV, 150/115/70/20 kV, atau JTM")
-    ruptl_sebelumnya: str | None = Field(default=None, alias="RUPTL_Sebelumnya", description="Kapasitas pada RUPTL 2021-2030")
-    usulan_perubahan: str | None = Field(default=None, alias="Usulan_Perubahan", description="Kapasitas pada RUPTL 2025-2034 skenario ARED, dipakai sebagai target kapasitas")
-    selisih: str | None = Field(default=None, alias="Selisih", description="Usulan_Perubahan dikurangi RUPTL_Sebelumnya. Nilai negatif berarti kapasitas direncanakan turun")
-    satuan: str | None = Field(default=None, alias="Satuan", description="MW (pembangkit), kms (transmisi), MVA (gardu induk). Distribusi: kms untuk JTM dan JTR, MVA untuk trafo distribusi (perlu diverifikasi ke teks bab)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan sumber data (ARED)")
+    unit_pln: str | None = Field(default=None, alias="unit_pln", description="Nama unit PLN (UID, UIW, UIP3B, UIK, PLN Indonesia Power, PLN Nusantara Power, dll.), baris agregat \"Luar Jawa\" dan \"Jawa\", \"Proyek Pembangkitan\", atau \"Indonesia\"")
+    tipe_baris: str | None = Field(default=None, alias="tipe_baris", description="Jenis baris: \"unit\", \"sub_unit\" (provinsi di bawah unit induk, bertanda \"-\" di sumber), \"subtotal_wilayah\" (Luar Jawa atau Jawa), \"proyek\", atau \"total\"")
+    induk_unit: str | None = Field(default=None, alias="induk_unit", description="Nama unit induk untuk baris \"sub_unit\" (misalnya \"UID Riau dan Kepulauan Riau\" untuk Riau). Bernilai null untuk baris lain")
+    kelompok_wilayah: str | None = Field(default=None, alias="kelompok_wilayah", description="Kelompok wilayah baris tersebut: \"Luar Jawa\" atau \"Jawa\". Bernilai null untuk baris proyek dan total")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data (2025)")
+    kapasitas_terpasang_mw: float | None = Field(default=None, alias="kapasitas_terpasang_mw", description="Kapasitas terpasang pembangkit milik PLN, sewa, dan IPP. Bernilai null jika di tabel tertulis \"-\"")
+    daya_mampu_mw: float | None = Field(default=None, alias="daya_mampu_mw", description="Daya mampu pembangkit milik PLN, sewa, dan IPP. Bernilai null jika di tabel tertulis \"-\"")
+    beban_puncak_mw: float | None = Field(default=None, alias="beban_puncak_mw", description="Beban puncak. Bernilai null jika di tabel tertulis \"-\"")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

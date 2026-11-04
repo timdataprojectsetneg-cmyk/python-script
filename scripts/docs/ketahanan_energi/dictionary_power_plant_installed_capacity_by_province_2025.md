@@ -15,11 +15,11 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| tahun | `tahun` | Integer | Tahun | Tahun data kapasitas terpasang pembangkit (2025) |
+| provinsi | `provinsi` | String | - | Nama provinsi sesuai tabel sumber (38 provinsi) |
+| kategori | `kategori` | String | - | Jenis pembangkit: Hydro PP, Mini Hydro PP, Micro Hydro PP, Geothermal PP, Solar PP, Wind PP, Biogas PP, Biomass PP, Biofuel PP, Waste PP, Diesel PP, Steam PP, Gas PP, Coal Gasification PP, Combined Gas-Steam PP, Gas Engine PP, Other PP, Total (jumlah seluruh jenis pembangkit di provinsi tersebut) |
+| nilai | `nilai` | Decimal | MW | Kapasitas terpasang pembangkit listrik (megawatt); tanda "-" pada sumber ditulis 0 |
+| satuan | `satuan` | String | - | Satuan nilai, yaitu MW (megawatt) |
 
 ## Generated Pydantic model
 
@@ -28,11 +28,11 @@ from pydantic import BaseModel, Field
 
 
 class PowerPlantInstalledCapacityByProvince2025Record(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data kapasitas terpasang pembangkit (2025)")
+    provinsi: str | None = Field(default=None, alias="provinsi", description="Nama provinsi sesuai tabel sumber (38 provinsi)")
+    kategori: str | None = Field(default=None, alias="kategori", description="Jenis pembangkit: Hydro PP, Mini Hydro PP, Micro Hydro PP, Geothermal PP, Solar PP, Wind PP, Biogas PP, Biomass PP, Biofuel PP, Waste PP, Diesel PP, Steam PP, Gas PP, Coal Gasification PP, Combined Gas-Steam PP, Gas Engine PP, Other PP, Total (jumlah seluruh jenis pembangkit di provinsi tersebut)")
+    nilai: float | None = Field(default=None, alias="nilai", description="Kapasitas terpasang pembangkit listrik (megawatt); tanda \"-\" pada sumber ditulis 0")
+    satuan: str | None = Field(default=None, alias="satuan", description="Satuan nilai, yaitu MW (megawatt)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

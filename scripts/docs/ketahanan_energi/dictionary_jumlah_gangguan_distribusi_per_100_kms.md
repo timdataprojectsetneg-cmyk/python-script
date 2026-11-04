@@ -15,12 +15,14 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Sistem | `sistem` | String | - | Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka) |
-| Skenario | `skenario` | String | - | Skenario perencanaan: ARED atau RE Base |
-| Kelompok | `kelompok` | String | - | Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi |
-| Uraian | `uraian` | String | - | Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin |
-| Satuan | `satuan` | String | - | Satuan indikator: GWh, MW, atau % |
-| 2025 s.d. 2034 | `2025_s_d_2034` | Numeric | Sesuai kolom Satuan | Nilai proyeksi per tahun (satu kolom per tahun |
+| unit_pln | `unit_pln` | string | - | Nama unit PLN, baris agregat "Luar Jawa" dan "Jawa", atau "Indonesia" |
+| tipe_baris | `tipe_baris` | string | - | Jenis baris: "unit", "sub_unit" (bertanda "-" di sumber), "subtotal_wilayah", atau "total" |
+| induk_unit | `induk_unit` | string | - | Nama unit induk untuk baris "sub_unit". Null untuk baris lain |
+| kelompok_wilayah | `kelompok_wilayah` | string | - | Kelompok wilayah: "Luar Jawa" atau "Jawa". Null untuk baris total |
+| tahun | `tahun` | integer | Tahun | Tahun data (2025) |
+| jumlah_gangguan_kali | `jumlah_gangguan_kali` | integer | Kali | Jumlah gangguan distribusi (Number of Interruption). Null jika "-" |
+| panjang_jaringan_jtm_kms | `panjang_jaringan_jtm_kms` | number | kms | Panjang jaringan Jaringan Tegangan Menengah (JTM). Null jika "-" |
+| jumlah_gangguan_per_100kms | `jumlah_gangguan_per_100kms` | number | Kali/100 kms | Jumlah gangguan per 100 kms jaringan JTM. Null jika "-" |
 
 ## Generated Pydantic model
 
@@ -29,12 +31,14 @@ from pydantic import BaseModel, Field
 
 
 class JumlahGangguanDistribusiPer100KmsRecord(BaseModel):
-    sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
-    kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")
-    uraian: str | None = Field(default=None, alias="Uraian", description="Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin")
-    satuan: str | None = Field(default=None, alias="Satuan", description="Satuan indikator: GWh, MW, atau %")
-    2025_s_d_2034: str | None = Field(default=None, alias="2025 s.d. 2034", description="Nilai proyeksi per tahun (satu kolom per tahun")
+    unit_pln: str | None = Field(default=None, alias="unit_pln", description="Nama unit PLN, baris agregat \"Luar Jawa\" dan \"Jawa\", atau \"Indonesia\"")
+    tipe_baris: str | None = Field(default=None, alias="tipe_baris", description="Jenis baris: \"unit\", \"sub_unit\" (bertanda \"-\" di sumber), \"subtotal_wilayah\", atau \"total\"")
+    induk_unit: str | None = Field(default=None, alias="induk_unit", description="Nama unit induk untuk baris \"sub_unit\". Null untuk baris lain")
+    kelompok_wilayah: str | None = Field(default=None, alias="kelompok_wilayah", description="Kelompok wilayah: \"Luar Jawa\" atau \"Jawa\". Null untuk baris total")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data (2025)")
+    jumlah_gangguan_kali: int | None = Field(default=None, alias="jumlah_gangguan_kali", description="Jumlah gangguan distribusi (Number of Interruption). Null jika \"-\"")
+    panjang_jaringan_jtm_kms: float | None = Field(default=None, alias="panjang_jaringan_jtm_kms", description="Panjang jaringan Jaringan Tegangan Menengah (JTM). Null jika \"-\"")
+    jumlah_gangguan_per_100kms: float | None = Field(default=None, alias="jumlah_gangguan_per_100kms", description="Jumlah gangguan per 100 kms jaringan JTM. Null jika \"-\"")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

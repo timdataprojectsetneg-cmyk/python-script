@@ -15,11 +15,13 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Periode | `periode` | Text | bulan | Periode bulanan. |
+| Crude Oil, Brent | `crude_oil_brent` | Decimal | US$/bbl | Harga rata-rata bulanan Brent. |
+| Crude Oil, Dubai | `crude_oil_dubai` | Decimal | US$/bbl | Harga rata-rata bulanan Dubai Fateh. |
+| Crude Oil, WTI | `crude_oil_wti` | Decimal | US$/bbl | Harga rata-rata bulanan WTI. |
+| Natural Gas, Europe | `natural_gas_europe` | Decimal | US$/mmbtu | Harga gas alam Eropa berbasis TTF. |
+| Natural Gas, US | `natural_gas_us` | Decimal | US$/mmbtu | Harga gas alam AS di Henry Hub. |
+| Liquefied Natural Gas, Japan | `liquefied_natural_gas_japan` | Decimal | US$/mmbtu | Harga impor LNG Jepang. |
 
 ## Generated Pydantic model
 
@@ -28,11 +30,13 @@ from pydantic import BaseModel, Field
 
 
 class PinkSheetDataMonthlyPricesSeptember2026Record(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    periode: str | None = Field(default=None, alias="Periode", description="Periode bulanan.")
+    crude_oil_brent: float | None = Field(default=None, alias="Crude Oil, Brent", description="Harga rata-rata bulanan Brent.")
+    crude_oil_dubai: float | None = Field(default=None, alias="Crude Oil, Dubai", description="Harga rata-rata bulanan Dubai Fateh.")
+    crude_oil_wti: float | None = Field(default=None, alias="Crude Oil, WTI", description="Harga rata-rata bulanan WTI.")
+    natural_gas_europe: float | None = Field(default=None, alias="Natural Gas, Europe", description="Harga gas alam Eropa berbasis TTF.")
+    natural_gas_us: float | None = Field(default=None, alias="Natural Gas, US", description="Harga gas alam AS di Henry Hub.")
+    liquefied_natural_gas_japan: float | None = Field(default=None, alias="Liquefied Natural Gas, Japan", description="Harga impor LNG Jepang.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

@@ -20,7 +20,7 @@
 | No. Penyalur | `no_penyalur` | Integer | - | Nomor urut penyalur dalam badan usaha; null jika badan usaha tidak memiliki penyalur |
 | Nama Penyalur | `nama_penyalur` | String | - | Nama penyalur BBM agen industri |
 | Alamat Kantor | `alamat_kantor` | String | - | Alamat kantor penyalur sebagaimana tertulis di laporan |
-| Wilayah Penyaluran (Provinsi) | `wilayah_penyaluran` | String | - | Wilayah penyaluran, dapat berisi beberapa provinsi/wilayah dalam satu teks |
+| Wilayah Penyaluran (Provinsi) | `wilayah_penyaluran_provinsi` | String | - | Wilayah penyaluran, dapat berisi beberapa provinsi/wilayah dalam satu teks |
 | Keterangan | `keterangan` | String | - | Status badan usaha bila tidak memiliki penyalur, mis. TIDAK MEMILIKI PENYALUR, BELUM MELAPORKAN PENYALUR, atau sanksi |
 
 ## Generated Pydantic model
@@ -30,13 +30,13 @@ from pydantic import BaseModel, Field
 
 
 class Kbli47302SemesterITahun2026Record(BaseModel):
-    no_badan_usaha: int | None = Field(default=None, alias="no_badan_usaha", description="Nomor urut badan usaha niaga umum")
-    nama_badan_usaha: str | None = Field(default=None, alias="nama_badan_usaha", description="Nama badan usaha niaga umum BBM")
-    no_penyalur: int | None = Field(default=None, alias="no_penyalur", description="Nomor urut penyalur dalam badan usaha")
-    nama_penyalur: str | None = Field(default=None, alias="nama_penyalur", description="Nama penyalur BBM agen industri")
-    alamat_kantor: str | None = Field(default=None, alias="alamat_kantor", description="Alamat kantor penyalur sebagaimana tertulis di laporan")
-    wilayah_penyaluran: str | None = Field(default=None, alias="wilayah_penyaluran", description="Wilayah penyaluran, dapat berisi beberapa provinsi/wilayah")
-    keterangan: str | None = Field(default=None, alias="keterangan", description="Status badan usaha bila tidak memiliki penyalur")
+    no_badan_usaha: int | None = Field(default=None, alias="No. Badan Usaha", description="Nomor urut badan usaha niaga umum")
+    nama_badan_usaha: str | None = Field(default=None, alias="Nama Badan Usaha", description="Nama badan usaha niaga umum BBM")
+    no_penyalur: int | None = Field(default=None, alias="No. Penyalur", description="Nomor urut penyalur dalam badan usaha; null jika badan usaha tidak memiliki penyalur")
+    nama_penyalur: str | None = Field(default=None, alias="Nama Penyalur", description="Nama penyalur BBM agen industri")
+    alamat_kantor: str | None = Field(default=None, alias="Alamat Kantor", description="Alamat kantor penyalur sebagaimana tertulis di laporan")
+    wilayah_penyaluran_provinsi: str | None = Field(default=None, alias="Wilayah Penyaluran (Provinsi)", description="Wilayah penyaluran, dapat berisi beberapa provinsi/wilayah dalam satu teks")
+    keterangan: str | None = Field(default=None, alias="Keterangan", description="Status badan usaha bila tidak memiliki penyalur, mis. TIDAK MEMILIKI PENYALUR, BELUM MELAPORKAN PENYALUR, atau sanksi")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

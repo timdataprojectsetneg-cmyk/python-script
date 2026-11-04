@@ -15,11 +15,15 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| Province Code | `province_code` | Integer | - | Kode provinsi sesuai kode Kementerian Dalam Negeri |
+| Province | `province` | String | - | Nama provinsi; baris TOTAL untuk agregat nasional |
+| Exploration Target | `exploration_target` | Numeric (Float) | Juta ton | Target eksplorasi batubara pada provinsi bersangkutan |
+| Total Inventory | `total_inventory` | Numeric (Float) | Juta ton | Total inventori batubara pada provinsi bersangkutan |
+| Resources - Inferred | `resources_inferred` | Numeric (Float) | Juta ton | Sumber daya batubara kelas tereka (inferred) |
+| Resources - Indicated | `resources_indicated` | Numeric (Float) | Juta ton | Sumber daya batubara kelas terunjuk (indicated) |
+| Resources - Measured | `resources_measured` | Numeric (Float) | Juta ton | Sumber daya batubara kelas terukur (measured) |
+| Resources - Total | `resources_total` | Numeric (Float) | Juta ton | Total sumber daya batubara (inferred + indicated + measured) |
+| Reserves | `reserves` | Numeric (Float) | Juta ton | Cadangan batubara pada provinsi bersangkutan |
 
 ## Generated Pydantic model
 
@@ -28,11 +32,15 @@ from pydantic import BaseModel, Field
 
 
 class CoalResourcesAndReservesRecord(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    province_code: int | None = Field(default=None, alias="Province Code", description="Kode provinsi sesuai kode Kementerian Dalam Negeri")
+    province: str | None = Field(default=None, alias="Province", description="Nama provinsi; baris TOTAL untuk agregat nasional")
+    exploration_target: str | None = Field(default=None, alias="Exploration Target", description="Target eksplorasi batubara pada provinsi bersangkutan")
+    total_inventory: str | None = Field(default=None, alias="Total Inventory", description="Total inventori batubara pada provinsi bersangkutan")
+    resources_inferred: str | None = Field(default=None, alias="Resources - Inferred", description="Sumber daya batubara kelas tereka (inferred)")
+    resources_indicated: str | None = Field(default=None, alias="Resources - Indicated", description="Sumber daya batubara kelas terunjuk (indicated)")
+    resources_measured: str | None = Field(default=None, alias="Resources - Measured", description="Sumber daya batubara kelas terukur (measured)")
+    resources_total: str | None = Field(default=None, alias="Resources - Total", description="Total sumber daya batubara (inferred + indicated + measured)")
+    reserves: str | None = Field(default=None, alias="Reserves", description="Cadangan batubara pada provinsi bersangkutan")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

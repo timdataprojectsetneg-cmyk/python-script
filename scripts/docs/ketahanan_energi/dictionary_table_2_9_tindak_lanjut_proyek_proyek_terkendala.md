@@ -15,12 +15,14 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Sistem | `sistem` | String | - | Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka) |
-| Skenario | `skenario` | String | - | Skenario perencanaan: ARED atau RE Base |
-| Kelompok | `kelompok` | String | - | Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi |
-| Uraian | `uraian` | String | - | Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin |
-| Satuan | `satuan` | String | - | Satuan indikator: GWh, MW, atau % |
-| 2025 s.d. 2034 | `2025_s_d_2034` | Numeric | Sesuai kolom Satuan | Nilai proyeksi per tahun (satu kolom per tahun |
+| no | `no` | integer | - | Nomor urut proyek |
+| status_proyek | `status_proyek` | string | - | Kelompok proyek di sumber: "Selesai" (no 1-17) atau "Dilanjutkan" (no 18-34) |
+| pembangkit | `pembangkit` | string | - | Nama pembangkit terkendala |
+| kapasitas | `kapasitas` | string | MW | Kapasitas dalam format jumlah unit x MW per unit (misalnya "2x7"), atau MW tunggal (misalnya "30") |
+| pengembang | `pengembang` | string | - | Pengembang proyek: PLN atau IPP |
+| keterangan_dilanjutkan | `keterangan_dilanjutkan` | string | - | Bernilai "Dilanjutkan" jika proyek dilanjutkan. Null jika kosong di sumber |
+| keterangan_diganti | `keterangan_diganti` | string | - | Bentuk penggantian proyek (GI, PLTMG, PLTD, MPP, "Relokasi MPP", "Relokasi Sorong***", dll.). Null jika kosong di sumber |
+| rencana_cod | `rencana_cod` | string | - | Rencana COD: "Operasi" untuk yang sudah beroperasi, tahun (misalnya "2033"), atau keterangan bertahap (misalnya "2025 (14 MW)/2026 (14 MW)") |
 
 ## Generated Pydantic model
 
@@ -29,12 +31,14 @@ from pydantic import BaseModel, Field
 
 
 class Table29TindakLanjutProyekProyekTerkendalaRecord(BaseModel):
-    sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
-    kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")
-    uraian: str | None = Field(default=None, alias="Uraian", description="Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin")
-    satuan: str | None = Field(default=None, alias="Satuan", description="Satuan indikator: GWh, MW, atau %")
-    2025_s_d_2034: str | None = Field(default=None, alias="2025 s.d. 2034", description="Nilai proyeksi per tahun (satu kolom per tahun")
+    no: int | None = Field(default=None, alias="no", description="Nomor urut proyek")
+    status_proyek: str | None = Field(default=None, alias="status_proyek", description="Kelompok proyek di sumber: \"Selesai\" (no 1-17) atau \"Dilanjutkan\" (no 18-34)")
+    pembangkit: str | None = Field(default=None, alias="pembangkit", description="Nama pembangkit terkendala")
+    kapasitas: str | None = Field(default=None, alias="kapasitas", description="Kapasitas dalam format jumlah unit x MW per unit (misalnya \"2x7\"), atau MW tunggal (misalnya \"30\")")
+    pengembang: str | None = Field(default=None, alias="pengembang", description="Pengembang proyek: PLN atau IPP")
+    keterangan_dilanjutkan: str | None = Field(default=None, alias="keterangan_dilanjutkan", description="Bernilai \"Dilanjutkan\" jika proyek dilanjutkan. Null jika kosong di sumber")
+    keterangan_diganti: str | None = Field(default=None, alias="keterangan_diganti", description="Bentuk penggantian proyek (GI, PLTMG, PLTD, MPP, \"Relokasi MPP\", \"Relokasi Sorong***\", dll.). Null jika kosong di sumber")
+    rencana_cod: str | None = Field(default=None, alias="rencana_cod", description="Rencana COD: \"Operasi\" untuk yang sudah beroperasi, tahun (misalnya \"2033\"), atau keterangan bertahap (misalnya \"2025 (14 MW)/2026 (14 MW)\")")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

@@ -15,10 +15,9 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Jenis energi yang dikonsumsi, mis. Biodiesel, Coal, LPG, Electricity, Total |
-| nilai | `nilai` | Numeric (Decimal) | Thousand BOE | Konsumsi energi per kategori dan tahun |
-| satuan | `satuan` | Categorical | - | Thousand BOE |
+| Year | `year` | Integer | Tahun | Tahun/periode data pada tabel konsumsi energi final per sektor. |
+| Sector | `sector` | Categorical | - | Sektor pengguna energi: Industrial, Households, Commercial, Transportation, Other, Final Energy Consumption (total), dan Non Energy Utilization. |
+| Energy Consumption | `energy_consumption` | Numeric | Belum terlihat* | Jumlah konsumsi energi pada sektor dan tahun tersebut. |
 
 ## Generated Pydantic model
 
@@ -27,10 +26,9 @@ from pydantic import BaseModel, Field
 
 
 class FinalEnergyConsumptionByTypeRecord(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Jenis energi yang dikonsumsi, mis. Biodiesel, Coal, LPG, Electricity, Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Konsumsi energi per kategori dan tahun")
-    satuan: str | None = Field(default=None, alias="satuan", description="Thousand BOE")
+    year: int | None = Field(default=None, alias="Year", description="Tahun/periode data pada tabel konsumsi energi final per sektor.")
+    sector: str | None = Field(default=None, alias="Sector", description="Sektor pengguna energi: Industrial, Households, Commercial, Transportation, Other, Final Energy Consumption (total), dan Non Energy Utilization.")
+    energy_consumption: str | None = Field(default=None, alias="Energy Consumption", description="Jumlah konsumsi energi pada sektor dan tahun tersebut.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

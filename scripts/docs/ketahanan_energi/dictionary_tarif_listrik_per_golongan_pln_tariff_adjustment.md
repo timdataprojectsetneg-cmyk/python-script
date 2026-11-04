@@ -5,7 +5,7 @@
 - Use case: `ketahanan_energi`
 - Source: `Tarif Listrik per Golongan - PLN Tariff Adjustment`
 - Publisher: pln
-- Data access: `Manual`
+- Data access: `json`
 - Update frequency: Quarterly
 - Eligible: `True`
 - Data Dictionary file: [PLN - Tariff Adjustment](https://telkomind.sharepoint.com/:x:/r/sites/SetnegTeam/Shared%20Documents/Sitroom-2026/PROJECT/DATA/1%20-%20Discover/Data%20Dictionary%20-%20Ketahanan%20Energi/Harga,%20Subsidi,%20dan%20Beban%20Fiskal%20Energi.xlsx?d=w8600be84249e4b8db4faec846dcce2da&csf=1&web=1&e=wmpAJK&nav=MTVfe0MwOTQwRTIxLUM1RTYtNENFRS1CRjY5LUVBMjQyNjY4OEU0Rn0)

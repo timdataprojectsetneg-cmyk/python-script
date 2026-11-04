@@ -15,10 +15,9 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Jenis pembangkit sumber listrik impor, mis. Hydro PP |
-| nilai | `nilai` | Numeric (Decimal) | GWh | Energi listrik impor per kategori dan tahun |
-| satuan | `satuan` | Categorical | - | GWh |
+| Year | `year` | Integer | Tahun | Tahun/periode data pada tabel T6.4.3 Import Electricity. |
+| Country of Origin | `country_of_origin` | Categorical | - | Negara asal impor listrik. |
+| Hydro PP (GWh) | `hydro_pp_gwh` | Numeric | GWh | Jumlah energi pembangkit listrik tenaga air. |
 
 ## Generated Pydantic model
 
@@ -27,10 +26,9 @@ from pydantic import BaseModel, Field
 
 
 class ImportOfElectricityRecord(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Jenis pembangkit sumber listrik impor, mis. Hydro PP")
-    nilai: str | None = Field(default=None, alias="nilai", description="Energi listrik impor per kategori dan tahun")
-    satuan: str | None = Field(default=None, alias="satuan", description="GWh")
+    year: int | None = Field(default=None, alias="Year", description="Tahun/periode data pada tabel T6.4.3 Import Electricity.")
+    country_of_origin: str | None = Field(default=None, alias="Country of Origin", description="Negara asal impor listrik.")
+    hydro_pp_gwh: str | None = Field(default=None, alias="Hydro PP (GWh)", description="Jumlah energi pembangkit listrik tenaga air.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

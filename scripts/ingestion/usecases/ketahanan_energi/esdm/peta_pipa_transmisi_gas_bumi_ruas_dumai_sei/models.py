@@ -5,12 +5,11 @@ from pydantic import BaseModel, Field
 
 
 class Record(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi pada judul slide: Pipa Transmisi Gas Bumi Dumai–Sei Mangkei–Medan (DUSEM)")
 
+    titik_rute: str | None = Field(default=None, alias="titik_rute", description="Lokasi yang diberi label pada peta di sepanjang rute pipa")
+    panjang_pipa: str | None = Field(default=None, alias="panjang_pipa", description="Panjang perkiraan pipa, tertulis dengan tanda ± pada kotak keterangan peta")
+    sumber_pasokan: str | None = Field(default=None, alias="sumber_pasokan", description="Sumber gas yang akan dialirkan menurut teks slide")
+    peruntukan: str | None = Field(default=None, alias="peruntukan", description="Kebutuhan yang dilayani menurut teks slide")
+    manfaat: str | None = Field(default=None, alias="manfaat", description="Manfaat pembangunan pipa yang dicantumkan slide (poin a–d)")
     model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}
-

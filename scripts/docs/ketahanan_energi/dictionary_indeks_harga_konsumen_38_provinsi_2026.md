@@ -15,11 +15,12 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Provinsi | `provinsi` | String/Kategorikal | Provinsi | Nama provinsi tempat indeks harga konsumen diukur |
+| Tahun | `tahun` | Integer | Tahun | Tahun observasi IHK |
+| Bulan | `bulan` | String/Kategorikal | Bulan | Bulan observasi IHK |
+| IHK | `ihk` | Numerik/Decimal | Indeks | Indeks Harga Konsumen dengan tahun dasar 2022 = 100 yang menggambarkan tingkat harga konsumen pada provinsi dan periode tertentu |
+| Tahun Dasar | `tahun_dasar` | Integer | Tahun | Tahun dasar yang digunakan dalam perhitungan indeks, yaitu 2022 |
+| Periode Observasi | `periode_observasi` | Date/Period | Bulan-Tahun | Periode pengamatan yang menggabungkan tahun dan bulan |
 
 ## Generated Pydantic model
 
@@ -28,11 +29,12 @@ from pydantic import BaseModel, Field
 
 
 class IndeksHargaKonsumen38Provinsi2026Record(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    provinsi: str | None = Field(default=None, alias="Provinsi", description="Nama provinsi tempat indeks harga konsumen diukur")
+    tahun: int | None = Field(default=None, alias="Tahun", description="Tahun observasi IHK")
+    bulan: str | None = Field(default=None, alias="Bulan", description="Bulan observasi IHK")
+    ihk: str | None = Field(default=None, alias="IHK", description="Indeks Harga Konsumen dengan tahun dasar 2022 = 100 yang menggambarkan tingkat harga konsumen pada provinsi dan periode tertentu")
+    tahun_dasar: int | None = Field(default=None, alias="Tahun Dasar", description="Tahun dasar yang digunakan dalam perhitungan indeks, yaitu 2022")
+    periode_observasi: str | None = Field(default=None, alias="Periode Observasi", description="Periode pengamatan yang menggabungkan tahun dan bulan")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

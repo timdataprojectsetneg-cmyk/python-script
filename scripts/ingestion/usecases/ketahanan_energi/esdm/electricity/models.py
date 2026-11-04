@@ -11,4 +11,3 @@ class Record(BaseModel):
     satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
 
     model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}
-

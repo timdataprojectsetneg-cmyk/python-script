@@ -38,3 +38,10 @@ def test_column_type_prefers_date_over_text():
 def test_json_dumps_handles_dates_inside_jsonb():
     payload = _json_dumps({"register": date(2021, 8, 11)})
     assert '"register": "2021-08-11"' in payload
+
+
+def test_to_pydantic_source_maps_decimal():
+    schema = [{"label": "Nilai", "name": "nilai", "type": "Decimal"}]
+    source = to_pydantic_source("XRecord", schema)
+    assert "from decimal import Decimal" in source
+    assert "nilai: Decimal | None" in source

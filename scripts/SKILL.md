@@ -21,10 +21,11 @@ Location: `bigaction/python-script/scripts/` (package `ingestion/`; entrypoints
 3. **Secrets never in code/logs.** `.env` is published (non-secret only);
    `.env.<profile>` (e.g. `.env.dev`) is gitignored and loaded with `--env dev`.
    PROD Python holds no DB credentials.
-4. **Unit tests are optional**; the committed suite lives in `scripts/tests/unit`
-   and `scripts/tests/integration`. Tests that actually run an ingestion for one
-   use case belong in `scripts/tests/ingestion/`, which is **local-only**
-   (gitignored) — see [Tests](#tests).
+4. **Unit tests are optional**; committed core tests live in `scripts/tests/unit`
+   and `scripts/tests/integration`. Any test bound to a specific
+   usecase/publisher/source (models, normalizer, extractor behavior) belongs in
+   `scripts/tests/ingestion/`, which is **local-only** (gitignored) — see
+   [Tests](#tests).
 
 ## Ingestion pipeline (3 steps)
 
@@ -89,15 +90,22 @@ import Record`.
 
 | Folder | Isi | Di-commit? |
 |---|---|---|
-| `scripts/tests/unit/` | unit test semua modul `ingestion/`: `config`, `catalog/`+`docs`, loaders, `registry`, dan fitur `run` (`--full-refresh`, `--thread`, `--exclude`) | ya |
+| `scripts/tests/unit/` | unit test modul core/shared: `config`, `catalog/`+`docs`, loaders, `registry`, dan fitur `run` (`--full-refresh`, `--thread`, `--exclude`). **Bukan** untuk test source tertentu | ya |
 | `scripts/tests/integration/` | CLI/dokumen end-to-end dengan client di-stub (mis. `docs` generate/scaffold) | ya |
-| `scripts/tests/ingestion/` | unit test yang **benar-benar menjalankan ingestion** (`run --usecase/--publisher/--source`) untuk satu use case | **tidak** (gitignored) |
+| `scripts/tests/ingestion/` | test yang terikat ke usecase/publisher/source tertentu: validasi `models.py`, normalizer, extractor, atau `run` ingestion nyata | **tidak** (gitignored) |
 
 `scripts/tests/ingestion/` dikhususkan untuk Data Engineer pemilik use case: isinya
-menjalankan alur nyata (extract → normalize → load) untuk usecase/publisher/source
-tertentu — sering butuh kredensial/DB — dan **tidak di-push ke repo**. Fitur milik
-core `run` (mis. `--full-refresh`, `--thread`) tetap diuji di
-`scripts/tests/unit/`, bukan di sini.
+test yang terikat ke usecase/publisher/source tertentu — model validation,
+normalizer, extractor, atau alur nyata (extract → normalize → load) — sering butuh
+kredensial/DB, dan **tidak di-push ke repo**. Fitur milik core `run` (mis.
+`--full-refresh`, `--thread`) tetap diuji di `scripts/tests/unit/`, bukan di sini.
+
+Aturan penempatan: jika sebuah test mengimpor `ingestion.usecases.<usecase>...`
+(model/normalizer/extractor satu source), file-nya **wajib** di
+`scripts/tests/ingestion/`, bukan `scripts/tests/unit/`. Contoh:
+`test_pertamina_record_validation.py`, `test_ceic_extractor.py`,
+`test_kemnaker_perusahaan_melapor_pp.py`. `tests/unit/` hanya untuk modul
+core/shared yang tidak terikat source.
 
 ```bash
 pytest scripts/tests/unit scripts/tests/integration   # suite yang di-commit
@@ -259,6 +267,37 @@ python -m ingestion docs --list sources --usecase ketenagakerjaan
 4. Keep source-specific parsing/selector logic in the source module
    (never in `core/`).
 5. Verify: `python -m ingestion run --usecase <uc> --source <src> --limit 5`.
+
+### Pydantic type mapping (dictionary → `models.py`)
+
+`to_pydantic_source()` di `ingestion/catalog/metadata_parser.py` memakai mapping
+baku ini; jangan mengganti tipe saat generate/sync model:
+
+```python
+PYDANTIC_TYPE_MAP = {
+    "integer": "int",
+    "int": "int",
+    "number": "float",
+    "float": "float",
+    "decimal": "Decimal",
+    "date": "DateType",
+    "datetime": "DateTimeType",
+    "boolean": "bool",
+    "bool": "bool",
+    "json": "dict[str, Any]",
+    "object": "dict[str, Any]",
+    "dict": "dict[str, Any]",
+}
+```
+
+- Tipe dictionary `Decimal` menghasilkan `from decimal import Decimal` dan field
+  `Decimal | None` (jangan diubah menjadi `float`).
+- `date`/`datetime` memakai alias `DateType`/`DateTimeType` supaya nama field
+  `date` tidak menimpa tipe.
+- `json`/`object`/`dict` menghasilkan `dict[str, Any]`.
+- Model hasil generate memakai
+  `model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}`
+  agar angka dari sumber tetap bisa masuk ke field teks.
 
 ## Example prompts
 

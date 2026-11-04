@@ -19,7 +19,7 @@
 | Nama Badan Usaha | `nama_badan_usaha` | String | - | Nama badan usaha niaga |
 | No. Penyalur | `no_penyalur` | Integer | - | Nomor urut penyalur dalam badan usaha |
 | Nama Penyalur | `nama_penyalur` | String | - | Nama penyalur (agen/SPBU/SPBN/SPBKB) |
-| Bentuk Penyalur | `bentuk_penyalur` | Categorical | - | Bentuk penyalur: SPBU, SPBN, SPBKB, SPBKB (3T), dan sejenisnya |
+| Bentuk Penyalur | `bentuk_penyalur` | String | - | Bentuk penyalur: SPBU, SPBN, SPBKB, SPBKB (3T), dan sejenisnya |
 | Alamat Fasilitas | `alamat_fasilitas` | String | - | Alamat fasilitas penyalur |
 | Nama Stasiun | `nama_stasiun` | String | - | Nama stasiun pengisian BBM (SPBU BP ...). Hanya terisi untuk badan usaha yang mencantumkannya; null bila tidak ada |
 | Kota/Kabupaten | `kota_kabupaten` | String | - | Kota/kabupaten lokasi fasilitas |
@@ -32,15 +32,15 @@ from pydantic import BaseModel, Field
 
 
 class DaftarPenyalurBadanUsahaNiagaUmumBahanBakarRecord(BaseModel):
-    no_badan_usaha: int | None = Field(default=None, alias="no_badan_usaha", description="Nomor urut badan usaha niaga")
-    nama_badan_usaha: str | None = Field(default=None, alias="nama_badan_usaha", description="Nama badan usaha niaga")
-    no_penyalur: int | None = Field(default=None, alias="no_penyalur", description="Nomor urut penyalur dalam badan usaha")
-    nama_penyalur: str | None = Field(default=None, alias="nama_penyalur", description="Nama penyalur")
-    bentuk_penyalur: str | None = Field(default=None, alias="bentuk_penyalur", description="Bentuk penyalur: SPBU, SPBN, SPBKB, SPBKB (3T), dan sejenisnya")
-    alamat_fasilitas: str | None = Field(default=None, alias="alamat_fasilitas", description="Alamat fasilitas penyalur")
-    nama_stasiun: str | None = Field(default=None, alias="nama_stasiun", description="Nama stasiun pengisian BBM")
-    kota_kabupaten: str | None = Field(default=None, alias="kota_kabupaten", description="Kota/kabupaten lokasi fasilitas")
-    provinsi: str | None = Field(default=None, alias="provinsi", description="Provinsi lokasi fasilitas")
+    no_badan_usaha: int | None = Field(default=None, alias="No. Badan Usaha", description="Nomor urut badan usaha niaga")
+    nama_badan_usaha: str | None = Field(default=None, alias="Nama Badan Usaha", description="Nama badan usaha niaga")
+    no_penyalur: int | None = Field(default=None, alias="No. Penyalur", description="Nomor urut penyalur dalam badan usaha")
+    nama_penyalur: str | None = Field(default=None, alias="Nama Penyalur", description="Nama penyalur (agen/SPBU/SPBN/SPBKB)")
+    bentuk_penyalur: str | None = Field(default=None, alias="Bentuk Penyalur", description="Bentuk penyalur: SPBU, SPBN, SPBKB, SPBKB (3T), dan sejenisnya")
+    alamat_fasilitas: str | None = Field(default=None, alias="Alamat Fasilitas", description="Alamat fasilitas penyalur")
+    nama_stasiun: str | None = Field(default=None, alias="Nama Stasiun", description="Nama stasiun pengisian BBM (SPBU BP ...). Hanya terisi untuk badan usaha yang mencantumkannya; null bila tidak ada")
+    kota_kabupaten: str | None = Field(default=None, alias="Kota/Kabupaten", description="Kota/kabupaten lokasi fasilitas")
+    provinsi: str | None = Field(default=None, alias="Provinsi", description="Provinsi lokasi fasilitas. Null bila dokumen tidak mencantumkan provinsi")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

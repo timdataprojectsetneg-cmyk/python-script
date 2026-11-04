@@ -17,27 +17,22 @@ Nasional (RIJTDGBN) `
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| kategori_infrastruktur | `kategori_infrastruktur` | Categorical | - | Jenis infrastruktur pada legenda: Pipa Transmisi, Pipa Distribusi, Pipa Kepentingan Sendiri, FSRU/FRU/FSU, Kilang LNG, Fasilitas CNG, Terminal Penerima LNG Onshore, Wilayah Jaringan Distribusi, Jargas Rumah Tangga |
+| status_pembangunan | `status_pembangunan` | Categorical | - | Eksisting / Ongoing / Rencana, sesuai warna dan gaya garis pada legenda. Wilayah Jaringan Distribusi tidak punya status pada legenda |
+| tipe_geometri | `tipe_geometri` | Categorical | - | Garis (pipa), Titik (fasilitas, terminal, kilang, FSRU, CNG), atau Poligon (wilayah jaringan, jargas). Diturunkan dari simbol legenda, jadi perlu dicek ke data GIS asli |
+| simbol_legenda | `simbol_legenda` | Text | - | Deskripsi tampilan simbol pada legenda (warna, gaya garis/ikon) untuk tiap kategori dan status |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class PetaRencanaIndukJaringanTransmisiDanDistribusiGasBumiRecord(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    kategori_infrastruktur: str | None = Field(default=None, alias="kategori_infrastruktur", description="Jenis infrastruktur pada legenda: Pipa Transmisi, Pipa Distribusi, Pipa Kepentingan Sendiri, FSRU/FRU/FSU, Kilang LNG, Fasilitas CNG, Terminal Penerima LNG Onshore, Wilayah Jaringan Distribusi, Jargas Rumah Tangga")
+    status_pembangunan: str | None = Field(default=None, alias="status_pembangunan", description="Eksisting / Ongoing / Rencana, sesuai warna dan gaya garis pada legenda. Wilayah Jaringan Distribusi tidak punya status pada legenda")
+    tipe_geometri: str | None = Field(default=None, alias="tipe_geometri", description="Garis (pipa), Titik (fasilitas, terminal, kilang, FSRU, CNG), atau Poligon (wilayah jaringan, jargas). Diturunkan dari simbol legenda, jadi perlu dicek ke data GIS asli")
+    simbol_legenda: str | None = Field(default=None, alias="simbol_legenda", description="Deskripsi tampilan simbol pada legenda (warna, gaya garis/ikon) untuk tiap kategori dan status")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

@@ -15,12 +15,11 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Sistem | `sistem` | String | - | Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka) |
-| Skenario | `skenario` | String | - | Skenario perencanaan: ARED atau RE Base |
-| Kelompok | `kelompok` | String | - | Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi |
-| Uraian | `uraian` | String | - | Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin |
-| Satuan | `satuan` | String | - | Satuan indikator: GWh, MW, atau % |
-| 2025 s.d. 2034 | `2025_s_d_2034` | Numeric | Sesuai kolom Satuan | Nilai proyeksi per tahun (satu kolom per tahun |
+| kategori | `kategori` | string | - | Kelompok sumber energi: "Sumber Energi Tak Terbarukan", "Sumber Energi Terbarukan", atau "Total Energi Terpakai dari Sumber Energi Tak Terbarukan dan Terbarukan" |
+| sumber_energi | `sumber_energi` | string | - | Nama sumber atau jenis energi (Bahan Bakar Minyak, Batu Bara, Gas Alam, Biomassa, Bahan Bakar Nabati), atau "Total" untuk baris total |
+| tipe_baris | `tipe_baris` | string | - | Jenis baris: "item" (sumber energi), "subtotal" (total per kategori), atau "grand_total" (total keseluruhan) |
+| tahun | `tahun` | integer | Tahun | Tahun data (2023, 2024, 2025) |
+| nilai | `nilai` | integer | GigaJoule (GJ) | Nilai energi terpakai untuk produksi listrik pada sumber energi dan tahun terkait |
 
 ## Generated Pydantic model
 
@@ -29,12 +28,11 @@ from pydantic import BaseModel, Field
 
 
 class VolumePemakaianSumberEnergiSesuaiSumberEnergiDigunakanRecord(BaseModel):
-    sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
-    kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")
-    uraian: str | None = Field(default=None, alias="Uraian", description="Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin")
-    satuan: str | None = Field(default=None, alias="Satuan", description="Satuan indikator: GWh, MW, atau %")
-    2025_s_d_2034: str | None = Field(default=None, alias="2025 s.d. 2034", description="Nilai proyeksi per tahun (satu kolom per tahun")
+    kategori: str | None = Field(default=None, alias="kategori", description="Kelompok sumber energi: \"Sumber Energi Tak Terbarukan\", \"Sumber Energi Terbarukan\", atau \"Total Energi Terpakai dari Sumber Energi Tak Terbarukan dan Terbarukan\"")
+    sumber_energi: str | None = Field(default=None, alias="sumber_energi", description="Nama sumber atau jenis energi (Bahan Bakar Minyak, Batu Bara, Gas Alam, Biomassa, Bahan Bakar Nabati), atau \"Total\" untuk baris total")
+    tipe_baris: str | None = Field(default=None, alias="tipe_baris", description="Jenis baris: \"item\" (sumber energi), \"subtotal\" (total per kategori), atau \"grand_total\" (total keseluruhan)")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data (2023, 2024, 2025)")
+    nilai: int | None = Field(default=None, alias="nilai", description="Nilai energi terpakai untuk produksi listrik pada sumber energi dan tahun terkait")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

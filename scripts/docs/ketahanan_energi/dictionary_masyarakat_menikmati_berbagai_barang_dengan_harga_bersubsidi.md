@@ -15,11 +15,11 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Periode | `periode` | Text/Integer | periode kumulatif | Periode realisasi. Pada sample 2026 dan 2025, angka menunjukkan realisasi s.d. 31 Agustus pada tahun masing-masing. |
+| Jenis Barang Subsidi | `jenis_barang_subsidi` | String | - | Jenis barang atau layanan yang memperoleh subsidi |
+| Realisasi 2026 | `realisasi_2026` | Numeric | Sesuai jenis barang | Volume atau jumlah penerima/pelanggan pada 2026 |
+| Realisasi 2025 | `realisasi_2025` | Numeric | Sesuai jenis barang | Volume atau jumlah penerima/pelanggan pada 2025 |
+| Growth | `growth` | Numeric | % | Pertumbuhan realisasi 2026 dibandingkan 2025 |
 
 ## Generated Pydantic model
 
@@ -28,11 +28,11 @@ from pydantic import BaseModel, Field
 
 
 class MasyarakatMenikmatiBerbagaiBarangDenganHargaBersubsidiRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    periode: str | None = Field(default=None, alias="Periode", description="Periode realisasi. Pada sample 2026 dan 2025, angka menunjukkan realisasi s.d. 31 Agustus pada tahun masing-masing.")
+    jenis_barang_subsidi: str | None = Field(default=None, alias="Jenis Barang Subsidi", description="Jenis barang atau layanan yang memperoleh subsidi")
+    realisasi_2026: str | None = Field(default=None, alias="Realisasi 2026", description="Volume atau jumlah penerima/pelanggan pada 2026")
+    realisasi_2025: str | None = Field(default=None, alias="Realisasi 2025", description="Volume atau jumlah penerima/pelanggan pada 2025")
+    growth: str | None = Field(default=None, alias="Growth", description="Pertumbuhan realisasi 2026 dibandingkan 2025")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

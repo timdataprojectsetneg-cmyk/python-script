@@ -4,11 +4,11 @@ from pydantic import BaseModel, Field
 
 
 class Record(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun posisi data (as of Desember 2025)")
+    kategori: str | None = Field(default=None, alias="kategori", description="Kategori klasifikasi potensi panas bumi: Speculative, Hipotethical (kategori sumber daya/resources), Possible, Probable, Proven (kategori cadangan/reserves). Penulisan \"Hipotethical\" mengikuti dokumen sumber")
+    nilai: int | None = Field(default=None, alias="nilai", description="Besaran potensi panas bumi (sumber daya atau cadangan) pada kategori dan provinsi terkait")
+    satuan: str | None = Field(default=None, alias="satuan", description="Satuan nilai, yaitu MW (megawatt)")
 
+    label: str | None = Field(default=None, alias="Label", description="Deskripsi")
+    provinsi: str | None = Field(default=None, alias="provinsi", description="Nama provinsi lokasi potensi panas bumi sesuai tabel sumber (contoh: Aceh, West Java, Southeast Sulawesi)")
     model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}
-

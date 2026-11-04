@@ -15,11 +15,13 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Jenis BBM | `jenis_bbm` | Text | produk | Jenis BBM yang menjadi objek surat rekomendasi. |
+| Jenis Konsumen Pengguna | `jenis_konsumen_pengguna` | Text | kategori pengguna | Kelompok pengguna yang dapat memperoleh rekomendasi. |
+| Estimasi Kebutuhan | `estimasi_kebutuhan` | Decimal | volume sesuai satuan | Perkiraan kebutuhan BBM yang diajukan. |
+| Lokasi | `lokasi` | Text | wilayah | Lokasi pengguna atau penerbit rekomendasi. |
+| Periode | `periode` | Text | periode | Masa berlaku rekomendasi atau periode kebutuhan. |
+| Status Surat Rekomendasi | `status_surat_rekomendasi` | Text | status | Status proses atau dokumen rekomendasi. |
+| Mekanisme | `mekanisme` | Text | mekanisme | Pengelolaan rekomendasi melalui XSTAR. |
 
 ## Generated Pydantic model
 
@@ -28,11 +30,13 @@ from pydantic import BaseModel, Field
 
 
 class BphMigasPastikanKonsumenPenggunaBbmSubsidiDanKompensasiRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    jenis_bbm: str | None = Field(default=None, alias="Jenis BBM", description="Jenis BBM yang menjadi objek surat rekomendasi.")
+    jenis_konsumen_pengguna: str | None = Field(default=None, alias="Jenis Konsumen Pengguna", description="Kelompok pengguna yang dapat memperoleh rekomendasi.")
+    estimasi_kebutuhan: float | None = Field(default=None, alias="Estimasi Kebutuhan", description="Perkiraan kebutuhan BBM yang diajukan.")
+    lokasi: str | None = Field(default=None, alias="Lokasi", description="Lokasi pengguna atau penerbit rekomendasi.")
+    periode: str | None = Field(default=None, alias="Periode", description="Masa berlaku rekomendasi atau periode kebutuhan.")
+    status_surat_rekomendasi: str | None = Field(default=None, alias="Status Surat Rekomendasi", description="Status proses atau dokumen rekomendasi.")
+    mekanisme: str | None = Field(default=None, alias="Mekanisme", description="Pengelolaan rekomendasi melalui XSTAR.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

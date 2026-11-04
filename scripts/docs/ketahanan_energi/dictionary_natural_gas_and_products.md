@@ -16,10 +16,12 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| kategori | `kategori` | Categorical | - | Produksi, Ekspor, atau Pemanfaatan (pemanfaatan gas per sektor, Gambar 6) |
+| indikator | `indikator` | Text | - | Nama indikator, mis. produksi gas, ekspor gas pipa, produksi LNG domestik, ekspor LNG, atau sektor pemanfaatan |
+| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Nilai indikator. Kosong untuk sektor pemanfaatan yang hanya punya persentase |
+| satuan | `satuan` | Categorical | - | MMSCFD, TBTU |
+| pangsa_persen | `pangsa_persen` | Numeric (Decimal) | % | Porsi sektor terhadap total pemanfaatan gas (diagram donat) |
+| pertumbuhan_yoy_persen | `pertumbuhan_yoy_persen` | Numeric (Decimal) | % | Pertumbuhan dibanding tahun sebelumnya, dari teks |
 
 ## Generated Pydantic model
 
@@ -29,10 +31,12 @@ from pydantic import BaseModel, Field
 
 class NaturalGasAndProductsRecord(BaseModel):
     tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    kategori: str | None = Field(default=None, alias="kategori", description="Produksi, Ekspor, atau Pemanfaatan (pemanfaatan gas per sektor, Gambar 6)")
+    indikator: str | None = Field(default=None, alias="indikator", description="Nama indikator, mis. produksi gas, ekspor gas pipa, produksi LNG domestik, ekspor LNG, atau sektor pemanfaatan")
+    nilai: str | None = Field(default=None, alias="nilai", description="Nilai indikator. Kosong untuk sektor pemanfaatan yang hanya punya persentase")
+    satuan: str | None = Field(default=None, alias="satuan", description="MMSCFD, TBTU")
+    pangsa_persen: str | None = Field(default=None, alias="pangsa_persen", description="Porsi sektor terhadap total pemanfaatan gas (diagram donat)")
+    pertumbuhan_yoy_persen: str | None = Field(default=None, alias="pertumbuhan_yoy_persen", description="Pertumbuhan dibanding tahun sebelumnya, dari teks")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

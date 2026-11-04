@@ -15,11 +15,14 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Tahun | `tahun` | Integer | Tahun | Tahun kuota yang dianalisis |
+| Periode Realisasi | `periode_realisasi` | Kategorikal | - | Periode waktu realisasi penyaluran |
+| Jenis BBM | `jenis_bbm` | Kategorikal | - | Jenis BBM yang memiliki kuota penyaluran |
+| Jenis BBM Subsidi | `jenis_bbm_subsidi` | Kategorikal | - | Klasifikasi BBM berdasarkan JBT atau JBKP |
+| Kuota Nasional | `kuota_nasional` | Numerik | KL | Kuota penyaluran nasional untuk tahun 2026 |
+| Realisasi Penyaluran | `realisasi_penyaluran` | Numerik | KL | Realisasi penyaluran pada periode yang dilaporkan |
+| Persentase terhadap Kuota Nasional | `persentase_terhadap_kuota_nasional` | Numerik | % | Realisasi penyaluran dibandingkan kuota nasional tahunan |
+| Persentase terhadap Kuota Periode | `persentase_terhadap_kuota_periode` | Numerik | % | Realisasi penyaluran dibandingkan kuota untuk periode tersebut |
 
 ## Generated Pydantic model
 
@@ -28,11 +31,14 @@ from pydantic import BaseModel, Field
 
 
 class PenyaluranBbmTriwulanI2026TetapTerkendaliRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    tahun: int | None = Field(default=None, alias="Tahun", description="Tahun kuota yang dianalisis")
+    periode_realisasi: str | None = Field(default=None, alias="Periode Realisasi", description="Periode waktu realisasi penyaluran")
+    jenis_bbm: str | None = Field(default=None, alias="Jenis BBM", description="Jenis BBM yang memiliki kuota penyaluran")
+    jenis_bbm_subsidi: str | None = Field(default=None, alias="Jenis BBM Subsidi", description="Klasifikasi BBM berdasarkan JBT atau JBKP")
+    kuota_nasional: str | None = Field(default=None, alias="Kuota Nasional", description="Kuota penyaluran nasional untuk tahun 2026")
+    realisasi_penyaluran: str | None = Field(default=None, alias="Realisasi Penyaluran", description="Realisasi penyaluran pada periode yang dilaporkan")
+    persentase_terhadap_kuota_nasional: str | None = Field(default=None, alias="Persentase terhadap Kuota Nasional", description="Realisasi penyaluran dibandingkan kuota nasional tahunan")
+    persentase_terhadap_kuota_periode: str | None = Field(default=None, alias="Persentase terhadap Kuota Periode", description="Realisasi penyaluran dibandingkan kuota untuk periode tersebut")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

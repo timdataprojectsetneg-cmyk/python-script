@@ -15,11 +15,16 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Periode | `periode` | Waktu | Tahun | Tahun asumsi makro yang dianalisis |
+| Indikator | `indikator` | Kategorikal | - | Jenis indikator ekonomi makro |
+| APBN | `apbn` | Numerik | Sesuai indikator | Nilai yang ditetapkan dalam APBN 2026 |
+| Realisasi | `realisasi` | Numerik | Sesuai indikator | Nilai realisasi indikator pada periode yang tercantum dalam sumber |
+| Outlook | `outlook` | Numerik/Rentang | Sesuai indikator | Perkiraan atau rentang nilai indikator untuk 2026 |
+| Status Realisasi | `status_realisasi` | Kategorikal | - | Keterangan periode realisasi, misalnya eop atau ytd |
+| Harga Minyak Mentah Indonesia | `harga_minyak_mentah_indonesia` | Numerik | US$/barel | Harga minyak mentah Indonesia yang digunakan dalam asumsi makro |
+| Nilai Tukar | `nilai_tukar` | Numerik | Rp/US$ | Nilai tukar rupiah terhadap dolar AS |
+| Lifting Minyak | `lifting_minyak` | Numerik | ribu barel/hari | Realisasi dan target lifting minyak |
+| Lifting Gas | `lifting_gas` | Numerik | ribu barel setara minyak/hari | Realisasi dan target lifting gas |
 
 ## Generated Pydantic model
 
@@ -28,11 +33,16 @@ from pydantic import BaseModel, Field
 
 
 class RealisasiDanOutlookAsumsiDasarEkonomiRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    periode: str | None = Field(default=None, alias="Periode", description="Tahun asumsi makro yang dianalisis")
+    indikator: str | None = Field(default=None, alias="Indikator", description="Jenis indikator ekonomi makro")
+    apbn: str | None = Field(default=None, alias="APBN", description="Nilai yang ditetapkan dalam APBN 2026")
+    realisasi: str | None = Field(default=None, alias="Realisasi", description="Nilai realisasi indikator pada periode yang tercantum dalam sumber")
+    outlook: str | None = Field(default=None, alias="Outlook", description="Perkiraan atau rentang nilai indikator untuk 2026")
+    status_realisasi: str | None = Field(default=None, alias="Status Realisasi", description="Keterangan periode realisasi, misalnya eop atau ytd")
+    harga_minyak_mentah_indonesia: str | None = Field(default=None, alias="Harga Minyak Mentah Indonesia", description="Harga minyak mentah Indonesia yang digunakan dalam asumsi makro")
+    nilai_tukar: str | None = Field(default=None, alias="Nilai Tukar", description="Nilai tukar rupiah terhadap dolar AS")
+    lifting_minyak: str | None = Field(default=None, alias="Lifting Minyak", description="Realisasi dan target lifting minyak")
+    lifting_gas: str | None = Field(default=None, alias="Lifting Gas", description="Realisasi dan target lifting gas")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

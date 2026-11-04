@@ -15,12 +15,22 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Sistem | `sistem` | String | - | Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka) |
-| Skenario | `skenario` | String | - | Skenario perencanaan: ARED atau RE Base |
-| Kelompok | `kelompok` | String | - | Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi |
-| Uraian | `uraian` | String | - | Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin |
-| Satuan | `satuan` | String | - | Satuan indikator: GWh, MW, atau % |
-| 2025 s.d. 2034 | `2025_s_d_2034` | Numeric | Sesuai kolom Satuan | Nilai proyeksi per tahun (satu kolom per tahun |
+| Wilayah | `wilayah` | String | - | Wilayah pulau/regional: Jawa-Madura-Bali, Sumatera, Nusa Tenggara (NTB dan NTT), Kalimantan, Sulawesi, Ternate dan Tidore, Papua, atau Nasional |
+| Jenis_Bahan_Bakar | `jenis_bahan_bakar` | String | - | Bahan bakar pembangkit yang stoknya diukur: Batubara atau Gas |
+| HOP | `hop` | Numeric | Hari | Hari Operasi Pembangkit, yaitu lama pembangkit dapat beroperasi dengan stok bahan bakar yang tersedia tanpa pasokan baru |
+| Periode | `periode` | String | - | Posisi data: sampai dengan April 2026 |
+| Sumber_Pernyataan | `sumber_pernyataan` | String | - | Pihak yang menyampaikan data (Direktur Utama PLN dalam RDP Komisi XII DPR RI) |
+| Sample Data | `sample_data` | - | - | - |
+| Wilayah | `wilayah` | Jenis_Bahan_Bakar | HOP | Periode |
+| Jawa, Madura, dan Bali | `jawa_madura_dan_bali` | Batubara | 10.31 | s.d. April 2026 |
+| Sumatera | `sumatera` | Batubara | 16.23 | s.d. April 2026 |
+| Nusa Tenggara (NTB dan NTT) | `nusa_tenggara_ntb_dan_ntt` | Batubara | 14.59 | s.d. April 2026 |
+| Kalimantan | `kalimantan` | Batubara | 22.47 | s.d. April 2026 |
+| Sulawesi | `sulawesi` | Batubara | 13.12 | s.d. April 2026 |
+| Ternate dan Tidore | `ternate_dan_tidore` | Batubara | 27.28 | s.d. April 2026 |
+| Papua | `papua` | Batubara | 47.95 | s.d. April 2026 |
+| Nasional | `nasional` | Batubara | 15.9 | s.d. April 2026 |
+| Nasional | `nasional` | Gas | 12 | s.d. April 2026 |
 
 ## Generated Pydantic model
 
@@ -29,12 +39,22 @@ from pydantic import BaseModel, Field
 
 
 class PlnJagaStokBatubaraDi159HariSudahAmankanKontrakRecord(BaseModel):
-    sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
-    kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")
-    uraian: str | None = Field(default=None, alias="Uraian", description="Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin")
-    satuan: str | None = Field(default=None, alias="Satuan", description="Satuan indikator: GWh, MW, atau %")
-    2025_s_d_2034: str | None = Field(default=None, alias="2025 s.d. 2034", description="Nilai proyeksi per tahun (satu kolom per tahun")
+    wilayah: str | None = Field(default=None, alias="Wilayah", description="Wilayah pulau/regional: Jawa-Madura-Bali, Sumatera, Nusa Tenggara (NTB dan NTT), Kalimantan, Sulawesi, Ternate dan Tidore, Papua, atau Nasional")
+    jenis_bahan_bakar: str | None = Field(default=None, alias="Jenis_Bahan_Bakar", description="Bahan bakar pembangkit yang stoknya diukur: Batubara atau Gas")
+    hop: str | None = Field(default=None, alias="HOP", description="Hari Operasi Pembangkit, yaitu lama pembangkit dapat beroperasi dengan stok bahan bakar yang tersedia tanpa pasokan baru")
+    periode: str | None = Field(default=None, alias="Periode", description="Posisi data: sampai dengan April 2026")
+    sumber_pernyataan: str | None = Field(default=None, alias="Sumber_Pernyataan", description="Pihak yang menyampaikan data (Direktur Utama PLN dalam RDP Komisi XII DPR RI)")
+    sample_data: str | None = Field(default=None, alias="Sample Data")
+    wilayah: str | None = Field(default=None, alias="Wilayah", description="Periode")
+    jawa_madura_dan_bali: str | None = Field(default=None, alias="Jawa, Madura, dan Bali", description="s.d. April 2026")
+    sumatera: str | None = Field(default=None, alias="Sumatera", description="s.d. April 2026")
+    nusa_tenggara_ntb_dan_ntt: str | None = Field(default=None, alias="Nusa Tenggara (NTB dan NTT)", description="s.d. April 2026")
+    kalimantan: str | None = Field(default=None, alias="Kalimantan", description="s.d. April 2026")
+    sulawesi: str | None = Field(default=None, alias="Sulawesi", description="s.d. April 2026")
+    ternate_dan_tidore: str | None = Field(default=None, alias="Ternate dan Tidore", description="s.d. April 2026")
+    papua: str | None = Field(default=None, alias="Papua", description="s.d. April 2026")
+    nasional: str | None = Field(default=None, alias="Nasional", description="s.d. April 2026")
+    nasional: str | None = Field(default=None, alias="Nasional", description="s.d. April 2026")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

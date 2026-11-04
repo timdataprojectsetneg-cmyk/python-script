@@ -15,24 +15,27 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Periode | `periode` | Text | bulan | Periode realisasi kumulatif yang disebut dalam RDP 26 Agustus 2026. |
+| Jenis Energi | `jenis_energi` | Text | produk | Jenis energi bersubsidi atau penugasan. |
+| Kuota | `kuota` | Decimal | juta MT atau juta KL | Kuota 2026 yang dirujuk dalam bahan rapat atau APBN, bila tersedia. |
+| Realisasi s.d. Juli | `realisasi_s_d_juli` | Decimal | juta MT atau juta KL | Volume kumulatif sampai Juli 2026. |
+| Prognosa 2026 | `prognosa_2026` | Decimal | juta MT atau juta KL | Proyeksi volume sampai akhir 2026 menurut paparan rapat. |
+| Keterangan terhadap Kuota | `keterangan_terhadap_kuota` | Text | persen atau teks | Rasio atau selisih prognosa terhadap kuota bila angka kuota tersedia. |
 
 ## Generated Pydantic model
 
 ```python
+from decimal import Decimal
 from pydantic import BaseModel, Field
 
 
 class PertaminaCatat57JutaNikPembeliLpg3KgSiapRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    periode: str | None = Field(default=None, alias="Periode", description="Periode realisasi kumulatif yang disebut dalam RDP 26 Agustus 2026.")
+    jenis_energi: str | None = Field(default=None, alias="Jenis Energi", description="Jenis energi bersubsidi atau penugasan.")
+    kuota: Decimal | None = Field(default=None, alias="Kuota", description="Kuota 2026 yang dirujuk dalam bahan rapat atau APBN, bila tersedia.")
+    realisasi_s_d_juli: Decimal | None = Field(default=None, alias="Realisasi s.d. Juli", description="Volume kumulatif sampai Juli 2026.")
+    prognosa_2026: Decimal | None = Field(default=None, alias="Prognosa 2026", description="Proyeksi volume sampai akhir 2026 menurut paparan rapat.")
+    keterangan_terhadap_kuota: str | None = Field(default=None, alias="Keterangan terhadap Kuota", description="Rasio atau selisih prognosa terhadap kuota bila angka kuota tersedia.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

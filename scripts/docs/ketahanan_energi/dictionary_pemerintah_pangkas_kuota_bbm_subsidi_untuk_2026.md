@@ -15,11 +15,9 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Tahun | `tahun` | Integer | tahun | Tahun anggaran kuota. |
+| Jenis BBM | `jenis_bbm` | Text | produk | Jenis BBM JBT/JBKP. |
+| Kuota | `kuota` | Decimal | KL | Kuota penyaluran nasional yang diumumkan BPH Migas untuk 2026. |
 
 ## Generated Pydantic model
 
@@ -28,11 +26,9 @@ from pydantic import BaseModel, Field
 
 
 class PemerintahPangkasKuotaBbmSubsidiUntuk2026Record(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    tahun: int | None = Field(default=None, alias="Tahun", description="Tahun anggaran kuota.")
+    jenis_bbm: str | None = Field(default=None, alias="Jenis BBM", description="Jenis BBM JBT/JBKP.")
+    kuota: float | None = Field(default=None, alias="Kuota", description="Kuota penyaluran nasional yang diumumkan BPH Migas untuk 2026.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

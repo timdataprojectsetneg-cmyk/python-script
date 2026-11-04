@@ -16,9 +16,9 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| kelompok | `kelompok` | Categorical | - | Kelompok pengguna: Rumah Tangga, Usaha Mikro, Petani Sasaran, Nelayan Sasaran, Pengecer, atau TOTAL |
-| nilai | `nilai` | Numeric (Decimal) | Juta atau ribu | Jumlah NIK pengguna LPG 3 kg per kelompok |
-| satuan | `satuan` | Categorical | - | Juta atau ribu, sesuai baris (tidak dikonversi) |
+| kelompok | `kelompok` | String | - | Kelompok pengguna: Rumah Tangga, Usaha Mikro, Petani Sasaran, Nelayan Sasaran, Pengecer, atau TOTAL |
+| nilai | `nilai` | Float | Juta atau ribu | Jumlah NIK pengguna LPG 3 kg per kelompok |
+| satuan | `satuan` | String | - | Juta atau ribu, sesuai baris (tidak dikonversi) |
 
 ## Generated Pydantic model
 

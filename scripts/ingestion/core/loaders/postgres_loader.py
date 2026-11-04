@@ -6,6 +6,8 @@ and NiFi ``PutDatabaseRecord`` performs the load, so no DB credentials live here
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from pathlib import Path
 from typing import Any, Dict, Iterable
 import importlib
@@ -348,6 +350,10 @@ def _column_type(values: list[Any]) -> str:
         return "JSONB"
     if non_null and all(isinstance(value, int) and not isinstance(value, bool) for value in non_null):
         return "BIGINT"
+    if any(isinstance(value, Decimal) for value in non_null) and all(
+        isinstance(value, (Decimal, int)) and not isinstance(value, bool) for value in non_null
+    ):
+        return "NUMERIC"
     if non_null and all(isinstance(value, float) for value in non_null):
         return "DOUBLE PRECISION"
     if non_null and all(isinstance(value, datetime) for value in non_null):

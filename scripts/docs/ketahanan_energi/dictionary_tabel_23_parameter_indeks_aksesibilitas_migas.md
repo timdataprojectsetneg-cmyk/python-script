@@ -16,24 +16,23 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| jenis | `jenis` | Categorical | - | Kelompok: Infrastruktur, Fasilitas Pengolahan, Fasilitas Penyimpanan, atau Fasilitas Pengangkutan |
-| kapasitas | `kapasitas` | Categorical | - | Jenis kapasitas, mis. Jargas (APBN+Non-APBN) Kumulatif, Konkit Nelayan, Kilang Minyak, LPG, LNG, CNG, Gas Bumi melalui Pipa |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Nilai kapasitas per tahun; null bila tidak tersedia |
-| satuan | `satuan` | Categorical | - | Satuan per baris, mis. SR, Paket, MBCD, Juta Ton/tahun, KL, Mton, m3, mmscfd |
+| jenis | `jenis` | String | - | Kelompok: Infrastruktur, Fasilitas Pengolahan, Fasilitas Penyimpanan, atau Fasilitas Pengangkutan |
+| kapasitas | `kapasitas` | String | - | Jenis kapasitas, mis. Jargas (APBN+Non-APBN) Kumulatif, Konkit Nelayan, Kilang Minyak, LPG, LNG, CNG, Gas Bumi melalui Pipa |
+| nilai | `nilai` | String | Tergantung kolom | Nilai kapasitas per tahun; null bila tidak tersedia |
+| satuan | `satuan` | String | - | Satuan per baris, mis. SR, Paket, MBCD, Juta Ton/tahun, KL, Mton, m3, mmscfd |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class Tabel23ParameterIndeksAksesibilitasMigasRecord(BaseModel):
     tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
     jenis: str | None = Field(default=None, alias="jenis", description="Kelompok: Infrastruktur, Fasilitas Pengolahan, Fasilitas Penyimpanan, atau Fasilitas Pengangkutan")
-    kapasitas: str | None = Field(default=None, alias="kapasitas", description="Jenis kapasitas, mis. Jargas (APBN+Non-APBN) Kumulatif, Kilang Minyak, LPG, LNG")
+    kapasitas: str | None = Field(default=None, alias="kapasitas", description="Jenis kapasitas, mis. Jargas (APBN+Non-APBN) Kumulatif, Konkit Nelayan, Kilang Minyak, LPG, LNG, CNG, Gas Bumi melalui Pipa")
     nilai: str | None = Field(default=None, alias="nilai", description="Nilai kapasitas per tahun; null bila tidak tersedia")
-    satuan: str | None = Field(default=None, alias="satuan", description="Satuan per baris, mis. SR, Paket, MBCD, KL, m3")
+    satuan: str | None = Field(default=None, alias="satuan", description="Satuan per baris, mis. SR, Paket, MBCD, Juta Ton/tahun, KL, Mton, m3, mmscfd")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

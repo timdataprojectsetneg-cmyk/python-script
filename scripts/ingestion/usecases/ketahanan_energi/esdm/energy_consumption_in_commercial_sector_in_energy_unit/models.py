@@ -10,4 +10,3 @@ class Record(BaseModel):
     satuan: str | None = Field(default=None, alias="satuan", description="Thousand BOE")
 
     model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}
-

@@ -15,11 +15,12 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Periode | `periode` | Integer | Tahun | Tahun buku |
+| Aktivitas | `aktivitas` | Categorical | - | Operasi atau Investasi |
+| Komponen Arus Kas | `komponen_arus_kas` | String | - | Pos pada laporan arus kas metode langsung |
+| Jenis | `jenis` | Categorical | - | Capex, Penerimaan, atau Total |
+| Nilai | `nilai` | Numeric (Float) | Rp juta | Bertanda kurung = kas keluar |
+| Rasio | `rasio` | Numeric (Float) | - | Rumus: capex / depresiasi (sheet COGS) |
 
 ## Generated Pydantic model
 
@@ -28,11 +29,12 @@ from pydantic import BaseModel, Field
 
 
 class TabelLaporanArusKasRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku")
+    aktivitas: str | None = Field(default=None, alias="Aktivitas", description="Operasi atau Investasi")
+    komponen_arus_kas: str | None = Field(default=None, alias="Komponen Arus Kas", description="Pos pada laporan arus kas metode langsung")
+    jenis: str | None = Field(default=None, alias="Jenis", description="Capex, Penerimaan, atau Total")
+    nilai: str | None = Field(default=None, alias="Nilai", description="Bertanda kurung = kas keluar")
+    rasio: str | None = Field(default=None, alias="Rasio", description="Rumus: capex / depresiasi (sheet COGS)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

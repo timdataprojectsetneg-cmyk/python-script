@@ -15,11 +15,12 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Periode | `periode` | Text/Integer | tahun / periode kumulatif | Tahun atau periode realisasi. 2022-2025 merupakan tahunan, sedangkan 2026 adalah kumulatif s.d. 31 Agustus 2026. |
+| Realisasi Subsidi | `realisasi_subsidi` | Numeric | Rp triliun | Nilai realisasi belanja subsidi pada periode/tahun yang ditampilkan |
+| Realisasi Kompensasi | `realisasi_kompensasi` | Numeric | Rp triliun | Nilai realisasi belanja kompensasi pada periode/tahun yang ditampilkan |
+| Total Subsidi dan Kompensasi | `total_subsidi_dan_kompensasi` | Numeric | Rp triliun | Total realisasi subsidi dan kompensasi |
+| Pertumbuhan | `pertumbuhan` | Numeric | % | Pertumbuhan realisasi subsidi dan kompensasi dibandingkan periode sebelumnya |
+| Persentase terhadap APBN | `persentase_terhadap_apbn` | Numeric | % | Persentase realisasi subsidi dan kompensasi terhadap APBN |
 
 ## Generated Pydantic model
 
@@ -28,11 +29,12 @@ from pydantic import BaseModel, Field
 
 
 class RealisasiSubsidiDanKompensasiSD31Agustus2026Record(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    periode: str | None = Field(default=None, alias="Periode", description="Tahun atau periode realisasi. 2022-2025 merupakan tahunan, sedangkan 2026 adalah kumulatif s.d. 31 Agustus 2026.")
+    realisasi_subsidi: str | None = Field(default=None, alias="Realisasi Subsidi", description="Nilai realisasi belanja subsidi pada periode/tahun yang ditampilkan")
+    realisasi_kompensasi: str | None = Field(default=None, alias="Realisasi Kompensasi", description="Nilai realisasi belanja kompensasi pada periode/tahun yang ditampilkan")
+    total_subsidi_dan_kompensasi: str | None = Field(default=None, alias="Total Subsidi dan Kompensasi", description="Total realisasi subsidi dan kompensasi")
+    pertumbuhan: str | None = Field(default=None, alias="Pertumbuhan", description="Pertumbuhan realisasi subsidi dan kompensasi dibandingkan periode sebelumnya")
+    persentase_terhadap_apbn: str | None = Field(default=None, alias="Persentase terhadap APBN", description="Persentase realisasi subsidi dan kompensasi terhadap APBN")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

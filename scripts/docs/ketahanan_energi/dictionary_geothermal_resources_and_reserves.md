@@ -15,11 +15,12 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| Label | `label` | Tipe Data | Satuan | Deskripsi |
+| tahun | `tahun` | Integer | Tahun | Tahun posisi data (as of Desember 2025) |
+| kategori | `kategori` | String | - | Kategori klasifikasi potensi panas bumi: Speculative, Hipotethical (kategori sumber daya/resources), Possible, Probable, Proven (kategori cadangan/reserves). Penulisan "Hipotethical" mengikuti dokumen sumber |
+| provinsi | `provinsi` | String | - | Nama provinsi lokasi potensi panas bumi sesuai tabel sumber (contoh: Aceh, West Java, Southeast Sulawesi) |
+| nilai | `nilai` | Integer | MW | Besaran potensi panas bumi (sumber daya atau cadangan) pada kategori dan provinsi terkait |
+| satuan | `satuan` | String | - | Satuan nilai, yaitu MW (megawatt) |
 
 ## Generated Pydantic model
 
@@ -28,11 +29,12 @@ from pydantic import BaseModel, Field
 
 
 class GeothermalResourcesAndReservesRecord(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    label: str | None = Field(default=None, alias="Label", description="Deskripsi")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun posisi data (as of Desember 2025)")
+    kategori: str | None = Field(default=None, alias="kategori", description="Kategori klasifikasi potensi panas bumi: Speculative, Hipotethical (kategori sumber daya/resources), Possible, Probable, Proven (kategori cadangan/reserves). Penulisan \"Hipotethical\" mengikuti dokumen sumber")
+    provinsi: str | None = Field(default=None, alias="provinsi", description="Nama provinsi lokasi potensi panas bumi sesuai tabel sumber (contoh: Aceh, West Java, Southeast Sulawesi)")
+    nilai: int | None = Field(default=None, alias="nilai", description="Besaran potensi panas bumi (sumber daya atau cadangan) pada kategori dan provinsi terkait")
+    satuan: str | None = Field(default=None, alias="satuan", description="Satuan nilai, yaitu MW (megawatt)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

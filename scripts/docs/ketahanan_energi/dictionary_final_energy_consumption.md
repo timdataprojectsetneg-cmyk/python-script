@@ -15,14 +15,10 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Year | `year` | Integer | Tahun | Tahun/periode data pada tabel konsumsi energi final per jenis energi (2015-2025). |
-| Traditional Biomass | `traditional_biomass` | Numeric | Thousand BOE | Konsumsi energi dari biomassa tradisional. |
-| Industrial Biomass | `industrial_biomass` | Numeric | Thousand BOE | Konsumsi energi dari biomassa industri. |
-| Solar Water Heater | `solar_water_heater` | Numeric | Thousand BOE | Konsumsi energi dari pemanas air tenaga surya. Bernilai "n.a" pada 2015-2021. |
-| Direct Use of Geothermal | `direct_use_of_geothermal` | Numeric | Thousand BOE | Konsumsi energi dari pemanfaatan langsung panas bumi. Bernilai "n.a" pada 2015-2021. |
-| Coal | `coal` | Numeric | Thousand BOE | Konsumsi energi dari batu bara. Memiliki catatan 1). |
-| Natural Gas | `natural_gas` | Numeric | Thousand BOE | Konsumsi energi dari gas alam. |
-| Oil Fuel | `oil_fuel` | Numeric | Thousand BOE | Konsumsi energi dari bahan bakar minya |
+| tahun | `tahun` | Integer | - | Tahun konsumsi energi final (grafik 2019–2025) |
+| sektor | `sektor` | Categorical | - | Industry, Household, Commercial, Transportation, Others, atau Total |
+| konsumsi | `konsumsi` | Numeric (Decimal) | Million BOE | Konsumsi energi final per sektor |
+| pangsa_persen | `pangsa_persen` | Numeric (Decimal) | % | Porsi terhadap total konsumsi energi final (diagram donat) |
 
 ## Generated Pydantic model
 
@@ -31,14 +27,10 @@ from pydantic import BaseModel, Field
 
 
 class FinalEnergyConsumptionRecord(BaseModel):
-    year: int | None = Field(default=None, alias="Year", description="Tahun/periode data pada tabel konsumsi energi final per jenis energi (2015-2025).")
-    traditional_biomass: str | None = Field(default=None, alias="Traditional Biomass", description="Konsumsi energi dari biomassa tradisional.")
-    industrial_biomass: str | None = Field(default=None, alias="Industrial Biomass", description="Konsumsi energi dari biomassa industri.")
-    solar_water_heater: str | None = Field(default=None, alias="Solar Water Heater", description="Konsumsi energi dari pemanas air tenaga surya. Bernilai \"n.a\" pada 2015-2021.")
-    direct_use_of_geothermal: str | None = Field(default=None, alias="Direct Use of Geothermal", description="Konsumsi energi dari pemanfaatan langsung panas bumi. Bernilai \"n.a\" pada 2015-2021.")
-    coal: str | None = Field(default=None, alias="Coal", description="Konsumsi energi dari batu bara. Memiliki catatan 1).")
-    natural_gas: str | None = Field(default=None, alias="Natural Gas", description="Konsumsi energi dari gas alam.")
-    oil_fuel: str | None = Field(default=None, alias="Oil Fuel", description="Konsumsi energi dari bahan bakar minya")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun konsumsi energi final (grafik 2019–2025)")
+    sektor: str | None = Field(default=None, alias="sektor", description="Industry, Household, Commercial, Transportation, Others, atau Total")
+    konsumsi: str | None = Field(default=None, alias="konsumsi", description="Konsumsi energi final per sektor")
+    pangsa_persen: str | None = Field(default=None, alias="pangsa_persen", description="Porsi terhadap total konsumsi energi final (diagram donat)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

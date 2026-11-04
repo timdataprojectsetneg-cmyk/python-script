@@ -4,11 +4,10 @@ from pydantic import BaseModel, Field
 
 
 class Record(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
 
+    year: int | None = Field(default=None, alias="year", description="Tahun data konsumsi energi (2015-2025)")
+    sector: str | None = Field(default=None, alias="sector", description="Nama sektor atau baris agregat sesuai tabel sumber: Industrial, Households, Commercial, Transportation, Other, Final Energy Consumption, Non Energy Utilization")
+    category: str | None = Field(default=None, alias="category", description="Klasifikasi baris: sector (sektor pengguna akhir), total (Final Energy Consumption), non_energy (Non Energy Utilization)")
+    value: int | None = Field(default=None, alias="value", description="Nilai konsumsi energi (Thousand BOE), tidak termasuk biomassa tradisional")
+    revised: bool | None = Field(default=None, alias="revised", description="Penanda data revisi sesuai catatan 1) pada dokumen (true untuk 2020-2024, false untuk lainnya)")
     model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}
-

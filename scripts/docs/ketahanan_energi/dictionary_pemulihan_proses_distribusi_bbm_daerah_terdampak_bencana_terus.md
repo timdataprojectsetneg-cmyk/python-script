@@ -15,27 +15,24 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| Wilayah Tujuan | `wilayah_tujuan` | String | - | Wilayah yang menerima pasokan BBM. |
+| Titik Pasokan Utama | `titik_pasokan_utama` | String | - | Fuel Terminal atau terminal yang menjadi sumber pasokan sebelum terjadi gangguan. |
+| Titik Pasokan Alternatif | `titik_pasokan_alternatif` | String | - | Fuel Terminal atau titik pasokan yang digunakan sebagai alternatif ketika pasokan utama terganggu. |
+| Skema Pasokan | `skema_pasokan` | String | - | Mekanisme pasokan alternatif atau darurat yang digunakan. |
+| Kondisi Gangguan | `kondisi_gangguan` | String | - | Kondisi yang menyebabkan perubahan titik pasokan. |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class PemulihanProsesDistribusiBbmDaerahTerdampakBencanaTerusRecord(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    wilayah_tujuan: str | None = Field(default=None, alias="Wilayah Tujuan", description="Wilayah yang menerima pasokan BBM.")
+    titik_pasokan_utama: str | None = Field(default=None, alias="Titik Pasokan Utama", description="Fuel Terminal atau terminal yang menjadi sumber pasokan sebelum terjadi gangguan.")
+    titik_pasokan_alternatif: str | None = Field(default=None, alias="Titik Pasokan Alternatif", description="Fuel Terminal atau titik pasokan yang digunakan sebagai alternatif ketika pasokan utama terganggu.")
+    skema_pasokan: str | None = Field(default=None, alias="Skema Pasokan", description="Mekanisme pasokan alternatif atau darurat yang digunakan.")
+    kondisi_gangguan: str | None = Field(default=None, alias="Kondisi Gangguan", description="Kondisi yang menyebabkan perubahan titik pasokan.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

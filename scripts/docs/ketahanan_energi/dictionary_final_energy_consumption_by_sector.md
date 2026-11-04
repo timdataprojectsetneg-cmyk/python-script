@@ -15,11 +15,9 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| Year | `year` | Integer | Tahun | Tahun/periode data pada tabel konsumsi energi final per sektor. |
+| Sector | `sector` | Categorical | - | Sektor pengguna energi: Industrial, Households, Commercial, Transportation, Other, Final Energy Consumption (total), dan Non Energy Utilization. |
+| Energy Consumption | `energy_consumption` | Numeric | Belum terlihat* | Jumlah konsumsi energi pada sektor dan tahun tersebut. |
 
 ## Generated Pydantic model
 
@@ -28,11 +26,9 @@ from pydantic import BaseModel, Field
 
 
 class FinalEnergyConsumptionBySectorRecord(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    year: int | None = Field(default=None, alias="Year", description="Tahun/periode data pada tabel konsumsi energi final per sektor.")
+    sector: str | None = Field(default=None, alias="Sector", description="Sektor pengguna energi: Industrial, Households, Commercial, Transportation, Other, Final Energy Consumption (total), dan Non Energy Utilization.")
+    energy_consumption: str | None = Field(default=None, alias="Energy Consumption", description="Jumlah konsumsi energi pada sektor dan tahun tersebut.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

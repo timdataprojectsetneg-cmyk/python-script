@@ -15,12 +15,19 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Sistem | `sistem` | String | - | Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka) |
-| Skenario | `skenario` | String | - | Skenario perencanaan: ARED atau RE Base |
-| Kelompok | `kelompok` | String | - | Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi |
-| Uraian | `uraian` | String | - | Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin |
-| Satuan | `satuan` | String | - | Satuan indikator: GWh, MW, atau % |
-| 2025 s.d. 2034 | `2025_s_d_2034` | Numeric | Sesuai kolom Satuan | Nilai proyeksi per tahun (satu kolom per tahun |
+| Regional | `regional` | String | - | Kelompok regional: Sumatera dan Kalimantan, Jawa Madura dan Bali, Sulawesi Maluku Papua dan Nusa Tenggara, atau baris total (Jumlah SAIFI) |
+| Tipe_Baris | `tipe_baris` | String | - | Regional atau Nasional |
+| SAIFI_2023 | `saifi_2023` | Numeric | Kali/pelanggan | Rata-rata frekuensi pemadaman per pelanggan tahun 2023 |
+| SAIFI_2024 | `saifi_2024` | Numeric | Kali/pelanggan | Rata-rata frekuensi pemadaman per pelanggan tahun 2024 |
+| SAIFI_2025 | `saifi_2025` | Numeric | Kali/pelanggan | Rata-rata frekuensi pemadaman per pelanggan tahun 2025 |
+| Selisih_2024_2025 | `selisih_2024_2025` | Numeric | Kali/pelanggan | SAIFI_2025 dikurangi SAIFI_2024. Negatif berarti frekuensi pemadaman menurun |
+| Perubahan_Persen | `perubahan_persen` | Numeric | % | Selisih_2024_2025 dibagi SAIFI_2024. Negatif berarti membaik |
+| Sample Data | `sample_data` | - | - | - |
+| Regional | `regional` | Tipe_Baris | SAIFI_2023 | SAIFI_2024 |
+| Sumatera dan Kalimantan | `sumatera_dan_kalimantan` | Regional | 5.98 | 5.04 |
+| Jawa, Madura, dan Bali | `jawa_madura_dan_bali` | Regional | 3.08 | 2.12 |
+| Sulawesi, Maluku, Papua, dan Nusa Tenggara | `sulawesi_maluku_papua_dan_nusa_tenggara` | Regional | 6.63 | 4.87 |
+| Jumlah SAIFI | `jumlah_saifi` | Nasional | 4.27 | 3.23 |
 
 ## Generated Pydantic model
 
@@ -29,12 +36,19 @@ from pydantic import BaseModel, Field
 
 
 class TabelSaifiPerRegionalRecord(BaseModel):
-    sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
-    kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")
-    uraian: str | None = Field(default=None, alias="Uraian", description="Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin")
-    satuan: str | None = Field(default=None, alias="Satuan", description="Satuan indikator: GWh, MW, atau %")
-    2025_s_d_2034: str | None = Field(default=None, alias="2025 s.d. 2034", description="Nilai proyeksi per tahun (satu kolom per tahun")
+    regional: str | None = Field(default=None, alias="Regional", description="Kelompok regional: Sumatera dan Kalimantan, Jawa Madura dan Bali, Sulawesi Maluku Papua dan Nusa Tenggara, atau baris total (Jumlah SAIFI)")
+    tipe_baris: str | None = Field(default=None, alias="Tipe_Baris", description="Regional atau Nasional")
+    saifi_2023: str | None = Field(default=None, alias="SAIFI_2023", description="Rata-rata frekuensi pemadaman per pelanggan tahun 2023")
+    saifi_2024: str | None = Field(default=None, alias="SAIFI_2024", description="Rata-rata frekuensi pemadaman per pelanggan tahun 2024")
+    saifi_2025: str | None = Field(default=None, alias="SAIFI_2025", description="Rata-rata frekuensi pemadaman per pelanggan tahun 2025")
+    selisih_2024_2025: str | None = Field(default=None, alias="Selisih_2024_2025", description="SAIFI_2025 dikurangi SAIFI_2024. Negatif berarti frekuensi pemadaman menurun")
+    perubahan_persen: str | None = Field(default=None, alias="Perubahan_Persen", description="Selisih_2024_2025 dibagi SAIFI_2024. Negatif berarti membaik")
+    sample_data: str | None = Field(default=None, alias="Sample Data")
+    regional: str | None = Field(default=None, alias="Regional", description="SAIFI_2024")
+    sumatera_dan_kalimantan: str | None = Field(default=None, alias="Sumatera dan Kalimantan")
+    jawa_madura_dan_bali: str | None = Field(default=None, alias="Jawa, Madura, dan Bali")
+    sulawesi_maluku_papua_dan_nusa_tenggara: str | None = Field(default=None, alias="Sulawesi, Maluku, Papua, dan Nusa Tenggara")
+    jumlah_saifi: str | None = Field(default=None, alias="Jumlah SAIFI")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

@@ -4,10 +4,9 @@ from pydantic import BaseModel, Field
 
 
 class Record(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Komponen neraca batu bara: Production, Import, atau Export")
-    nilai: str | None = Field(default=None, alias="nilai", description="Volume batu bara per kategori dan tahun")
-    satuan: str | None = Field(default=None, alias="satuan", description="Ton")
 
+    year: int | None = Field(default=None, alias="Year", description="Tahun/periode data pada tabel")
+    production_steam_coal_ton: str | None = Field(default=None, alias="Production Steam Coal (Ton)", description="Jumlah produksi steam coal.")
+    export_ton: str | None = Field(default=None, alias="Export (Ton)", description="Jumlah ekspor komoditas/produk.")
+    import_ton: str | None = Field(default=None, alias="Import (Ton)", description="Jumlah impor komoditas/produk.")
     model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}
-

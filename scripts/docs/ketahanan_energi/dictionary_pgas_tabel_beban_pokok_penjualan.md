@@ -15,11 +15,10 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| uraian | `uraian` | string | - | Nama pos beban pokok penjualan (bahasa Indonesia). Ejaan mengikuti sumber, misalnya "Biaya pabrikasi lainya" dan "Realti dan properti" |
+| tipe_baris | `tipe_baris` | string | - | Jenis baris: "item" (pos biasa), "subtotal" (Bahan baku yang digunakan, Jumlah biaya produksi, Harga pokok produksi), atau "total" (Beban pokok penjualan dan pendapatan) |
+| tahun | `tahun` | integer | Tahun | Tahun laporan: 2025 (31 Desember 2025) atau 2024 (31 Desember 2024) |
+| nilai | `nilai` | integer | Rupiah juta | Nilai pos pada tahun terkait. Null jika sel di sumber kosong |
 
 ## Generated Pydantic model
 
@@ -28,11 +27,10 @@ from pydantic import BaseModel, Field
 
 
 class PgasTabelBebanPokokPenjualanRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    uraian: str | None = Field(default=None, alias="uraian", description="Nama pos beban pokok penjualan (bahasa Indonesia). Ejaan mengikuti sumber, misalnya \"Biaya pabrikasi lainya\" dan \"Realti dan properti\"")
+    tipe_baris: str | None = Field(default=None, alias="tipe_baris", description="Jenis baris: \"item\" (pos biasa), \"subtotal\" (Bahan baku yang digunakan, Jumlah biaya produksi, Harga pokok produksi), atau \"total\" (Beban pokok penjualan dan pendapatan)")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun laporan: 2025 (31 Desember 2025) atau 2024 (31 Desember 2024)")
+    nilai: int | None = Field(default=None, alias="nilai", description="Nilai pos pada tahun terkait. Null jika sel di sumber kosong")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

@@ -11,4 +11,3 @@ class Record(BaseModel):
     satuan: str | None = Field(default=None, alias="satuan", description="Satuan per baris, mis. SR, Paket, MBCD, Juta Ton/tahun, KL, Mton, m3, mmscfd")
 
     model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}
-

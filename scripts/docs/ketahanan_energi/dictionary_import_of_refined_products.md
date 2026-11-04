@@ -15,10 +15,18 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Jenis produk BBM yang diimpor, mis. Avgas, Avtur, Gasoil, Total Oil Fuel |
-| nilai | `nilai` | Numeric (Decimal) | Thousand KL | Volume impor per jenis produk dan tahun |
-| satuan | `satuan` | Categorical | - | Thousand KL |
+| Year | `year` | Integer | Tahun | Tahun/periode data |
+| Avtur | `avtur` | Numeric | Thousand KL | Volume impor Avtur per tahun |
+| Avgas | `avgas` | Numeric | Thousand KL | Volume impor Avgas per tahun |
+| Gasoline RON 88 & 90 | `gasoline_ron_88_90` | Numeric | Thousand KL | Volume impor Bensin RON 88 & 90 per tahun |
+| Gasoline RON 95 | `gasoline_ron_95` | Numeric | Thousand KL | Volume impor Bensin RON 95 per tahun |
+| Gasoline RON 92 | `gasoline_ron_92` | Numeric | Thousand KL | Volume impor Bensin RON 92 per tahun |
+| Naphtha | `naphtha` | Numeric | Thousand KL | Volume impor Naphtha per tahun |
+| HOMC | `homc` | Numeric | Thousand KL | Volume impor HOMC per tahun |
+| Gasoil | `gasoil` | Numeric | Thousand KL | Volume impor Gasoil per tahun |
+| Fuel Oil | `fuel_oil` | Numeric | Thousand KL | Volume impor Fuel Oil per tahun |
+| MDF | `mdf` | Numeric | Thousand KL | Volume impor MDF per tahun |
+| Total Oil Fuel | `total_oil_fuel` | Numeric | Thousand KL | Total impor seluruh jenis BBM per tahun |
 
 ## Generated Pydantic model
 
@@ -27,10 +35,18 @@ from pydantic import BaseModel, Field
 
 
 class ImportOfRefinedProductsRecord(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Jenis produk BBM yang diimpor, mis. Avgas, Avtur, Gasoil, Total Oil Fuel")
-    nilai: str | None = Field(default=None, alias="nilai", description="Volume impor per jenis produk dan tahun")
-    satuan: str | None = Field(default=None, alias="satuan", description="Thousand KL")
+    year: int | None = Field(default=None, alias="Year", description="Tahun/periode data")
+    avtur: str | None = Field(default=None, alias="Avtur", description="Volume impor Avtur per tahun")
+    avgas: str | None = Field(default=None, alias="Avgas", description="Volume impor Avgas per tahun")
+    gasoline_ron_88_90: str | None = Field(default=None, alias="Gasoline RON 88 & 90", description="Volume impor Bensin RON 88 & 90 per tahun")
+    gasoline_ron_95: str | None = Field(default=None, alias="Gasoline RON 95", description="Volume impor Bensin RON 95 per tahun")
+    gasoline_ron_92: str | None = Field(default=None, alias="Gasoline RON 92", description="Volume impor Bensin RON 92 per tahun")
+    naphtha: str | None = Field(default=None, alias="Naphtha", description="Volume impor Naphtha per tahun")
+    homc: str | None = Field(default=None, alias="HOMC", description="Volume impor HOMC per tahun")
+    gasoil: str | None = Field(default=None, alias="Gasoil", description="Volume impor Gasoil per tahun")
+    fuel_oil: str | None = Field(default=None, alias="Fuel Oil", description="Volume impor Fuel Oil per tahun")
+    mdf: str | None = Field(default=None, alias="MDF", description="Volume impor MDF per tahun")
+    total_oil_fuel: str | None = Field(default=None, alias="Total Oil Fuel", description="Total impor seluruh jenis BBM per tahun")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

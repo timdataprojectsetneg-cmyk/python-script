@@ -16,14 +16,13 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| jenis_cadangan | `jenis_cadangan` | Categorical | - | Jenis cadangan operasional: BBM atau LPG |
-| nilai | `nilai` | Numeric (Decimal) | hari | Cadangan operasional per jenis dan tahun |
-| satuan | `satuan` | Categorical | - | hari |
+| jenis_cadangan | `jenis_cadangan` | String | - | Jenis cadangan operasional: BBM atau LPG |
+| nilai | `nilai` | String | hari | Cadangan operasional per jenis dan tahun |
+| satuan | `satuan` | String | - | hari |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 

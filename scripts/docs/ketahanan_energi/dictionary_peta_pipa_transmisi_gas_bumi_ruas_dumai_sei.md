@@ -15,27 +15,26 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| nama_pipa | `nama_pipa` | Text | - | Nama pipa transmisi pada judul slide: Pipa Transmisi Gas Bumi Dumai–Sei Mangkei–Medan (DUSEM) |
+| titik_rute | `titik_rute` | Text (list) | - | Lokasi yang diberi label pada peta di sepanjang rute pipa |
+| panjang_pipa | `panjang_pipa` | Numeric (Decimal) | km | Panjang perkiraan pipa, tertulis dengan tanda ± pada kotak keterangan peta |
+| sumber_pasokan | `sumber_pasokan` | Text (list) | - | Sumber gas yang akan dialirkan menurut teks slide |
+| peruntukan | `peruntukan` | Text (list) | - | Kebutuhan yang dilayani menurut teks slide |
+| manfaat | `manfaat` | Text (list) | - | Manfaat pembangunan pipa yang dicantumkan slide (poin a–d) |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class PetaPipaTransmisiGasBumiRuasDumaiSeiRecord(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi pada judul slide: Pipa Transmisi Gas Bumi Dumai–Sei Mangkei–Medan (DUSEM)")
+    titik_rute: str | None = Field(default=None, alias="titik_rute", description="Lokasi yang diberi label pada peta di sepanjang rute pipa")
+    panjang_pipa: str | None = Field(default=None, alias="panjang_pipa", description="Panjang perkiraan pipa, tertulis dengan tanda ± pada kotak keterangan peta")
+    sumber_pasokan: str | None = Field(default=None, alias="sumber_pasokan", description="Sumber gas yang akan dialirkan menurut teks slide")
+    peruntukan: str | None = Field(default=None, alias="peruntukan", description="Kebutuhan yang dilayani menurut teks slide")
+    manfaat: str | None = Field(default=None, alias="manfaat", description="Manfaat pembangunan pipa yang dicantumkan slide (poin a–d)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

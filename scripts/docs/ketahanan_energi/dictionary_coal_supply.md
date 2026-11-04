@@ -15,10 +15,10 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Komponen neraca batu bara: Production, Import, atau Export |
-| nilai | `nilai` | Numeric (Decimal) | Ton | Volume batu bara per kategori dan tahun |
-| satuan | `satuan` | Categorical | - | Ton |
+| Year | `year` | Integer | Tahun | Tahun/periode data pada tabel |
+| Production Steam Coal (Ton) | `production_steam_coal_ton` | Numeric | Ton | Jumlah produksi steam coal. |
+| Export (Ton) | `export_ton` | Numeric | Ton | Jumlah ekspor komoditas/produk. |
+| Import (Ton) | `import_ton` | Numeric | Ton | Jumlah impor komoditas/produk. |
 
 ## Generated Pydantic model
 
@@ -27,10 +27,10 @@ from pydantic import BaseModel, Field
 
 
 class CoalSupplyRecord(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Komponen neraca batu bara: Production, Import, atau Export")
-    nilai: str | None = Field(default=None, alias="nilai", description="Volume batu bara per kategori dan tahun")
-    satuan: str | None = Field(default=None, alias="satuan", description="Ton")
+    year: int | None = Field(default=None, alias="Year", description="Tahun/periode data pada tabel")
+    production_steam_coal_ton: str | None = Field(default=None, alias="Production Steam Coal (Ton)", description="Jumlah produksi steam coal.")
+    export_ton: str | None = Field(default=None, alias="Export (Ton)", description="Jumlah ekspor komoditas/produk.")
+    import_ton: str | None = Field(default=None, alias="Import (Ton)", description="Jumlah impor komoditas/produk.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

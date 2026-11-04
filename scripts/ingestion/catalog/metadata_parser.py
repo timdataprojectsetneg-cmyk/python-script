@@ -417,7 +417,7 @@ PYDANTIC_TYPE_MAP = {
     "int": "int",
     "number": "float",
     "float": "float",
-    "decimal": "float",
+    "decimal": "Decimal",
     "date": "DateType",
     "datetime": "DateTimeType",
     "boolean": "bool",
@@ -470,9 +470,10 @@ def to_pydantic_source(class_name: str, schema: List[Dict[str, Any]]) -> str:
     needs_any = False
     needs_date = False
     needs_datetime = False
+    needs_decimal = False
 
     def render(name: str, fields: List[Dict[str, Any]]) -> None:
-        nonlocal needs_any, needs_date, needs_datetime
+        nonlocal needs_any, needs_date, needs_datetime, needs_decimal
         body: List[str] = []
         for field in fields:
             label = field.get("label") or "field"
@@ -489,6 +490,7 @@ def to_pydantic_source(class_name: str, schema: List[Dict[str, Any]]) -> str:
                 annotation = PYDANTIC_TYPE_MAP.get(
                     str(field.get("type") or "").strip().lower(), "str"
                 )
+                needs_decimal = needs_decimal or annotation == "Decimal"
                 needs_any = needs_any or annotation == "dict[str, Any]"
                 needs_date = needs_date or annotation == "DateType"
                 needs_datetime = needs_datetime or annotation == "DateTimeType"
@@ -496,12 +498,14 @@ def to_pydantic_source(class_name: str, schema: List[Dict[str, Any]]) -> str:
                 f"    {safe_name}: {annotation} | None = Field({_field_kwargs(field)})"
             )
         body.append("")
-        body.append('    model_config = {"populate_by_name": True, "extra": "ignore"}')
+        body.append('    model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}')
         classes.append(f"class {name}(BaseModel):\n" + "\n".join(body))
 
     render(class_name, schema)
 
     imports: List[str] = []
+    if needs_decimal:
+        imports.append("from decimal import Decimal")
     datetime_names = [
         name
         for name, flag in (("date as DateType", needs_date), ("datetime as DateTimeType", needs_datetime))

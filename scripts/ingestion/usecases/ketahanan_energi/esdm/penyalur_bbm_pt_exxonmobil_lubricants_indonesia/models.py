@@ -12,4 +12,3 @@ class Record(BaseModel):
     provinsi: str | None = Field(default=None, alias="Provinsi", description="Provinsi lokasi microsite. Null untuk baris wilayah penyaluran")
 
     model_config = {"populate_by_name": True, "extra": "ignore", "coerce_numbers_to_str": True}
-

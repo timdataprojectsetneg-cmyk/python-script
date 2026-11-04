@@ -15,27 +15,34 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tanggal_publikasi | `tanggal_publikasi` | Date | YYYY-MM-DD | Tanggal artikel terbit |
-| nama_pipa | `nama_pipa` | String | - | Nama pipa transmisi gas bumi |
-| titik_awal | `titik_awal` | String | - | Titik awal pipa (dari nama pipa) |
-| titik_akhir | `titik_akhir` | String | - | Titik akhir pipa (dari nama pipa) |
-| status_pipa | `status_pipa` | String | - | Status pembangunan sebagaimana disebut artikel |
-| sumber | `sumber` | String | - | Nama sumber dan penyampai |
+| nama_ruas | `nama_ruas` | Text | - | Nama ruas pipa pada header peta: Cirebon–Kandang Haur Timur, Pemalang–Cirebon, Batang–Pemalang |
+| panjang_ruas | `panjang_ruas` | Numeric (Decimal) | km | Panjang perkiraan ruas, tertulis dengan tanda ± di peta |
+| row_jenis | `row_jenis` | Categorical | - | Jenis jalur hak lintas (ROW) yang dilalui: Jalan Tol, Jalan Nasional, atau Pertagas. Satu ruas bisa punya lebih dari satu jenis |
+| row_keterangan | `row_keterangan` | Text | - | Rincian ROW: titik awal–akhir (mis. gate tol) atau badan usaha jalan tol (BUJT) yang terlibat |
+| fasilitas_pendukung | `fasilitas_pendukung` | Text | - | Fasilitas yang disebut pada ruas tersebut, mis. kompresor. Kosong bila tidak ada |
+| periode_data | `periode_data` | Text | - | Posisi tanggal pelaporan progres, mis. "Hingga Desember 2024" atau "24 Desember 2025" |
+| progres_realisasi | `progres_realisasi` | Numeric (Decimal) | % | Progres fisik terealisasi pada periode tersebut |
+| progres_rencana | `progres_rencana` | Numeric (Decimal) | % | Progres fisik rencana (s-curve) pada periode yang sama |
+| deviasi | `deviasi` | Numeric (Decimal) | poin persen | Kolom turunan (formula): realisasi − rencana. Positif berarti di atas rencana |
+| keterangan_status | `keterangan_status` | Text | - | Status pekerjaan yang tertulis pada teks, mis. penanaman pipa selesai dan masuk tahap precommissioning |
 
 ## Generated Pydantic model
 
 ```python
-from datetime import date
 from pydantic import BaseModel, Field
 
 
 class Gambar27PetaRuasPipaCirebonSemarangRecord(BaseModel):
-    tanggal_publikasi: date | None = Field(default=None, alias="tanggal_publikasi", description="Tanggal artikel terbit")
-    nama_pipa: str | None = Field(default=None, alias="nama_pipa", description="Nama pipa transmisi gas bumi")
-    titik_awal: str | None = Field(default=None, alias="titik_awal", description="Titik awal pipa (dari nama pipa)")
-    titik_akhir: str | None = Field(default=None, alias="titik_akhir", description="Titik akhir pipa (dari nama pipa)")
-    status_pipa: str | None = Field(default=None, alias="status_pipa", description="Status pembangunan sebagaimana disebut artikel")
-    sumber: str | None = Field(default=None, alias="sumber", description="Nama sumber dan penyampai")
+    nama_ruas: str | None = Field(default=None, alias="nama_ruas", description="Nama ruas pipa pada header peta: Cirebon–Kandang Haur Timur, Pemalang–Cirebon, Batang–Pemalang")
+    panjang_ruas: str | None = Field(default=None, alias="panjang_ruas", description="Panjang perkiraan ruas, tertulis dengan tanda ± di peta")
+    row_jenis: str | None = Field(default=None, alias="row_jenis", description="Jenis jalur hak lintas (ROW) yang dilalui: Jalan Tol, Jalan Nasional, atau Pertagas. Satu ruas bisa punya lebih dari satu jenis")
+    row_keterangan: str | None = Field(default=None, alias="row_keterangan", description="Rincian ROW: titik awal–akhir (mis. gate tol) atau badan usaha jalan tol (BUJT) yang terlibat")
+    fasilitas_pendukung: str | None = Field(default=None, alias="fasilitas_pendukung", description="Fasilitas yang disebut pada ruas tersebut, mis. kompresor. Kosong bila tidak ada")
+    periode_data: str | None = Field(default=None, alias="periode_data", description="Posisi tanggal pelaporan progres, mis. \"Hingga Desember 2024\" atau \"24 Desember 2025\"")
+    progres_realisasi: str | None = Field(default=None, alias="progres_realisasi", description="Progres fisik terealisasi pada periode tersebut")
+    progres_rencana: str | None = Field(default=None, alias="progres_rencana", description="Progres fisik rencana (s-curve) pada periode yang sama")
+    deviasi: str | None = Field(default=None, alias="deviasi", description="Kolom turunan (formula): realisasi − rencana. Positif berarti di atas rencana")
+    keterangan_status: str | None = Field(default=None, alias="keterangan_status", description="Status pekerjaan yang tertulis pada teks, mis. penanaman pipa selesai dan masuk tahap precommissioning")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

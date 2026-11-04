@@ -25,14 +25,14 @@ Tahun 2025 `
 ## Generated Pydantic model
 
 ```python
-from datetime import date
+from datetime import date as DateType
 from pydantic import BaseModel, Field
 
 
 class UnplannedShutdownPadaKegiatanUsahaHuluMigasTahun2025Record(BaseModel):
     no: int | None = Field(default=None, alias="no", description="Nomor urut baris tabel")
     nama_perusahaan: str | None = Field(default=None, alias="nama_perusahaan", description="Nama perusahaan kegiatan usaha hulu migas")
-    tanggal_kejadian: date | None = Field(default=None, alias="tanggal_kejadian", description="Tanggal kejadian unplanned shutdown")
+    tanggal_kejadian: DateType | None = Field(default=None, alias="tanggal_kejadian", description="Tanggal kejadian unplanned shutdown")
     penyebab: str | None = Field(default=None, alias="penyebab", description="Penyebab unplanned shutdown")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}

@@ -16,9 +16,9 @@
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
 | tahun | `tahun` | Integer | - | Tahun data |
-| komponen | `komponen` | Categorical | - | Kuota LPG Tabung 3 kg, Realisasi LPG Tabung 3 kg, atau Persentase Realisasi |
-| nilai | `nilai` | Numeric (Decimal) | Juta MT atau % | Kuota dan realisasi dalam Juta MT; persentase realisasi dalam % |
-| satuan | `satuan` | Categorical | - | Juta MT atau % (sesuai komponen) |
+| komponen | `komponen` | String | - | Kuota LPG Tabung 3 kg, Realisasi LPG Tabung 3 kg, atau Persentase Realisasi |
+| nilai | `nilai` | Float | Juta MT atau % | Kuota dan realisasi dalam Juta MT; persentase realisasi dalam % |
+| satuan | `satuan` | String | - | Juta MT atau % (sesuai komponen) |
 
 ## Generated Pydantic model
 

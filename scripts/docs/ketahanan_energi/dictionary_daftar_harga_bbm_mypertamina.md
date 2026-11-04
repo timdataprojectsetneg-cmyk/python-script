@@ -15,24 +15,26 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| Tanggal Berlaku | `tanggal_berlaku` | Date | tanggal | Tanggal mulai berlakunya harga. |
+| Wilayah | `wilayah` | Text | provinsi | Provinsi tempat harga berlaku. |
+| Jenis BBM | `jenis_bbm` | Text | kategori | Jenis produk BBM. |
+| Harga | `harga` | Decimal | Rp/liter | Harga jual eceran per liter. |
+| Harga Periode Sebelumnya | `harga_periode_sebelumnya` | Decimal | Rp/liter | Harga periode sebelumnya untuk membandingkan perubahan. Tidak tersedia langsung pada halaman saat ini. |
 
 ## Generated Pydantic model
 
 ```python
+from decimal import Decimal
+from datetime import date as DateType
 from pydantic import BaseModel, Field
 
 
 class DaftarHargaBbmMypertaminaRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    tanggal_berlaku: DateType | None = Field(default=None, alias="Tanggal Berlaku", description="Tanggal mulai berlakunya harga.")
+    wilayah: str | None = Field(default=None, alias="Wilayah", description="Provinsi tempat harga berlaku.")
+    jenis_bbm: str | None = Field(default=None, alias="Jenis BBM", description="Jenis produk BBM.")
+    harga: Decimal | None = Field(default=None, alias="Harga", description="Harga jual eceran per liter.")
+    harga_periode_sebelumnya: Decimal | None = Field(default=None, alias="Harga Periode Sebelumnya", description="Harga periode sebelumnya untuk membandingkan perubahan. Tidak tersedia langsung pada halaman saat ini.")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

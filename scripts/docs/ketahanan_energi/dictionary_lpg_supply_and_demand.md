@@ -15,10 +15,13 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Komponen neraca LPG, mis. Production - Gas Refinery, Production - Oil Refinery, Production - Total, Export, Import, Sales |
-| nilai | `nilai` | Numeric (Decimal) | Ton | Volume LPG per kategori dan tahun |
-| satuan | `satuan` | Categorical | - | Ton |
+| Year | `year` | Integer | Tahun | Tahun/periode data |
+| Production Gas Refinery (Ton) | `production_gas_refinery_ton` | Numeric | Ton | Produksi LPG dari kilang gas |
+| Production Oil Refinery (Ton) | `production_oil_refinery_ton` | Numeric | Ton | Produksi LPG dari kilang minyak |
+| Production Total (Ton) | `production_total_ton` | Numeric | Ton | Total produksi LPG dalam negeri |
+| Export (Ton) | `export_ton` | Numeric | Ton | Jumlah LPG yang diekspor |
+| Import (Ton) | `import_ton` | Numeric | Ton | Jumlah LPG yang diimpor |
+| Sales (Ton) | `sales_ton` | Numeric | Ton | Penjualan LPG (termasuk refrigerant) |
 
 ## Generated Pydantic model
 
@@ -27,10 +30,13 @@ from pydantic import BaseModel, Field
 
 
 class LpgSupplyAndDemandRecord(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Komponen neraca LPG, mis. Production - Gas Refinery, Production - Oil Refinery, Production - Total, Export, Import, Sales")
-    nilai: str | None = Field(default=None, alias="nilai", description="Volume LPG per kategori dan tahun")
-    satuan: str | None = Field(default=None, alias="satuan", description="Ton")
+    year: int | None = Field(default=None, alias="Year", description="Tahun/periode data")
+    production_gas_refinery_ton: str | None = Field(default=None, alias="Production Gas Refinery (Ton)", description="Produksi LPG dari kilang gas")
+    production_oil_refinery_ton: str | None = Field(default=None, alias="Production Oil Refinery (Ton)", description="Produksi LPG dari kilang minyak")
+    production_total_ton: str | None = Field(default=None, alias="Production Total (Ton)", description="Total produksi LPG dalam negeri")
+    export_ton: str | None = Field(default=None, alias="Export (Ton)", description="Jumlah LPG yang diekspor")
+    import_ton: str | None = Field(default=None, alias="Import (Ton)", description="Jumlah LPG yang diimpor")
+    sales_ton: str | None = Field(default=None, alias="Sales (Ton)", description="Penjualan LPG (termasuk refrigerant)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

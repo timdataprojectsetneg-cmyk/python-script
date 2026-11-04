@@ -15,11 +15,13 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Periode | `periode` | Integer | Tahun | Tahun buku laporan keuangan |
-| Komponen Biaya | `komponen_biaya` | String | - | Pos biaya pada cost of sales PGN |
-| Jenis Biaya | `jenis_biaya` | Categorical | - | Raw material, service, labor, depreciation, maintenance, fuel, overhead |
-| Nilai | `nilai` | Decimal | USD | Nilai komponen biaya sesuai laporan keuangan |
-| Tahun Pembanding | `tahun_pembanding` | Integer | Tahun | Tahun 2024 sebagai comparative figure |
+| aktivitas | `aktivitas` | string | - | Kelompok aktivitas arus kas: "operasi", "investasi", atau "pendanaan". Null untuk pos rekonsiliasi kas di akhir laporan (kenaikan bersih, saldo awal, efek kurs, saldo akhir) |
+| kelompok | `kelompok` | string | - | Sub-kelompok di bawah aktivitas operasi: "Penerimaan kas dari aktivitas operasi" atau "Pembayaran kas dari aktivitas operasi". Null untuk pos lain |
+| uraian | `uraian` | string | - | Nama pos arus kas (bahasa Indonesia) |
+| uraian_en | `uraian_en` | string | - | Nama pos dalam bahasa Inggris sesuai sumber |
+| tipe_baris | `tipe_baris` | string | - | Jenis baris: "item" (pos biasa) atau "total" (kas diperoleh dari operasi, jumlah arus kas bersih per aktivitas, jumlah kenaikan bersih kas, saldo kas akhir periode) |
+| tahun | `tahun` | integer | Tahun | Tahun laporan: 2025 atau 2024 |
+| nilai | `nilai` | integer | Rupiah juta | Arus kas pada tahun terkait. Negatif untuk nilai berkurung (arus keluar). Null jika sel di sumber kosong |
 
 ## Generated Pydantic model
 
@@ -28,11 +30,13 @@ from pydantic import BaseModel, Field
 
 
 class PplnTabelBebanPokokPenjualanRecord(BaseModel):
-    periode: int | None = Field(default=None, alias="Periode", description="Tahun buku laporan keuangan")
-    komponen_biaya: str | None = Field(default=None, alias="Komponen Biaya", description="Pos biaya pada cost of sales PGN")
-    jenis_biaya: str | None = Field(default=None, alias="Jenis Biaya", description="Raw material, service, labor, depreciation, maintenance, fuel, overhead")
-    nilai: float | None = Field(default=None, alias="Nilai", description="Nilai komponen biaya sesuai laporan keuangan")
-    tahun_pembanding: int | None = Field(default=None, alias="Tahun Pembanding", description="Tahun 2024 sebagai comparative figure")
+    aktivitas: str | None = Field(default=None, alias="aktivitas", description="Kelompok aktivitas arus kas: \"operasi\", \"investasi\", atau \"pendanaan\". Null untuk pos rekonsiliasi kas di akhir laporan (kenaikan bersih, saldo awal, efek kurs, saldo akhir)")
+    kelompok: str | None = Field(default=None, alias="kelompok", description="Sub-kelompok di bawah aktivitas operasi: \"Penerimaan kas dari aktivitas operasi\" atau \"Pembayaran kas dari aktivitas operasi\". Null untuk pos lain")
+    uraian: str | None = Field(default=None, alias="uraian", description="Nama pos arus kas (bahasa Indonesia)")
+    uraian_en: str | None = Field(default=None, alias="uraian_en", description="Nama pos dalam bahasa Inggris sesuai sumber")
+    tipe_baris: str | None = Field(default=None, alias="tipe_baris", description="Jenis baris: \"item\" (pos biasa) atau \"total\" (kas diperoleh dari operasi, jumlah arus kas bersih per aktivitas, jumlah kenaikan bersih kas, saldo kas akhir periode)")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun laporan: 2025 atau 2024")
+    nilai: int | None = Field(default=None, alias="nilai", description="Arus kas pada tahun terkait. Negatif untuk nilai berkurung (arus keluar). Null jika sel di sumber kosong")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

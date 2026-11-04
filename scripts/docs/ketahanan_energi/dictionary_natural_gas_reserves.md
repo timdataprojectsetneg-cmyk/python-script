@@ -15,11 +15,11 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| tahun | `tahun` | Integer | - | Tahun data |
-| kategori | `kategori` | Categorical | - | Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8) |
-| jenis_pembangkit | `jenis_pembangkit` | Categorical | - | NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total |
-| nilai | `nilai` | Numeric (Decimal) | Tergantung kolom | Kapasitas atau produksi per jenis pembangkit |
-| satuan | `satuan` | Categorical | - | GW (kapasitas), TWh (produksi) |
+| tahun (number), kategori (string), wilayah (string), nilai (number), satuan (string) | `tahun_number_kategori_string_wilayah_string_nilai_number_satuan_string` | number | - | Tahun cadangan pada wilayah |
+| kategori | `kategori` | string | - | Cadangan  (P1 + P2 + P3) |
+| wilayah | `wilayah` | string | - | Wilayah cadangan minyak bumi; pembagian wilayah tidak berdasarkan batas administratif. Baris Total untuk agregat nasional |
+| nilai | `nilai` | Numeric (Float) | MMSTB | nilai cadangan pada wilayah |
+| satuan | `satuan` | string | - | Total cadangan pada wilayah bersangkutan (P1 + P2 + P3) |
 
 ## Generated Pydantic model
 
@@ -28,11 +28,11 @@ from pydantic import BaseModel, Field
 
 
 class NaturalGasReservesRecord(BaseModel):
-    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data")
-    kategori: str | None = Field(default=None, alias="kategori", description="Kapasitas Terpasang (Gambar 7) atau Produksi Listrik (Gambar 8)")
-    jenis_pembangkit: str | None = Field(default=None, alias="jenis_pembangkit", description="NRE PP, Steam PP, Gas PP, Combined Cycle PP, Diesel PP, Gas Engine PP, atau Total")
-    nilai: str | None = Field(default=None, alias="nilai", description="Kapasitas atau produksi per jenis pembangkit")
-    satuan: str | None = Field(default=None, alias="satuan", description="GW (kapasitas), TWh (produksi)")
+    tahun_number_kategori_string_wilayah_string_nilai_number_satuan_string: float | None = Field(default=None, alias="tahun (number), kategori (string), wilayah (string), nilai (number), satuan (string)", description="Tahun cadangan pada wilayah")
+    kategori: str | None = Field(default=None, alias="kategori", description="Cadangan  (P1 + P2 + P3)")
+    wilayah: str | None = Field(default=None, alias="wilayah", description="Wilayah cadangan minyak bumi; pembagian wilayah tidak berdasarkan batas administratif. Baris Total untuk agregat nasional")
+    nilai: str | None = Field(default=None, alias="nilai", description="nilai cadangan pada wilayah")
+    satuan: str | None = Field(default=None, alias="satuan", description="Total cadangan pada wilayah bersangkutan (P1 + P2 + P3)")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```

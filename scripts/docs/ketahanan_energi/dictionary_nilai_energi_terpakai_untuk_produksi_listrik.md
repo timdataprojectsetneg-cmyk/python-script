@@ -15,12 +15,11 @@
 
 | Label | Name (column) | Tipe Data | Satuan | Deskripsi |
 |---|---|---|---|---|
-| Sistem | `sistem` | String | - | Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka) |
-| Skenario | `skenario` | String | - | Skenario perencanaan: ARED atau RE Base |
-| Kelompok | `kelompok` | String | - | Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi |
-| Uraian | `uraian` | String | - | Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin |
-| Satuan | `satuan` | String | - | Satuan indikator: GWh, MW, atau % |
-| 2025 s.d. 2034 | `2025_s_d_2034` | Numeric | Sesuai kolom Satuan | Nilai proyeksi per tahun (satu kolom per tahun |
+| jenis_pemakaian | `jenis_pemakaian` | string | - | Jenis pemakaian sendiri listrik untuk operasional: "Sentral Pembangkit (termasuk Susut Trafo Pembangkit)", "Gardu Induk", "Distribusi", atau "Total" |
+| tipe_baris | `tipe_baris` | string | - | Jenis baris: "item" (jenis pemakaian) atau "total" (total keseluruhan) |
+| satuan | `satuan` | string | - | Satuan nilai pada baris tersebut: "GWh" atau "GJ" |
+| tahun | `tahun` | integer | Tahun | Tahun data (2023, 2024, 2025) |
+| nilai | `nilai` | number | GWh atau GJ (sesuai kolom satuan) | Besar pemakaian sendiri listrik untuk operasional pada jenis pemakaian, satuan, dan tahun terkait. Desimal untuk GWh, bilangan bulat untuk GJ |
 
 ## Generated Pydantic model
 
@@ -29,12 +28,11 @@ from pydantic import BaseModel, Field
 
 
 class NilaiEnergiTerpakaiUntukProduksiListrikRecord(BaseModel):
-    sistem: str | None = Field(default=None, alias="Sistem", description="Sistem kelistrikan pada tabel sumber (contoh: Sumatera-Bangka)")
-    skenario: str | None = Field(default=None, alias="Skenario", description="Skenario perencanaan: ARED atau RE Base")
-    kelompok: str | None = Field(default=None, alias="Kelompok", description="Bagian tabel: Kebutuhan, Pasokan Eksisting, atau Rekapitulasi")
-    uraian: str | None = Field(default=None, alias="Uraian", description="Nama indikator, misalnya Beban Puncak Neto, Total Daya Mampu Neto (DMN), atau Reserve Margin")
-    satuan: str | None = Field(default=None, alias="Satuan", description="Satuan indikator: GWh, MW, atau %")
-    2025_s_d_2034: str | None = Field(default=None, alias="2025 s.d. 2034", description="Nilai proyeksi per tahun (satu kolom per tahun")
+    jenis_pemakaian: str | None = Field(default=None, alias="jenis_pemakaian", description="Jenis pemakaian sendiri listrik untuk operasional: \"Sentral Pembangkit (termasuk Susut Trafo Pembangkit)\", \"Gardu Induk\", \"Distribusi\", atau \"Total\"")
+    tipe_baris: str | None = Field(default=None, alias="tipe_baris", description="Jenis baris: \"item\" (jenis pemakaian) atau \"total\" (total keseluruhan)")
+    satuan: str | None = Field(default=None, alias="satuan", description="Satuan nilai pada baris tersebut: \"GWh\" atau \"GJ\"")
+    tahun: int | None = Field(default=None, alias="tahun", description="Tahun data (2023, 2024, 2025)")
+    nilai: float | None = Field(default=None, alias="nilai", description="Besar pemakaian sendiri listrik untuk operasional pada jenis pemakaian, satuan, dan tahun terkait. Desimal untuk GWh, bilangan bulat untuk GJ")
 
     model_config = {"populate_by_name": True, "extra": "ignore"}
 ```
